@@ -11,6 +11,7 @@ from prompt_toolkit import prompt
 
 CANCEL = object()
 
+
 @dataclass(frozen=True)
 class Provider:
     key: str
@@ -19,32 +20,46 @@ class Provider:
     key_env: str | None
     suggested_models: tuple[str, ...]
 
+
 PROVIDERS = (
-    Provider("ollama", "Ollama (Local, Privacy-First)", "llama3", None, ("llama3", "mistral", "phi3")),
-    Provider("openai", "OpenAI", "gpt-4o", "OPENAI_API_KEY", ("gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo")),
-    Provider("deepseek", "DeepSeek", "deepseek-coder", "DEEPSEEK_API_KEY", ("deepseek-coder", "deepseek-chat")),
+    Provider(
+        "ollama", "Ollama (Local, Privacy-First)", "llama3", None, ("llama3", "mistral", "phi3")
+    ),
+    Provider(
+        "openai", "OpenAI", "gpt-4o", "OPENAI_API_KEY", ("gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo")
+    ),
+    Provider(
+        "deepseek",
+        "DeepSeek",
+        "deepseek-coder",
+        "DEEPSEEK_API_KEY",
+        ("deepseek-coder", "deepseek-chat"),
+    ),
 )
+
 
 def _env_path() -> Path:
     return Path(os.getcwd()) / ".env"
+
 
 def _save_env(values: dict[str, str]) -> None:
     path = _env_path()
     lines = []
     if path.exists():
         lines = path.read_text(encoding="utf-8").splitlines()
-    
+
     env_dict = {}
     for line in lines:
         if "=" in line and not line.startswith("#"):
             k, v = line.split("=", 1)
             env_dict[k.strip()] = v.strip()
-            
+
     env_dict.update(values)
-    
+
     with path.open("w", encoding="utf-8") as f:
         for k, v in env_dict.items():
             f.write(f"{k}={v}\n")
+
 
 def _select_numeric(choices: Sequence[tuple[str, str]], console: Console) -> str | object:
     """Fallback stdin selector for simplicity."""
@@ -68,6 +83,7 @@ def _select_numeric(choices: Sequence[tuple[str, str]], console: Console) -> str
     console.print(Text("  invalid selection, try again", style="red"))
     return _select_numeric(choices, console)
 
+
 def _prompt_secret(prompt_text: str, console: Console) -> str | object:
     console.print()
     console.print(Text(f"? {prompt_text}", style="bold cyan"))
@@ -75,6 +91,7 @@ def _prompt_secret(prompt_text: str, console: Console) -> str | object:
         return prompt("> ", is_password=True).strip()
     except (EOFError, KeyboardInterrupt):
         return CANCEL
+
 
 def _prompt_text(prompt_text: str, default: str, console: Console) -> str | object:
     console.print()
@@ -86,12 +103,18 @@ def _prompt_text(prompt_text: str, default: str, console: Console) -> str | obje
     except (EOFError, KeyboardInterrupt):
         return CANCEL
 
+
 def run_onboarding() -> None:
     console = Console()
-    console.print(Panel("[bold cyan]Aletheia Interactive Setup[/bold cyan]\n[dim]Configure the default LLM provider and API tokens.[/dim]", border_style="cyan"))
+    console.print(
+        Panel(
+            "[bold cyan]Aletheia Interactive Setup[/bold cyan]\n[dim]Configure the default LLM provider and API tokens.[/dim]",
+            border_style="cyan",
+        )
+    )
 
     values: dict[str, str] = {}
-    
+
     # Step 1: Provider
     choices = [(p.key, p.label) for p in PROVIDERS]
     console.print("\n[bold cyan]? Pick an LLM Provider[/bold cyan]")
@@ -108,7 +131,7 @@ def run_onboarding() -> None:
     model_choice = _select_numeric(model_choices, console)
     if model_choice is CANCEL:
         return
-    
+
     if model_choice == "__custom__":
         custom = _prompt_text("Type the model id", provider.default_model, console)
         if custom is CANCEL:

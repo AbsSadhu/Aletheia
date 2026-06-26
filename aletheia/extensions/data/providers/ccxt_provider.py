@@ -29,5 +29,3 @@ class CCXTProvider(MarketDataProvider):
                 provider=self.name,
             )
         ]
-
-

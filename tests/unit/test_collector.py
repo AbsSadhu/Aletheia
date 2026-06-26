@@ -17,4 +17,3 @@ async def test_collector_uses_seed_provider() -> None:
 
     assert output.provider_used == "static_seed"
     assert output.quotes
-

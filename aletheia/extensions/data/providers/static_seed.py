@@ -38,5 +38,3 @@ class StaticSeedProvider(MarketDataProvider):
                 provider=self.name,
             )
         ]
-
-

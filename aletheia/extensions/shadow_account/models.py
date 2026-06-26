@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime, UTC
 from typing import List
 
+
 class TradeEntry(BaseModel):
     id: str
     symbol: str
@@ -10,12 +11,14 @@ class TradeEntry(BaseModel):
     price: float
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+
 class VirtualPosition(BaseModel):
     symbol: str
     quantity: float
     average_price: float
     current_price: float = 0.0
     unrealized_pnl: float = 0.0
+
 
 class AccountSnapshot(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))

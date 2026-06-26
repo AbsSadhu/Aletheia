@@ -25,12 +25,14 @@ def test_rust_portfolio_risk() -> None:
         ],
     )
     quotes = {
-        "RELIANCE": MarketQuote(symbol="RELIANCE", exchange="NSE", close=3000, open=2900, provider="seed"),
+        "RELIANCE": MarketQuote(
+            symbol="RELIANCE", exchange="NSE", close=3000, open=2900, provider="seed"
+        ),
         "TCS": MarketQuote(symbol="TCS", exchange="NSE", close=3900, open=3800, provider="seed"),
     }
 
     res = aletheia_rust.assess_portfolio_risk_rust(portfolio, quotes)
-    
+
     # Assert correct keys in returned dictionary
     assert "portfolio_var_95" in res
     assert "concentration_risk" in res

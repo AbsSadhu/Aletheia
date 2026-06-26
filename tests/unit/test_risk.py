@@ -25,10 +25,11 @@ def test_assess_portfolio_risk_concentrated() -> None:
         ],
     )
     quotes = {
-        "RELIANCE": MarketQuote(symbol="RELIANCE", exchange="NSE", close=3000, open=2900, provider="seed"),
+        "RELIANCE": MarketQuote(
+            symbol="RELIANCE", exchange="NSE", close=3000, open=2900, provider="seed"
+        ),
         "TCS": MarketQuote(symbol="TCS", exchange="NSE", close=3900, open=3890, provider="seed"),
     }
     output = assess_portfolio_risk(portfolio, quotes)
     assert output.max_single_position_pct > 40
     assert output.alerts
-

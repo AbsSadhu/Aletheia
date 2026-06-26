@@ -1,6 +1,7 @@
 from typing import Any, ClassVar
 from aletheia.core.tools.registry import BaseTool
 
+
 class BacktestTool(BaseTool):
     """Runs a backtest for a strategy."""
 
@@ -17,7 +18,7 @@ class BacktestTool(BaseTool):
                 "type": "array",
                 "items": {"type": "string"},
                 "description": "Symbols to test against.",
-            }
+            },
         },
         "required": ["strategy_name", "symbols"],
     }
@@ -26,5 +27,5 @@ class BacktestTool(BaseTool):
         return {
             "strategy_name": strategy_name,
             "status": "mock",
-            "message": "Backtest runner pending implementation."
+            "message": "Backtest runner pending implementation.",
         }

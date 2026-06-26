@@ -161,7 +161,12 @@ def create_agent_graph(run_service: Any) -> Any:
         )
 
         insights = run_service._build_initial_insights(
-            portfolio, collector_outputs, oracle_outputs, sentinel_output, sage_outputs, scribe_output
+            portfolio,
+            collector_outputs,
+            oracle_outputs,
+            sentinel_output,
+            sage_outputs,
+            scribe_output,
         )
         return {"scribe_output": scribe_output, "insights": insights}
 
@@ -177,7 +182,7 @@ def create_agent_graph(run_service: Any) -> Any:
 
     # Establish flow edges
     workflow.add_edge(START, "collect")
-    
+
     # Fork from collect to oracle and sentinel concurrently
     workflow.add_edge("collect", "oracle")
     workflow.add_edge("collect", "sentinel")

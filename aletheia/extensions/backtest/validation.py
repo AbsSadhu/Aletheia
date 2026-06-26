@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+
 class BacktestValidator:
     """Validates backtest data and execution to prevent common biases."""
 
@@ -18,15 +19,17 @@ class BacktestValidator:
             signal_time = signal.get("timestamp")
             if not signal_time:
                 continue
-                
+
             for row in data:
                 row_time = row.get("timestamp")
                 if not row_time:
                     continue
-                
+
                 # If a signal generated at T uses data from T+1, that's lookahead bias
                 if row_time > signal_time and signal.get("uses_data_from") == row_time:
-                    logger.error(f"Lookahead bias detected! Signal at {signal_time} uses data from {row_time}")
+                    logger.error(
+                        f"Lookahead bias detected! Signal at {signal_time} uses data from {row_time}"
+                    )
                     return True
         return False
 

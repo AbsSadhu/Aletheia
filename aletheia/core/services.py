@@ -23,7 +23,6 @@ from aletheia.core.models import (
 from aletheia.core.graph_flow import create_agent_graph
 
 
-
 class RunService:
     def __init__(
         self,
@@ -58,7 +57,7 @@ class RunService:
 
     async def record_event(self, event: AgentEvent) -> None:
         self._events.setdefault(event.run_id, []).append(event)
-        
+
         # Broadcast to active sockets
         sockets = self._active_sockets.get(event.run_id, [])
         if sockets:
@@ -109,7 +108,9 @@ class RunService:
             scribe_output = final_state.get("scribe_output")
             insight_lines = final_state.get("insights") or []
 
-            confidence_score = scribe_output.overall_confidence if scribe_output else (0.35 if outputs else 0.0)
+            confidence_score = (
+                scribe_output.overall_confidence if scribe_output else (0.35 if outputs else 0.0)
+            )
             result = RunResult(
                 summary=summary.model_copy(
                     update={
@@ -126,7 +127,7 @@ class RunService:
                 confidence_score=confidence_score,
             )
             self.sqlite_store.upsert_run(result.summary, result)
-            
+
             # Broadcast completion message to active sockets
             sockets = self._active_sockets.get(summary.run_id, [])
             for ws in list(sockets):
@@ -170,7 +171,9 @@ class RunService:
         scribe_output,
     ) -> list[str]:
         if portfolio is None:
-            return ["Run created without a portfolio. Provide holdings to activate the full engine."]
+            return [
+                "Run created without a portfolio. Provide holdings to activate the full engine."
+            ]
 
         holdings_with_quotes = sum(1 for output in outputs if output.quotes)
         insights = [
@@ -187,4 +190,3 @@ class RunService:
                 f"Scribe reports {scribe_output.agreement_level} cross-agent agreement with confidence {scribe_output.overall_confidence:.2f}."
             )
         return insights
-

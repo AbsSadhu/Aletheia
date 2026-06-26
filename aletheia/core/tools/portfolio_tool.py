@@ -1,11 +1,14 @@
 from typing import Any, ClassVar
 from aletheia.core.tools.registry import BaseTool
 
+
 class PortfolioAnalyticsTool(BaseTool):
     """Calculates portfolio analytics."""
 
     name: ClassVar[str] = "portfolio_analytics"
-    description: ClassVar[str] = "Calculate Sharpe, Sortino, max drawdown, and correlation matrix for a portfolio of symbols."
+    description: ClassVar[str] = (
+        "Calculate Sharpe, Sortino, max drawdown, and correlation matrix for a portfolio of symbols."
+    )
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
@@ -24,9 +27,5 @@ class PortfolioAnalyticsTool(BaseTool):
             "symbols": symbols,
             "status": "mock",
             "message": "Portfolio analytics computation pending.",
-            "metrics": {
-                "sharpe_ratio": 1.5,
-                "max_drawdown_pct": 15.2,
-                "correlation": {}
-            }
+            "metrics": {"sharpe_ratio": 1.5, "max_drawdown_pct": 15.2, "correlation": {}},
         }

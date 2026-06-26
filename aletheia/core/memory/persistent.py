@@ -5,6 +5,7 @@ from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
+
 class PersistentMemory:
     """File-based cross-session persistent memory for the Aletheia agent."""
 
@@ -20,15 +21,16 @@ class PersistentMemory:
         """Stores a new memory snippet."""
         if not memory_id:
             import uuid
+
             memory_id = str(uuid.uuid4())[:8]
 
         file_path = self._get_file_path(memory_type, memory_id)
-        
+
         # Write content with basic frontmatter
         data = f"---\ntype: {memory_type}\nid: {memory_id}\n---\n\n{content}\n"
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(data)
-        
+
         self._rebuild_index()
         logger.info(f"Stored {memory_type} memory: {memory_id}")
         return memory_id
@@ -60,7 +62,7 @@ class PersistentMemory:
             if file_path.name == "MEMORY.md":
                 continue
             entries.append(file_path.name)
-        
+
         with open(self.index_file, "w", encoding="utf-8") as f:
             f.write("# Memory Index\n\n")
             for entry in entries:

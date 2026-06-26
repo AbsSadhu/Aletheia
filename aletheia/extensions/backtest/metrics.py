@@ -1,6 +1,7 @@
 import numpy as np
 from typing import List
 
+
 def calculate_sharpe_ratio(returns: List[float], risk_free_rate: float = 0.0) -> float:
     if not returns:
         return 0.0
@@ -10,6 +11,7 @@ def calculate_sharpe_ratio(returns: List[float], risk_free_rate: float = 0.0) ->
     if std_dev == 0:
         return 0.0
     return float(np.mean(excess_returns) / std_dev * np.sqrt(252))
+
 
 def calculate_sortino_ratio(returns: List[float], risk_free_rate: float = 0.0) -> float:
     if not returns:
@@ -21,6 +23,7 @@ def calculate_sortino_ratio(returns: List[float], risk_free_rate: float = 0.0) -
     if downside_std == 0:
         return 0.0
     return float(np.mean(excess_returns) / downside_std * np.sqrt(252))
+
 
 def calculate_max_drawdown(equity_curve: List[float]) -> float:
     if not equity_curve:
@@ -35,15 +38,17 @@ def calculate_max_drawdown(equity_curve: List[float]) -> float:
             max_dd = dd
     return max_dd
 
+
 def calculate_win_rate(trades_pnl: List[float]) -> float:
     if not trades_pnl:
         return 0.0
     wins = sum(1 for pnl in trades_pnl if pnl > 0)
     return float(wins / len(trades_pnl))
 
+
 def calculate_profit_factor(trades_pnl: List[float]) -> float:
     gross_profit = sum(pnl for pnl in trades_pnl if pnl > 0)
     gross_loss = abs(sum(pnl for pnl in trades_pnl if pnl < 0))
     if gross_loss == 0:
-        return float('inf') if gross_profit > 0 else 0.0
+        return float("inf") if gross_profit > 0 else 0.0
     return float(gross_profit / gross_loss)

@@ -2,11 +2,14 @@ import yfinance as yf
 from typing import Any, ClassVar
 from aletheia.core.tools.registry import BaseTool
 
+
 class FundamentalDataTool(BaseTool):
     """Fetches fundamental data for a given ticker symbol."""
 
     name: ClassVar[str] = "fundamental_data"
-    description: ClassVar[str] = "Fetch fundamental financial data (P/E, EPS, Market Cap, etc.) for a given ticker symbol."
+    description: ClassVar[str] = (
+        "Fetch fundamental financial data (P/E, EPS, Market Cap, etc.) for a given ticker symbol."
+    )
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
@@ -22,7 +25,7 @@ class FundamentalDataTool(BaseTool):
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
-            
+
             return {
                 "symbol": symbol,
                 "market_cap": info.get("marketCap"),

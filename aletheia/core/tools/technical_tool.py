@@ -1,11 +1,14 @@
 from typing import Any, ClassVar
 from aletheia.core.tools.registry import BaseTool
 
+
 class TechnicalAnalysisTool(BaseTool):
     """Calculates technical indicators for a given ticker symbol."""
 
     name: ClassVar[str] = "technical_analysis"
-    description: ClassVar[str] = "Calculate technical indicators (RSI, MACD, SMA) for a given ticker symbol."
+    description: ClassVar[str] = (
+        "Calculate technical indicators (RSI, MACD, SMA) for a given ticker symbol."
+    )
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
@@ -17,7 +20,7 @@ class TechnicalAnalysisTool(BaseTool):
                 "type": "array",
                 "items": {"type": "string"},
                 "description": "List of indicators to calculate (e.g. ['RSI', 'MACD', 'SMA']). Default is all.",
-            }
+            },
         },
         "required": ["symbol"],
     }
@@ -29,9 +32,5 @@ class TechnicalAnalysisTool(BaseTool):
             "symbol": symbol,
             "status": "mock",
             "message": "Technical analysis computation module is pending implementation.",
-            "mock_data": {
-                "RSI_14": 55.2,
-                "MACD": 1.2,
-                "SMA_50": 150.0
-            }
+            "mock_data": {"RSI_14": 55.2, "MACD": 1.2, "SMA_50": 150.0},
         }

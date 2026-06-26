@@ -11,5 +11,3 @@ class MarketDataProvider(ABC):
     @abstractmethod
     async def get_quote(self, symbol: str, exchange: str) -> list[MarketQuote]:
         raise NotImplementedError
-
-

@@ -7,14 +7,19 @@ from aletheia.core.llm.prompts import ORACLE_PROMPT_TEMPLATE
 from aletheia.core.llm.parsers import OracleLLMOutput
 from aletheia.core.config.settings import get_settings
 
+
 class OracleAgent:
     def __init__(self):
         self.settings = get_settings()
         self.llm_client = OllamaClient(base_url=self.settings.ollama_base_url)
 
     async def analyze(self, holding: Holding, quote: MarketQuote) -> OracleOutput:
-        momentum_pct = ((quote.close - (quote.open or quote.close)) / max((quote.open or quote.close), 1e-6)) * 100
-        fair_value_gap_pct = ((quote.close - holding.average_price) / max(holding.average_price, 1e-6)) * 100
+        momentum_pct = (
+            (quote.close - (quote.open or quote.close)) / max((quote.open or quote.close), 1e-6)
+        ) * 100
+        fair_value_gap_pct = (
+            (quote.close - holding.average_price) / max(holding.average_price, 1e-6)
+        ) * 100
 
         signal = "HOLD"
         confidence = 0.5
@@ -26,11 +31,10 @@ class OracleAgent:
         if self.settings.default_llm_provider == "ollama":
             prompt = ORACLE_PROMPT_TEMPLATE.format(
                 holding_data=json.dumps(holding.model_dump(), default=str),
-                quote_data=json.dumps(quote.model_dump(), default=str)
+                quote_data=json.dumps(quote.model_dump(), default=str),
             )
             llm_result = await self.llm_client.generate_structured(
-                prompt=prompt, 
-                model=self.settings.default_llm_model
+                prompt=prompt, model=self.settings.default_llm_model
             )
             if llm_result and "signal" in llm_result:
                 try:
@@ -40,7 +44,7 @@ class OracleAgent:
                         signal = "HOLD"
                     confidence = parsed.confidence
                     rationale.append(f"[LLM Insights] {parsed.rationale}")
-                    
+
                     return OracleOutput(
                         symbol=holding.symbol.upper(),
                         signal=signal,

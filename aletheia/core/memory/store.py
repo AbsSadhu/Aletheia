@@ -3,6 +3,7 @@ from __future__ import annotations
 from aletheia.core.db.sqlite_store import SQLiteStore
 from aletheia.core.db.duckdb_store import DuckDBStore
 
+
 class MemoryStore:
     def __init__(self, sqlite_store: SQLiteStore, duckdb_store: DuckDBStore) -> None:
         self.sqlite_store = sqlite_store
