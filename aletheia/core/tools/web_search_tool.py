@@ -6,11 +6,14 @@ try:
 except ImportError:
     DDGS = None
 
+
 class WebSearchTool(BaseTool):
     """Searches the web for recent information."""
 
     name: ClassVar[str] = "web_search"
-    description: ClassVar[str] = "Search the web for up-to-date information, news, or general queries."
+    description: ClassVar[str] = (
+        "Search the web for up-to-date information, news, or general queries."
+    )
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
@@ -22,7 +25,7 @@ class WebSearchTool(BaseTool):
                 "type": "integer",
                 "description": "Maximum number of results to return.",
                 "default": 5,
-            }
+            },
         },
         "required": ["query"],
     }
@@ -30,7 +33,7 @@ class WebSearchTool(BaseTool):
     async def execute(self, query: str, max_results: int = 5, **kwargs) -> Any:
         if DDGS is None:
             return {"error": "duckduckgo_search package is not installed."}
-        
+
         try:
             with DDGS() as ddgs:
                 results = list(ddgs.text(query, max_results=max_results))

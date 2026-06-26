@@ -1,4 +1,11 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect, Request
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    Request,
+)
 from fastapi.responses import StreamingResponse
 
 from aletheia.core.api.dependencies import get_run_service
@@ -27,7 +34,9 @@ async def ready() -> dict[str, bool]:
 
 
 @router.post("/runs")
-async def create_run(request: RunRequest, background_tasks: BackgroundTasks, background: bool = False) -> dict:
+async def create_run(
+    request: RunRequest, background_tasks: BackgroundTasks, background: bool = False
+) -> dict:
     service = get_run_service()
     if background:
         summary = RunSummary(prompt=request.prompt, status=RunStatus.PENDING)
@@ -110,18 +119,18 @@ async def delete_portfolio(name: str) -> dict:
 async def run_events(websocket: WebSocket, run_id: str) -> None:
     await websocket.accept()
     service = get_run_service()
-    
+
     # Send all cached events
     for event in service.get_events(run_id):
         await websocket.send_json(event.model_dump(mode="json"))
-        
+
     # Check if already completed
     run = service.get_run(run_id)
     if run and run.summary.status in (RunStatus.COMPLETED, RunStatus.FAILED):
         await websocket.send_json({"run_id": run_id, "message": "stream_complete"})
         await websocket.close()
         return
-        
+
     # Register for live broadcasts
     service.register_socket(run_id, websocket)
     try:
@@ -137,15 +146,14 @@ async def run_events(websocket: WebSocket, run_id: str) -> None:
 async def chat_stream(request: Request):
     data = await request.json()
     prompt = data.get("prompt", "")
-    
+
     async def event_generator():
         llm = OllamaChatLLM()
         registry = build_registry()
         loop = ReActLoop(llm=llm, tool_registry=registry)
         context = AgentContext()
-        
+
         async for event in loop.run(prompt, context):
             yield event.to_sse()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-

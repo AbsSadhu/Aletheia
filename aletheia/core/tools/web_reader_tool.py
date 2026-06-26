@@ -1,6 +1,7 @@
 from typing import Any, ClassVar
 from aletheia.core.tools.registry import BaseTool
 
+
 class WebReaderTool(BaseTool):
     """Fetches text content from a URL."""
 
@@ -18,8 +19,4 @@ class WebReaderTool(BaseTool):
     }
 
     async def execute(self, url: str, **kwargs) -> Any:
-        return {
-            "url": url,
-            "status": "mock",
-            "text": "Simulated extracted text content from URL."
-        }
+        return {"url": url, "status": "mock", "text": "Simulated extracted text content from URL."}

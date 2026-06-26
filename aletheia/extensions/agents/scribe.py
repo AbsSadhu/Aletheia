@@ -33,10 +33,18 @@ class ScribeAgent:
             if sage and oracle.signal == "BUY" and sage.scenario.projected_post_tax_return_pct < 2:
                 action = "HOLD"
                 disagreements += 1
-                notes.append(f"{oracle.symbol}: Oracle is constructive but tax-aware scenario is muted.")
-            elif sage and oracle.signal == "REDUCE" and sage.scenario.projected_post_tax_return_pct > 6:
+                notes.append(
+                    f"{oracle.symbol}: Oracle is constructive but tax-aware scenario is muted."
+                )
+            elif (
+                sage
+                and oracle.signal == "REDUCE"
+                and sage.scenario.projected_post_tax_return_pct > 6
+            ):
                 disagreements += 1
-                notes.append(f"{oracle.symbol}: Oracle is defensive but backtest scenario remains favorable.")
+                notes.append(
+                    f"{oracle.symbol}: Oracle is defensive but backtest scenario remains favorable."
+                )
 
             explanation = oracle.rationale[0]
             target_price = None
@@ -68,28 +76,33 @@ class ScribeAgent:
 
         overall_confidence = 0.0
         if recommendations:
-            overall_confidence = sum(item.confidence for item in recommendations) / len(recommendations)
+            overall_confidence = sum(item.confidence for item in recommendations) / len(
+                recommendations
+            )
         if sentinel_output is not None:
-            overall_confidence = (overall_confidence + sentinel_output.confidence) / 2 if overall_confidence else sentinel_output.confidence
+            overall_confidence = (
+                (overall_confidence + sentinel_output.confidence) / 2
+                if overall_confidence
+                else sentinel_output.confidence
+            )
             if sentinel_output.alerts:
                 notes.extend(sentinel_output.alerts)
 
-        executive_summary = (
-            "Multi-agent review completed with India-first market data, risk context, and tax-aware scenarios."
-        )
+        executive_summary = "Multi-agent review completed with India-first market data, risk context, and tax-aware scenarios."
 
         if self.settings.default_llm_provider == "ollama":
             prompt = SCRIBE_PROMPT_TEMPLATE.format(
                 oracle_signals=json.dumps([o.model_dump() for o in oracle_outputs], default=str),
-                sentinel_risk=json.dumps(sentinel_output.model_dump() if sentinel_output else {}, default=str),
-                sage_scenarios=json.dumps([s.model_dump() for s in sage_outputs], default=str)
+                sentinel_risk=json.dumps(
+                    sentinel_output.model_dump() if sentinel_output else {}, default=str
+                ),
+                sage_scenarios=json.dumps([s.model_dump() for s in sage_outputs], default=str),
             )
-            
+
             llm_result = await self.llm_client.generate_structured(
-                prompt=prompt,
-                model=self.settings.default_llm_model
+                prompt=prompt, model=self.settings.default_llm_model
             )
-            
+
             if llm_result and "executive_summary" in llm_result:
                 try:
                     parsed = ScribeLLMOutput(**llm_result)

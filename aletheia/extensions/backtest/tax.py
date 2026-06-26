@@ -45,6 +45,3 @@ def build_tax_summary(tax_profile: TaxProfile, pre_tax_profit: float) -> TaxSumm
         estimated_tax_amount=round(estimated_tax_amount, 2),
         post_tax_profit=round(post_tax_profit, 2),
     )
-
-
-

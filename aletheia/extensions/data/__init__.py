@@ -1,2 +1,1 @@
 """Data layer for ALETHEIA."""
-

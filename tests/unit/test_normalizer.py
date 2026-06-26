@@ -8,4 +8,3 @@ def test_normalize_nse_symbol() -> None:
 
 def test_infer_crypto_asset_type() -> None:
     assert infer_asset_type("BTC/USDT") == AssetType.CRYPTO
-

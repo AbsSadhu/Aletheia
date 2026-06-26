@@ -40,8 +40,8 @@ def build_scenario(holding: Holding, quote: MarketQuote, conviction: float) -> S
     pre_tax_profit = holding.quantity * holding.average_price * (projected_return_pct / 100)
     tax_summary = build_tax_summary(holding.tax_profile, pre_tax_profit)
     projected_post_tax_return_pct = (
-        (tax_summary.post_tax_profit / max(holding.quantity * holding.average_price, 1e-6)) * 100
-    )
+        tax_summary.post_tax_profit / max(holding.quantity * holding.average_price, 1e-6)
+    ) * 100
     projected_sharpe = max(min((projected_return_pct / 12.0), 2.5), -1.0)
 
     rationale = [
@@ -61,6 +61,3 @@ def build_scenario(holding: Holding, quote: MarketQuote, conviction: float) -> S
         confidence=round(max(min(0.45 + conviction * 0.4, 0.9), 0.2), 2),
         rationale=rationale,
     )
-
-
-

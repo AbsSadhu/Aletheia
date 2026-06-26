@@ -10,12 +10,14 @@ app = typer.Typer(
 )
 console = Console()
 
+
 @app.command()
 def setup():
     """
     Run the interactive setup wizard to configure LLMs and API keys.
     """
     run_onboarding()
+
 
 @app.command()
 def analyze(
@@ -28,9 +30,10 @@ def analyze(
     console.print("[bold blue]Starting Aletheia Analysis Pipeline[/bold blue]")
     console.print(f"Target: [bold green]{symbol}[/bold green]")
     console.print(f"Provider: [yellow]{provider}[/yellow]")
-    
+
     # We will wire up the actual orchestration engine here
     console.print("\n[dim]Analysis complete. Agent orchestration to be wired.[/dim]")
+
 
 @app.command()
 def info():
@@ -40,8 +43,13 @@ def info():
     console.print("[bold cyan]Aletheia Framework v0.1.0[/bold cyan]")
     console.print("Architecture: Terminal-First / Agentic")
     console.print("\nLoaded Extensions:")
-    console.print("- Providers: [green]ccxt[/green], [green]yfinance[/green], [green]static_seed[/green]")
-    console.print("- Agents: [blue]collector[/blue], [blue]oracle[/blue], [blue]sentinel[/blue], [blue]sage[/blue], [blue]scribe[/blue]")
+    console.print(
+        "- Providers: [green]ccxt[/green], [green]yfinance[/green], [green]static_seed[/green]"
+    )
+    console.print(
+        "- Agents: [blue]collector[/blue], [blue]oracle[/blue], [blue]sentinel[/blue], [blue]sage[/blue], [blue]scribe[/blue]"
+    )
+
 
 if __name__ == "__main__":
     app()

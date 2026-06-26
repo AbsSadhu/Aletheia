@@ -1,6 +1,7 @@
 from typing import Any, ClassVar
 from aletheia.core.tools.registry import BaseTool
 
+
 class SectorPeersTool(BaseTool):
     """Finds sector peers for a given symbol."""
 
@@ -18,8 +19,4 @@ class SectorPeersTool(BaseTool):
     }
 
     async def execute(self, symbol: str, **kwargs) -> Any:
-        return {
-            "symbol": symbol,
-            "status": "mock",
-            "peers": ["MOCK_PEER_1", "MOCK_PEER_2"]
-        }
+        return {"symbol": symbol, "status": "mock", "peers": ["MOCK_PEER_1", "MOCK_PEER_2"]}

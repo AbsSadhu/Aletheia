@@ -5,7 +5,7 @@ from aletheia.core.models import Holding, MarketQuote, OracleOutput, SageOutput
 
 
 class SageAgent:
-    async def backtest(self, holding: Holding, quote: MarketQuote, oracle: OracleOutput) -> SageOutput:
+    async def backtest(
+        self, holding: Holding, quote: MarketQuote, oracle: OracleOutput
+    ) -> SageOutput:
         return build_scenario(holding, quote, oracle.confidence)
-
-

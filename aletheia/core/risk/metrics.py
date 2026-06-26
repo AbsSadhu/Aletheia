@@ -8,7 +8,9 @@ except ImportError:
     aletheia_rust = None
 
 
-def portfolio_market_values(portfolio: Portfolio, quotes_by_symbol: dict[str, MarketQuote]) -> dict[str, float]:
+def portfolio_market_values(
+    portfolio: Portfolio, quotes_by_symbol: dict[str, MarketQuote]
+) -> dict[str, float]:
     values: dict[str, float] = {}
     for holding in portfolio.holdings:
         quote = quotes_by_symbol.get(holding.symbol.upper())
@@ -18,7 +20,9 @@ def portfolio_market_values(portfolio: Portfolio, quotes_by_symbol: dict[str, Ma
     return values
 
 
-def assess_portfolio_risk(portfolio: Portfolio, quotes_by_symbol: dict[str, MarketQuote]) -> SentinelOutput:
+def assess_portfolio_risk(
+    portfolio: Portfolio, quotes_by_symbol: dict[str, MarketQuote]
+) -> SentinelOutput:
     if aletheia_rust is not None:
         try:
             res = aletheia_rust.assess_portfolio_risk_rust(portfolio, quotes_by_symbol)
@@ -72,6 +76,3 @@ def assess_portfolio_risk(portfolio: Portfolio, quotes_by_symbol: dict[str, Mark
         confidence=confidence,
         alerts=alerts,
     )
-
-
-

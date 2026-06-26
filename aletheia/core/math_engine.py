@@ -8,9 +8,12 @@ try:
         monte_carlo_var_rust,
         calculate_technical_indicators_rust,
     )
+
     RUST_AVAILABLE = True
 except ImportError as e:
-    logger.warning(f"Failed to import aletheia_rust: {e}. Falling back to Python implementations (if available).")
+    logger.warning(
+        f"Failed to import aletheia_rust: {e}. Falling back to Python implementations (if available)."
+    )
     RUST_AVAILABLE = False
 
 
@@ -24,7 +27,9 @@ class MathEngine:
         raise NotImplementedError("Rust module not available")
 
     @staticmethod
-    def options_pricing(s: float, k: float, t: float, r: float, v: float, is_call: bool = True) -> dict:
+    def options_pricing(
+        s: float, k: float, t: float, r: float, v: float, is_call: bool = True
+    ) -> dict:
         """
         Black-Scholes options pricing via Rust.
         s: Spot price
@@ -38,7 +43,9 @@ class MathEngine:
         raise NotImplementedError("Rust module not available")
 
     @staticmethod
-    def monte_carlo_var(portfolio_value: float, daily_vol: float, simulations: int = 10000, confidence: float = 0.95) -> dict:
+    def monte_carlo_var(
+        portfolio_value: float, daily_vol: float, simulations: int = 10000, confidence: float = 0.95
+    ) -> dict:
         if RUST_AVAILABLE:
             return monte_carlo_var_rust(portfolio_value, daily_vol, simulations, confidence)
         raise NotImplementedError("Rust module not available")

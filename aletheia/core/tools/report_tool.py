@@ -1,6 +1,7 @@
 from typing import Any, ClassVar
 from aletheia.core.tools.registry import BaseTool
 
+
 class ReportTool(BaseTool):
     """Generates analytical reports."""
 
@@ -18,7 +19,7 @@ class ReportTool(BaseTool):
             "content_summary": {
                 "type": "string",
                 "description": "Summary of what to include in the report.",
-            }
+            },
         },
         "required": ["format", "content_summary"],
     }
@@ -27,5 +28,5 @@ class ReportTool(BaseTool):
         return {
             "format": format,
             "status": "mock",
-            "message": "Report generation system pending implementation."
+            "message": "Report generation system pending implementation.",
         }

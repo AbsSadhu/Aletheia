@@ -1,6 +1,7 @@
 import json
 from typing import Any, Dict
 
+
 class StreamEvent:
     def __init__(self, event_type: str, data: Dict[str, Any]):
         self.event_type = event_type
@@ -9,9 +10,10 @@ class StreamEvent:
     def to_sse(self) -> str:
         return f"event: {self.event_type}\ndata: {json.dumps(self.data)}\n\n"
 
+
 class AgentStreamer:
     """Helper to yield SSE events during the ReAct loop."""
-    
+
     def __init__(self):
         self.queue = []
 

@@ -1,11 +1,14 @@
 from typing import Any, ClassVar
 from aletheia.core.tools.registry import BaseTool
 
+
 class HypothesisTool(BaseTool):
     """Proposes, tracks, or validates a research hypothesis."""
 
     name: ClassVar[str] = "hypothesis"
-    description: ClassVar[str] = "Propose, track, or validate a research hypothesis for backtesting."
+    description: ClassVar[str] = (
+        "Propose, track, or validate a research hypothesis for backtesting."
+    )
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
@@ -21,7 +24,7 @@ class HypothesisTool(BaseTool):
             "description": {
                 "type": "string",
                 "description": "Detailed description of the hypothesis.",
-            }
+            },
         },
         "required": ["action"],
     }
@@ -30,5 +33,5 @@ class HypothesisTool(BaseTool):
         return {
             "action": action,
             "status": "mock",
-            "message": "Hypothesis tracking system pending implementation."
+            "message": "Hypothesis tracking system pending implementation.",
         }

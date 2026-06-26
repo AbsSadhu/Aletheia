@@ -26,5 +26,3 @@ def normalize_holding(holding: Holding) -> Holding:
             "asset_type": infer_asset_type(normalized_symbol),
         }
     )
-
-

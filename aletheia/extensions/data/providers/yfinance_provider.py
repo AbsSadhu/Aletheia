@@ -37,5 +37,3 @@ class YFinanceProvider(MarketDataProvider):
                 provider=self.name,
             )
         ]
-
-

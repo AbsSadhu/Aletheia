@@ -37,5 +37,3 @@ class CollectorAgent:
             warnings=warnings or ["No provider could return quote data"],
             provenance=provenance,
         )
-
-

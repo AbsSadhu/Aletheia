@@ -113,6 +113,7 @@ class SQLiteStore:
 
     def save_portfolio(self, portfolio: Portfolio) -> None:
         import datetime
+
         now = datetime.datetime.now(datetime.UTC).isoformat()
         holdings_data = [h.model_dump() for h in portfolio.holdings]
         with self.connect() as conn:
@@ -167,5 +168,3 @@ class SQLiteStore:
         with self.connect() as conn:
             cursor = conn.execute("DELETE FROM portfolios WHERE name = ?", (name,))
             return cursor.rowcount > 0
-
-

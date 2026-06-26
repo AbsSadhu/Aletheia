@@ -6,6 +6,7 @@ try:
 except ImportError:
     DDGS = None
 
+
 class NewsSearchTool(BaseTool):
     """Searches for recent news."""
 
@@ -22,7 +23,7 @@ class NewsSearchTool(BaseTool):
                 "type": "integer",
                 "description": "Maximum number of news results to return.",
                 "default": 5,
-            }
+            },
         },
         "required": ["query"],
     }
@@ -30,7 +31,7 @@ class NewsSearchTool(BaseTool):
     async def execute(self, query: str, max_results: int = 5, **kwargs) -> Any:
         if DDGS is None:
             return {"error": "duckduckgo_search package is not installed."}
-        
+
         try:
             with DDGS() as ddgs:
                 results = list(ddgs.news(query, max_results=max_results))

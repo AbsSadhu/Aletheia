@@ -2,6 +2,7 @@ from datetime import datetime, UTC
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
+
 class Order(BaseModel):
     id: str
     symbol: str
@@ -14,12 +15,14 @@ class Order(BaseModel):
     filled_at: Optional[datetime] = None
     filled_price: Optional[float] = None
 
+
 class Position(BaseModel):
     symbol: str
     quantity: float
     average_entry_price: float
     current_price: float
     unrealized_pnl: float = 0.0
+
 
 class BacktestResult(BaseModel):
     strategy_name: str

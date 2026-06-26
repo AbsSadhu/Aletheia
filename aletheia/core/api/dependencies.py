@@ -52,4 +52,3 @@ def get_run_service() -> RunService:
         get_sqlite_store(),
         get_duckdb_store(),
     )
-

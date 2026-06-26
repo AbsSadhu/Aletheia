@@ -41,6 +41,7 @@ class Settings(BaseSettings):
             path.mkdir(parents=True, exist_ok=True)
 
         import os
+
         if self.langsmith_tracing:
             os.environ["LANGCHAIN_TRACING_V2"] = "true"
             if self.langsmith_api_key:
@@ -57,4 +58,3 @@ def get_settings() -> Settings:
     settings = Settings()
     settings.ensure_directories()
     return settings
-
