@@ -1,6 +1,4 @@
-import json
-from typing import Any, Dict
-from pydantic import Field
+from typing import Any
 from aletheia.core.tools.registry import BaseTool
 from aletheia.core.memory.persistent import PersistentMemory
 

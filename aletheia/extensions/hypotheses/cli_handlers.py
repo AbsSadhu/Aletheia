@@ -1,4 +1,3 @@
-import argparse
 from aletheia.extensions.hypotheses.registry import HypothesisRegistry
 from aletheia.extensions.hypotheses.models import Evidence
 

@@ -1,5 +1,4 @@
 from __future__ import annotations
-import json
 
 from aletheia.core.db.sqlite_store import SQLiteStore
 from aletheia.core.db.duckdb_store import DuckDBStore

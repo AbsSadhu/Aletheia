@@ -7,9 +7,6 @@ try:
         options_pricing_rust,
         monte_carlo_var_rust,
         calculate_technical_indicators_rust,
-        assess_portfolio_risk_rust,
-        build_tax_summary_rust,
-        build_scenario_rust
     )
     RUST_AVAILABLE = True
 except ImportError as e:

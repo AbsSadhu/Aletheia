@@ -7,7 +7,6 @@ from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
 
-import prompt_toolkit
 from prompt_toolkit import prompt
 
 CANCEL = object()
@@ -56,8 +55,10 @@ def _select_numeric(choices: Sequence[tuple[str, str]], console: Console) -> str
         raw = prompt("> ").strip().lower()
     except (EOFError, KeyboardInterrupt):
         return CANCEL
-    if raw in {"q", "quit", "cancel"}: return CANCEL
-    if not raw: return choices[0][0]
+    if raw in {"q", "quit", "cancel"}:
+        return CANCEL
+    if not raw:
+        return choices[0][0]
     try:
         idx = int(raw)
         if 1 <= idx <= len(choices):
@@ -95,7 +96,8 @@ def run_onboarding() -> None:
     choices = [(p.key, p.label) for p in PROVIDERS]
     console.print("\n[bold cyan]? Pick an LLM Provider[/bold cyan]")
     provider_key = _select_numeric(choices, console)
-    if provider_key is CANCEL: return
+    if provider_key is CANCEL:
+        return
     provider = next(p for p in PROVIDERS if p.key == provider_key)
     values["ALETHEIA_LLM_PROVIDER"] = provider.key
 
@@ -104,11 +106,13 @@ def run_onboarding() -> None:
     model_choices.append(("__custom__", "Other (type custom model)"))
     console.print("\n[bold cyan]? Pick a Model[/bold cyan]")
     model_choice = _select_numeric(model_choices, console)
-    if model_choice is CANCEL: return
+    if model_choice is CANCEL:
+        return
     
     if model_choice == "__custom__":
         custom = _prompt_text("Type the model id", provider.default_model, console)
-        if custom is CANCEL: return
+        if custom is CANCEL:
+            return
         model = str(custom)
     else:
         model = str(model_choice)
@@ -117,11 +121,12 @@ def run_onboarding() -> None:
     # Step 3: Key
     if provider.key_env is not None:
         key = _prompt_secret(f"Paste your {provider.label} API key", console)
-        if key is CANCEL: return
+        if key is CANCEL:
+            return
         values[provider.key_env] = str(key)
     else:
         console.print("\n[bold green]  Ollama runs locally — no API key needed.[/bold green]")
 
     _save_env(values)
-    console.print(f"\n[bold green]✓ Configuration saved to .env[/bold green]")
+    console.print("\n[bold green]✓ Configuration saved to .env[/bold green]")
     console.print("[dim]You are ready to run analysis via `aletheia analyze`[/dim]")

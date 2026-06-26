@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aletheia.core.models import Holding, MarketQuote, Portfolio, SentinelOutput
+from aletheia.core.models import MarketQuote, Portfolio, SentinelOutput
 
 try:
     import aletheia_rust

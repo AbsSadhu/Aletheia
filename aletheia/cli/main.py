@@ -25,7 +25,7 @@ def analyze(
     """
     Run an agentic analysis pipeline on a given symbol.
     """
-    console.print(f"[bold blue]Starting Aletheia Analysis Pipeline[/bold blue]")
+    console.print("[bold blue]Starting Aletheia Analysis Pipeline[/bold blue]")
     console.print(f"Target: [bold green]{symbol}[/bold green]")
     console.print(f"Provider: [yellow]{provider}[/yellow]")
     
