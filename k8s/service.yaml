@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aletheia-service
+  labels:
+    app: aletheia
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8899
+    protocol: TCP
+  selector:
+    app: aletheia
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aletheia-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
