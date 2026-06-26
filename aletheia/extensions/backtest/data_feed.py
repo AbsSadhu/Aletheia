@@ -91,6 +91,15 @@ class HistoricalDataFeed:
         """
         symbol = symbol.upper()
 
+        if symbol.startswith("LOCAL:") or self._is_local_symbol(symbol):
+            logger.info("HistoricalDataFeed: using local data for %s", symbol)
+            if not self._has_data(symbol, start, end):
+                clean_sym = symbol.replace("LOCAL:", "")
+                if self._has_data(clean_sym, start, end):
+                    return 0
+                logger.warning("HistoricalDataFeed: no local data found in DuckDB for %s (%s → %s)", symbol, start, end)
+            return 0
+
         if not force_refresh and self._has_data(symbol, start, end):
             logger.info("HistoricalDataFeed: cache hit for %s (%s → %s)", symbol, start, end)
             return 0
@@ -161,15 +170,21 @@ class HistoricalDataFeed:
         Includes lookahead-bias guard: timestamps are strictly sequential.
         """
         symbol = symbol.upper()
+        search_symbols = [symbol]
+        if symbol.startswith("LOCAL:"):
+            search_symbols.append(symbol.replace("LOCAL:", ""))
+        else:
+            search_symbols.append(f"LOCAL:{symbol}")
+
         with self._conn() as conn:
             rows = conn.execute(
                 """
                 SELECT symbol, date, open, high, low, close, volume, provider
                 FROM historical_candles
-                WHERE symbol = ? AND date >= ? AND date <= ?
+                WHERE symbol IN (?, ?) AND date >= ? AND date <= ?
                 ORDER BY date ASC
                 """,
-                (symbol, start, end),
+                (search_symbols[0], search_symbols[1], start, end),
             ).fetchall()
 
         candles = [
@@ -220,12 +235,34 @@ class HistoricalDataFeed:
 
     def _has_data(self, symbol: str, start: str, end: str) -> bool:
         """Check if we already have data for this symbol+range (rough check)."""
+        symbol = symbol.upper()
+        search_symbols = [symbol]
+        if symbol.startswith("LOCAL:"):
+            search_symbols.append(symbol.replace("LOCAL:", ""))
+        else:
+            search_symbols.append(f"LOCAL:{symbol}")
+
         with self._conn() as conn:
             count = conn.execute(
-                "SELECT COUNT(*) FROM historical_candles WHERE symbol = ? AND date >= ? AND date <= ?",
-                (symbol, start, end),
+                "SELECT COUNT(*) FROM historical_candles WHERE symbol IN (?, ?) AND date >= ? AND date <= ?",
+                (search_symbols[0], search_symbols[1], start, end),
             ).fetchone()[0]
         return count > 5  # Require at least a week of data
+
+    def _is_local_symbol(self, symbol: str) -> bool:
+        """Check if this symbol was imported locally."""
+        symbol = symbol.upper()
+        if symbol.startswith("LOCAL:"):
+            symbol = symbol.replace("LOCAL:", "")
+        try:
+            with self._conn() as conn:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM historical_candles WHERE symbol = ? AND provider = 'local'",
+                    (symbol,),
+                ).fetchone()
+                return row[0] > 0 if row else False
+        except Exception:
+            return False
 
 
 def _assert_no_lookahead(candles: list[OHLCV]) -> None:
