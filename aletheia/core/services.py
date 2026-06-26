@@ -128,7 +128,22 @@ class RunService:
             )
             self.sqlite_store.upsert_run(result.summary, result)
 
+            # Auto-ingest into episodic memory for future recall
+            try:
+                from aletheia.core.memory.episodic import EpisodicMemory
+                from aletheia.core.config.settings import get_settings
+                import os
+                settings = get_settings()
+                mem_dir = os.path.expanduser(settings.memory_dir)
+                episodic = EpisodicMemory(db_path=os.path.join(mem_dir, "episodic.db"))
+                episodic.ingest_run_result(result)
+            except Exception as mem_exc:
+                # Memory ingest failure must never break a run
+                import logging
+                logging.getLogger(__name__).warning("Episodic memory ingest failed: %s", mem_exc)
+
             # Broadcast completion message to active sockets
+
             sockets = self._active_sockets.get(summary.run_id, [])
             for ws in list(sockets):
                 try:

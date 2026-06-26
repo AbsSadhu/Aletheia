@@ -22,16 +22,34 @@ class Settings(BaseSettings):
     data_dir: Path = Field(default=Path("./data"))
     reports_dir: Path = Field(default=Path("./data/reports"))
     exports_dir: Path = Field(default=Path("./data/exports"))
+    memory_dir: str = "~/.aletheia/memory"
+
+    # --- LLM Configuration ---
     ollama_base_url: str = "http://127.0.0.1:11434"
     default_llm_provider: str = "ollama"
     default_llm_model: str = "mistral:7b"
+    # Ordered priority list: first available provider wins
+    llm_provider_priority: list[str] = Field(default_factory=lambda: ["ollama", "openai", "anthropic"])
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
+    anthropic_api_key: str | None = None
+    anthropic_model: str = "claude-haiku-4-5"
     enable_cloud_llm_fallback: bool = False
+    llm_max_retries: int = 2
+    llm_retry_delay_secs: float = 1.0
+
+    # --- Rust Compute Engine Sidecar ---
+    compute_engine_url: str = "http://127.0.0.1:18899"
+    compute_engine_enabled: bool = False  # Set True when aletheia-engine binary is running
+
     enable_audit_logs: bool = True
     enable_desktop_bridge: bool = True
     yfinance_enabled: bool = True
     ccxt_enabled: bool = True
     nse_enabled: bool = True
     rbi_enabled: bool = True
+
+    # --- Observability ---
     langsmith_tracing: bool = False
     langsmith_api_key: str | None = None
     langsmith_project: str = "aletheia"

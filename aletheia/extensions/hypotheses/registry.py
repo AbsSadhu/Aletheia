@@ -2,12 +2,20 @@ import sqlite3
 import json
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import List, Optional
-from datetime import datetime
 
 from aletheia.extensions.hypotheses.models import Hypothesis, Evidence
 
 logger = logging.getLogger(__name__)
+
+# Valid state machine transitions
+_VALID_TRANSITIONS: dict[str, set[str]] = {
+    "proposed":  {"testing", "rejected"},
+    "testing":   {"validated", "rejected", "proposed"},
+    "validated": {"rejected"},
+    "rejected":  {"proposed"},
+}
 
 
 class HypothesisRegistry:
@@ -17,20 +25,26 @@ class HypothesisRegistry:
         self.db_path = db_path
         self._init_db()
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS hypotheses (
-                    id TEXT PRIMARY KEY,
-                    title TEXT,
-                    description TEXT,
-                    status TEXT,
+                    id           TEXT PRIMARY KEY,
+                    title        TEXT,
+                    description  TEXT,
+                    status       TEXT,
                     test_criteria TEXT,
-                    evidence TEXT,
-                    created_at TIMESTAMP,
-                    updated_at TIMESTAMP
+                    evidence     TEXT,
+                    backtest_run_id TEXT DEFAULT NULL,
+                    created_at   TIMESTAMP,
+                    updated_at   TIMESTAMP
                 )
             """)
+            # Migration: add backtest_run_id column if missing
+            try:
+                conn.execute("ALTER TABLE hypotheses ADD COLUMN backtest_run_id TEXT DEFAULT NULL")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
             conn.commit()
 
     def propose(self, title: str, description: str, test_criteria: str) -> Hypothesis:
@@ -112,3 +126,56 @@ class HypothesisRegistry:
                     )
                 )
             return results
+
+    def transition(self, hypo_id: str, new_status: str) -> Hypothesis:
+        """
+        Transition a hypothesis to a new status.
+        Raises ValueError for invalid transitions or missing hypothesis.
+        """
+        hypo = self.get(hypo_id)
+        if hypo is None:
+            raise ValueError(f"Hypothesis '{hypo_id}' not found")
+
+        allowed = _VALID_TRANSITIONS.get(hypo.status, set())
+        if new_status not in allowed:
+            raise ValueError(
+                f"Invalid transition: '{hypo.status}' → '{new_status}'. "
+                f"Allowed: {allowed or {'none'}}"
+            )
+
+        hypo.status = new_status
+        hypo.updated_at = datetime.now(UTC)
+        self.save(hypo)
+        logger.info("Hypothesis %s transitioned to '%s'", hypo_id, new_status)
+        return hypo
+
+    def link_to_backtest(self, hypo_id: str, backtest_run_id: str) -> Hypothesis:
+        """Link a hypothesis to a backtest run for validation tracking."""
+        hypo = self.get(hypo_id)
+        if hypo is None:
+            raise ValueError(f"Hypothesis '{hypo_id}' not found")
+
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "UPDATE hypotheses SET backtest_run_id = ?, updated_at = ? WHERE id = ?",
+                (backtest_run_id, datetime.now(UTC).isoformat(), hypo_id),
+            )
+            conn.commit()
+
+        logger.info("Hypothesis %s linked to backtest %s", hypo_id, backtest_run_id)
+        return self.get(hypo_id)  # type: ignore[return-value]
+
+    def add_evidence(self, hypo_id: str, source: str, summary: str, supports: bool) -> Hypothesis:
+        """Append a new evidence entry to a hypothesis."""
+        hypo = self.get(hypo_id)
+        if hypo is None:
+            raise ValueError(f"Hypothesis '{hypo_id}' not found")
+
+        hypo.evidence.append(Evidence(source=source, summary=summary, supports=supports))
+        hypo.updated_at = datetime.now(UTC)
+        self.save(hypo)
+        return hypo
+
+    def list_by_status(self, status: str) -> List[Hypothesis]:
+        """Return hypotheses filtered by status."""
+        return self.list_all(status=status)
