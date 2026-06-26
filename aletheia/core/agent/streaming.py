@@ -1,5 +1,5 @@
 import json
-from typing import Any, AsyncGenerator, Dict
+from typing import Any, Dict
 
 class StreamEvent:
     def __init__(self, event_type: str, data: Dict[str, Any]):

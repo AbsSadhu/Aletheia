@@ -8,7 +8,6 @@ from aletheia.extensions.backtest.metrics import (
     calculate_win_rate,
     calculate_profit_factor
 )
-from aletheia.extensions.backtest.validation import BacktestValidator
 
 logger = logging.getLogger(__name__)
 

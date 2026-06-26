@@ -3,7 +3,7 @@ import json
 import logging
 import uuid
 from typing import List, Optional
-from datetime import datetime, UTC
+from datetime import datetime
 
 from aletheia.extensions.hypotheses.models import Hypothesis, Evidence
 

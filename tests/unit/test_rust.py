@@ -1,4 +1,3 @@
-import pytest
 from aletheia.core.models import AssetType, Holding, MarketQuote, Portfolio, TaxProfile
 import aletheia_rust
 

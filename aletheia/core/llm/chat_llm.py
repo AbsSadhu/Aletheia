@@ -1,7 +1,7 @@
 import httpx
 import json
 import logging
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ class OllamaChatLLM(ChatLLM):
                         if isinstance(args, str):
                             try:
                                 args = json.loads(args)
-                            except:
+                            except Exception:
                                 args = {}
                         tool_calls.append(ToolCall(
                             id=tc.get("id", f"call_{func.get('name')}"),

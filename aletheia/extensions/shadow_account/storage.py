@@ -2,7 +2,7 @@ import sqlite3
 import json
 import logging
 from typing import List, Optional
-from datetime import datetime, UTC
+from datetime import datetime
 from aletheia.extensions.shadow_account.models import TradeEntry, VirtualPosition, AccountSnapshot
 
 logger = logging.getLogger(__name__)

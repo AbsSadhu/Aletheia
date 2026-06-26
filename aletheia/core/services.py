@@ -12,7 +12,6 @@ from aletheia.core.db.duckdb_store import DuckDBStore
 from aletheia.core.db.sqlite_store import SQLiteStore
 from aletheia.core.models import (
     AgentEvent,
-    AgentName,
     CollectorOutput,
     MarketQuote,
     Portfolio,
