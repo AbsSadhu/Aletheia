@@ -31,7 +31,6 @@ class ReActLoop:
     async def run(
         self, user_prompt: str, context: AgentContext
     ) -> AsyncGenerator[StreamEvent, None]:
-
         system_prompt = context.build_system_prompt()
         messages = [
             {"role": "system", "content": system_prompt},
