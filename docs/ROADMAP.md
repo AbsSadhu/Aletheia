@@ -1,6 +1,6 @@
 # ALETHEIA Roadmap
 
-Last updated: 2026-06-18
+Last updated: 2026-06-26
 
 ## Phase Overview
 
@@ -8,21 +8,21 @@ Last updated: 2026-06-18
 |-------|------|--------|
 | 1 | Skeleton & Data Layer | ✅ Done |
 | 2 | Engine Foundations | ✅ Done |
-| 3 | Rich Frontend & Live Streaming | 🔲 Deferred |
 | 4 | LLM Integration & Smart Agents | ✅ Done (Basic) |
 | 5 | Production Polish & Desktop | 🔲 Partial (Docker/K8s skeleton) |
-| **A** | **Agentic Core — ReAct Loop, Tool Registry, Memory** | 🔴 **Next** |
-| **B** | **Research & Backtesting Engine** | 🔲 Planned |
-| **C** | **Advanced Agent Capabilities — Swarm, MCP, LangSmith** | 🔲 Planned |
-| **D** | **Rust Performance Modules** | 🔲 Planned |
-| **E** | **Security, Reports & Production Hardening** | 🔲 Planned |
+| **A** | **Agentic Core — ReAct Loop, Tool Registry, Memory** | ✅ **Done (Scaffold)** |
+| **Sprint 1** | **Make It Actually Work — LLM Router, Semantic Memory, Backtest Feed** | 🔴 **NEXT** |
+| **Sprint 2** | **Rust Berserk Mode — Engine Sidecar, 30+ Compute Functions** | 🔲 Planned |
+| **Sprint 3** | **Real Intelligence — Debate, Shadow Account, Frontend Wire-up** | 🔲 Planned |
+| **Sprint 4** | **Production Hardening — Security, Reports, Docker** | 🔲 Planned |
 
 ---
 
-## Phase 1 — Skeleton & Data Layer ✅
+## Completed Work (Phases 1, 2, 4, A)
 
+### Phase 1 — Skeleton & Data Layer ✅
 - Monorepo layout (backend / frontend / desktop / docs / scripts)
-- Pydantic settings with ALETHEIA_ env prefix
+- Pydantic settings with `ALETHEIA_` env prefix
 - 20+ Pydantic data models covering all agent outputs
 - Provider chain architecture: Static Seed → yfinance → CCXT
 - CollectorAgent with provider fallback and provenance logging
@@ -31,13 +31,11 @@ Last updated: 2026-06-18
 - DuckDB market quote store (analytical persistence)
 - FastAPI app with CORS, health, runs, portfolio-analysis, WebSocket endpoints
 - Frontend React 19 + Vite scaffold
-- Tauri 2 desktop shell scaffold (compiles, `get_desktop_settings` Tauri command)
+- Tauri 2 desktop shell scaffold
 - Docker Compose (backend + frontend)
 - GitHub Actions CI (pytest + frontend build)
-- ADR-0001 (Python core authority), ADR-0002 (Tauri desktop shell)
 
-## Phase 2 — Engine Foundations ✅
-
+### Phase 2 — Engine Foundations ✅
 - OracleAgent: heuristic signal generation (BUY / HOLD / REDUCE)
 - SentinelAgent: portfolio risk assessment (VaR95, concentration risk, market regime)
 - SageAgent: tax-aware scenario projection per holding (India tax drag)
@@ -45,119 +43,165 @@ Last updated: 2026-06-18
 - RunService: full 5-agent orchestration via LangGraph StateGraph
 - AgentEvent recording for WebSocket replay
 - LangGraph MemorySaver checkpointer integration
-- Rust PyO3 module: `assess_portfolio_risk_rust`, `build_tax_summary_rust`, `build_scenario_rust`
 
-## Phase 4 — LLM Integration ✅ (Basic)
-
+### Phase 4 — LLM Integration ✅ (Basic)
 - Ollama async HTTP client (`aletheia/core/llm/client.py`)
 - Prompt templates for Oracle and Scribe (`prompts.py`)
 - Structured output parsers (`parsers.py`)
 - Oracle and Scribe agents upgraded with LLM + heuristic fallback
 - Interactive CLI setup wizard (`aletheia setup`)
-- Placeholder tool stubs (web_search, sec_filings)
 - K8s manifests: Deployment, Service, Ingress, PVC
 - Multi-stage Dockerfile
 
+### Phase A — Agentic Core ✅ (Scaffold)
+- `BaseTool` + `ToolRegistry` with auto-discovery
+- 15 tool stubs: market_data, web_search, web_reader, sec_filings, technical_analysis,
+  fundamental_data, options_pricing, sector_peers, portfolio_analytics, backtest,
+  remember, hypothesis, report_generate, news_search, sector_peers
+- `ReActLoop`: full Reasoning + Acting loop with SSE streaming
+- `OllamaChatLLM`: single-provider chat interface with tool calling
+- `PersistentMemory`: file-based storage (keyword search only — needs upgrade)
+- `SwarmRuntime`: parallel worker orchestration scaffold
+- Swarm presets: `investment_team`, `quant_team`
+- Hypothesis models + registry (lifecycle incomplete)
+- Backtest runner (event-driven, no real data feed yet)
+- MCP server via FastMCP (dynamic tool wrapping)
+- Rust PyO3 module: 6 functions — `assess_portfolio_risk_rust`, `build_tax_summary_rust`,
+  `build_scenario_rust`, `options_pricing_rust`, `monte_carlo_var_rust`,
+  `calculate_technical_indicators_rust`
+
 ---
 
-## Phase A — Agentic Core 🔴 NEXT
+## Sprint 1 — Make It Actually Work 🔴 NEXT
 
-### A1. Tool Registry & Base Tool Framework
-- [ ] `BaseTool` abstract class with JSON Schema parameter definitions
-- [ ] `ToolRegistry` with auto-discovery via `__subclasses__()`
-- [ ] 12+ real financial tools: market_data, web_search, web_reader, sec_filings, technical_analysis, fundamental_data, options_pricing, sector_peers, portfolio_analytics, backtest, remember, hypothesis, report_generate
-- [ ] Tool availability checks and graceful degradation
+### 1A. Multi-Provider LLM Router
+- [ ] `OpenAIChatLLM` implementation
+- [ ] `AnthropicChatLLM` implementation
+- [ ] `LLMRouter` with priority list, retry, circuit breaker
+- [ ] Token usage + cost tracking per call
+- [ ] `llm_provider_priority` setting
 
-### A2. ReAct Agent Loop
-- [ ] Core ReAct loop: prompt → LLM → tool calls → execute → feed back → repeat
-- [ ] Multi-provider ChatLLM interface (Ollama, OpenAI, Anthropic)
-- [ ] 5-layer context management (microcompact, collapse, auto-summary)
-- [ ] SSE streaming of reasoning, tool calls, and final answers
-- [ ] Thread-safe cancellation
-- [ ] Token usage tracking per iteration
-- [ ] Configurable max iterations with wrap-up nudge
-
-### A3. Persistent Memory System
-- [ ] File-based cross-session memory (`~/.aletheia/memory/`)
-- [ ] YAML frontmatter `.md` entries with keyword recall
-- [ ] `MEMORY.md` auto-rebuilt index
-- [ ] Memory types: user, feedback, project, reference
+### 1B. Semantic Memory Upgrade
+- [ ] `EpisodicMemory` — SQLite FTS5 over run history
+- [ ] Rust `bm25_score_rust()` function for relevance ranking
+- [ ] Working / Episodic / Semantic 3-tier architecture
+- [ ] Auto-ingest run results into episodic store
 - [ ] Snapshot injection into agent system prompts
-- [ ] DuckDB-backed analytical memory for run history search
 
-## Phase B — Research & Backtesting Engine 🔲
+### 1C. Historical Data Feed for Backtest
+- [ ] `HistoricalDataFeed` — yfinance → DuckDB ingestion
+- [ ] `BacktestRunner` wired to real data feed
+- [ ] Lookahead bias guard (strict timestamp ordering)
+- [ ] `POST /api/v1/backtest` endpoint
 
-### B1. Hypothesis-Driven Research
-- [ ] `Hypothesis` model with lifecycle: proposed → testing → validated → rejected
-- [ ] SQLite-backed hypothesis registry
-- [ ] CLI commands: `aletheia hypothesis propose/list/test/validate`
-- [ ] Link hypotheses to backtest run cards
+### 1D. Hypothesis Lifecycle
+- [ ] State machine: proposed → testing → validated → rejected
+- [ ] `link_to_backtest()` — connect hypothesis to backtest run
+- [ ] CLI commands: `aletheia hypothesis propose/test/validate/reject`
+- [ ] `GET /api/v1/hypotheses` endpoint
 
-### B2. Proper Backtest Engine
-- [ ] Event-driven backtest runner with order book simulation
-- [ ] Validation: lookahead bias detection, data snooping checks
-- [ ] Metrics: Sharpe, Sortino, Calmar, max drawdown, win rate, profit factor
-- [ ] Benchmark comparison: NIFTY 50, S&P 500, BTC
-- [ ] Structured run cards (JSON artifacts)
+---
 
-### B3. Shadow Account (Paper Trading)
-- [ ] Virtual position tracking with P&L
-- [ ] Entry/exit signal scanning
-- [ ] Equity curve and performance reports
-- [ ] SQLite persistence
+## Sprint 2 — Rust Berserk Mode 🔲
 
-## Phase C — Advanced Agent Capabilities 🔲
+### 2A. Expanded `aletheia_rust` PyO3 Module (30+ functions)
+- [ ] MACD: `calculate_macd_rust()`
+- [ ] Bollinger Bands: `calculate_bollinger_bands_rust()`
+- [ ] ATR: `calculate_atr_rust()`
+- [ ] Stochastic: `calculate_stochastic_rust()`
+- [ ] VWAP: `calculate_vwap_rust()`
+- [ ] OBV: `calculate_obv_rust()`
+- [ ] Portfolio optimization (mean-variance): `portfolio_optimization_rust()`
+- [ ] Monte Carlo paths: `monte_carlo_portfolio_paths_rust()`
+- [ ] Correlation matrix: `correlation_matrix_rust()`
+- [ ] Rolling correlation: `rolling_correlation_rust()`
+- [ ] Covariance matrix: `covariance_matrix_rust()`
+- [ ] Sharpe: `calculate_sharpe_rust()`
+- [ ] Sortino: `calculate_sortino_rust()`
+- [ ] Calmar: `calculate_calmar_rust()`
+- [ ] Enhanced max drawdown: `calculate_max_drawdown_rust()`
+- [ ] BM25 scoring: `bm25_score_rust()`
+- [ ] Rate limiter class: `RateLimiter` (token bucket, thread-safe)
+- [ ] Cargo.toml upgrade: add `ndarray`, `statrs`
 
-### C1. Agent Swarm Orchestration
-- [ ] Worker agents with scoped tool subsets and LLM context
-- [ ] Swarm coordinator: spawn, collect, merge
-- [ ] Preset teams: `investment_team`, `quant_team`, `due_diligence`
-- [ ] Task storage and status tracking
+### 2B. `aletheia-engine` — Standalone Rust HTTP Sidecar
+- [ ] New crate `aletheia_engine/` at workspace root
+- [ ] Tokio + Hyper HTTP server on `127.0.0.1:18899`
+- [ ] DuckDB connection pool (Rust-owned, no Python GIL)
+- [ ] `POST /compute/indicators` — full indicator suite
+- [ ] `POST /compute/portfolio-optimization`
+- [ ] `POST /compute/monte-carlo`
+- [ ] `POST /ingest/quotes` — bulk DuckDB insert
+- [ ] `GET /query/quotes` — time-range query
+- [ ] Python `ComputeClient` (thin async HTTP wrapper)
+- [ ] Cargo workspace setup (`Cargo.toml` at root)
 
-### C2. MCP Server
-- [ ] Expose Aletheia as MCP tool server
-- [ ] Tools: run_analysis, execute_backtest, query_market_data, search_history, propose_hypothesis
-- [ ] External AI agent integration (Claude, ChatGPT)
+### 2C. `aletheia-stream` — Tokio WebSocket Ingestion (in engine)
+- [ ] Binance WebSocket feed integration
+- [ ] OHLCV normalization → DuckDB insert pipeline
+- [ ] Yahoo Finance polling fallback
+- [ ] Python `start_market_stream()` / `stop_market_stream()` interface
 
-### C3. LangSmith Observability
-- [ ] Wire `LANGCHAIN_TRACING_V2` to all LLM calls
-- [ ] Add run metadata as LangSmith tags
-- [ ] Token cost tracking per run
+---
 
-## Phase D — Rust Performance Modules 🔲
+## Sprint 3 — Real Intelligence 🔲
 
-- [ ] `calculate_technical_indicators_rust()` — RSI, MACD, Bollinger Bands
-- [ ] `options_pricing_rust()` — Black-Scholes, Greeks
-- [ ] `portfolio_optimization_rust()` — mean-variance, efficient frontier
-- [ ] `monte_carlo_var_rust()` — proper Monte Carlo VaR (10K+ simulations)
-- [ ] `correlation_matrix_rust()` — fast pairwise correlation
+### 3A. Agent Debate System
+- [ ] `DebateOrchestrator` — Bull / Bear / Arbiter pattern
+- [ ] 3 specialized system prompts (bullish, bearish, neutral)
+- [ ] `debate_node` in LangGraph StateGraph
+- [ ] `DebateResult` model + API response integration
+- [ ] Opt-in `deep_analysis` flag (avoids 3× LLM cost by default)
 
-## Phase E — Security, Reports & Production Hardening 🔲
+### 3B. LangSmith Observability
+- [ ] Token count + tool name tags per ReAct iteration
+- [ ] `run_id` + `agent_name` LangSmith metadata
+- [ ] LangGraph node tracing
+- [ ] `langchain_tracing_v2` setting wired to CI/CD
 
-### E1. Security & Trust Layer
+### 3C. Shadow Account (Paper Trading)
+- [ ] `ShadowAccount` — VirtualPosition + VirtualOrder management
+- [ ] `EntryExitScanner` — auto-trade on Oracle signals
+- [ ] SQLite persistence for positions and P&L
+- [ ] Equity curve tracking
+- [ ] `GET /api/v1/shadow/positions`
+- [ ] `POST /api/v1/shadow/trade`
+
+### 3D. Frontend Wire-up
+- [ ] Dashboard: real WebSocket stream during run execution
+- [ ] RunDetail: all 5 agent outputs from real API
+- [ ] Backtest page: form → API → equity curve chart
+- [ ] Hypotheses page: list / create / link to backtest
+- [ ] Portfolio page: portfolio CRUD + trigger run
+
+---
+
+## Sprint 4 — Production Hardening 🔲
+
+### 4A. Security & Trust Layer
 - [ ] API key encryption at rest (Fernet)
-- [ ] Rate limiting middleware (token bucket)
-- [ ] Audit log table: every agent decision, LLM call, tool execution
+- [ ] Rate limiting middleware (Rust token bucket via PyO3)
+- [ ] Audit log table: every LLM call, tool execution, agent decision
 - [ ] Input sanitization for all endpoints
 - [ ] CSP headers
 
-### E2. Report Generation
-- [ ] PDF reports (WeasyPrint + Jinja2)
+### 4B. Report Generation
+- [ ] PDF reports (WeasyPrint + Jinja2 templates)
 - [ ] JSON and CSV export
-- [ ] Report download endpoint
+- [ ] `GET /api/v1/runs/{id}/export?format=pdf|json|csv`
 
-### E3. Docker & K8s Production
-- [ ] docker-compose with Ollama sidecar, Redis cache, Prometheus metrics
+### 4C. Docker & K8s Production
+- [ ] `docker-compose.yml` — Ollama sidecar, `aletheia-engine` Rust sidecar, Prometheus
 - [ ] Helm chart with ConfigMap, Secrets, HPA
-- [ ] Liveness/readiness probes
+- [ ] Liveness/readiness probes wired
 - [ ] CI/CD pipeline for container builds
 
-## Phase 3 — Rich Frontend & Live Streaming 🔲 (Deferred)
+---
 
-> This phase is intentionally deferred. The current frontend is a placeholder.
-> The frontend will be rebuilt from scratch once the agentic backend is solid.
+## Phase 3 — Rich Frontend & Live Streaming (Ongoing with Sprint 3D)
+
+> Frontend is being rebuilt incrementally as backend APIs stabilize.
 
 - [ ] Design system (dark mode, glassmorphism, micro-animations)
-- [ ] Dashboard, Run Detail, Portfolio Editor, Settings pages
-- [ ] WebSocket live streaming of ReAct loop progress
-- [ ] Agent reasoning visualization (thinking → tool call → result → next thought)
+- [ ] Agent reasoning visualization (thought → tool call → result → next thought)
+- [ ] Portfolio editor with drag-and-drop CRUD operations
