@@ -71,7 +71,9 @@ class ComputeClient:
             payload["volumes"] = volumes
 
         if self._use_sidecar():
-            return await self._post("/compute/indicators", payload)
+            res = await self._post("/compute/indicators", payload)
+            if res:
+                return res
         return self._fallback_indicators(closes, sma_window)
 
     # ------------------------------------------------------------------
@@ -95,7 +97,13 @@ class ComputeClient:
             payload["equity_curve"] = equity_curve
 
         if self._use_sidecar():
-            return await self._post("/compute/portfolio-metrics", payload)
+            res = await self._post("/compute/portfolio-metrics", payload)
+            if res:
+                # Handle Infinity / NaN serialized to JSON null
+                for key in ["sharpe", "sortino", "calmar"]:
+                    if res.get(key) is None:
+                        res[key] = float("inf")
+                return res
         return self._fallback_portfolio_metrics(returns, risk_free_rate, periods_per_year)
 
     # ------------------------------------------------------------------
@@ -119,7 +127,9 @@ class ComputeClient:
             "n_days": n_days,
         }
         if self._use_sidecar():
-            return await self._post("/compute/monte-carlo", payload)
+            res = await self._post("/compute/monte-carlo", payload)
+            if res:
+                return res
         return self._fallback_monte_carlo(initial_value, daily_vol, n_paths, n_days)
 
     # ------------------------------------------------------------------
@@ -136,7 +146,9 @@ class ComputeClient:
         if labels:
             payload["labels"] = labels
         if self._use_sidecar():
-            return await self._post("/compute/correlation", payload)
+            res = await self._post("/compute/correlation", payload)
+            if res:
+                return res
         return self._fallback_correlation(returns_matrix, labels)
 
     # ------------------------------------------------------------------
