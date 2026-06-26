@@ -31,8 +31,87 @@ def analyze(
     console.print(f"Target: [bold green]{symbol}[/bold green]")
     console.print(f"Provider: [yellow]{provider}[/yellow]")
 
-    # We will wire up the actual orchestration engine here
-    console.print("\n[dim]Analysis complete. Agent orchestration to be wired.[/dim]")
+    # Wire up the actual orchestration engine via our async agent loop
+    import asyncio
+    asyncio.run(_async_run(f"Perform a comprehensive analysis on stock symbol {symbol} using provider {provider}."))
+
+
+async def _async_run(prompt_text: str) -> None:
+    from aletheia.core.config.settings import get_settings
+    from aletheia.core.llm.chat_llm import build_llm_router
+    from aletheia.core.tools.registry import build_registry
+    from aletheia.core.agent.context import AgentContext
+    from aletheia.core.agent.loop import ReActLoop
+    from rich.markdown import Markdown
+    from rich.panel import Panel
+
+    settings = get_settings()
+    llm = build_llm_router()
+    registry = build_registry()
+    context = AgentContext.from_query(prompt_text)
+    react = ReActLoop(llm=llm, tool_registry=registry)
+
+    async for event in react.run(prompt_text, context):
+        if event.type == "thought":
+            console.print(f"[dim italic]Thought: {event.data.get('content')}[/dim italic]")
+        elif event.type == "tool_call":
+            args_str = ", ".join(f"{k}={v}" for k, v in event.data.get("arguments", {}).items())
+            console.print(f"[bold magenta]➔ Tool Call: {event.data.get('tool')}({args_str})[/bold magenta]")
+        elif event.type == "tool_result":
+            res = str(event.data.get("result"))
+            if len(res) > 300:
+                res = res[:297] + "..."
+            console.print(f"[bold green]✔ Tool Result: {event.data.get('tool')} -> {res}[/bold green]\n")
+        elif event.type == "error":
+            console.print(f"[bold red]✖ Error: {event.data.get('message')}[/bold red]")
+        elif event.type == "final_answer":
+            console.print()
+            console.print(
+                Panel(
+                    Markdown(event.data.get("content", "")),
+                    title="[bold green]Final Synthesis[/bold green]",
+                    border_style="green",
+                )
+            )
+
+
+@app.command(name="run")
+def run_prompt(
+    prompt: str = typer.Argument(..., help="The natural language query/task to execute"),
+):
+    """
+    Run an agentic task using natural language in the terminal.
+    """
+    import asyncio
+    asyncio.run(_async_run(prompt))
+
+
+@app.command(name="import-data")
+def import_data(
+    symbol: str = typer.Option(..., "--symbol", "-s", help="The symbol name to assign to the imported data"),
+    path: str = typer.Option(..., "--file", "-f", help="Path to the CSV, Parquet, or DuckDB file"),
+    date_format: str = typer.Option(None, "--date-format", "-d", help="Optional date parsing format, e.g. %Y-%m-%d"),
+    query: str = typer.Option(None, "--query", "-q", help="Optional SQL query for DuckDB files"),
+):
+    """
+    Import local CSV, Parquet, or DuckDB data into Aletheia's unified DuckDB store.
+    """
+    from aletheia.extensions.backtest.local_importer import import_local_file
+    from aletheia.core.config.settings import get_settings
+
+    settings = get_settings()
+    console.print(f"[bold blue]Importing {path} as symbol {symbol}...[/bold blue]")
+    try:
+        rows = import_local_file(
+            symbol=symbol,
+            file_path=path,
+            duckdb_path=str(settings.duckdb_path),
+            date_format=date_format,
+            query=query,
+        )
+        console.print(f"[bold green]✔ Successfully imported {rows} rows![/bold green]")
+    except Exception as exc:
+        console.print(f"[bold red]✖ Import failed: {exc}[/bold red]")
 
 
 @app.command()
@@ -53,3 +132,4 @@ def info():
 
 if __name__ == "__main__":
     app()
+
