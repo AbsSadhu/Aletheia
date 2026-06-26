@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aletheia-backend
+  labels:
+    app: aletheia
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aletheia
+  template:
+    metadata:
+      labels:
+        app: aletheia
+    spec:
+      containers:
+      - name: aletheia-backend
+        image: aletheia-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8899
+        env:
+        - name: ALETHEIA_ENV
+          value: "production"
+        - name: ALETHEIA_DEBUG
+          value: "false"
+        - name: ALETHEIA_LANGSMITH_TRACING
+          value: "true"
+        # Mount PVC for sqlite persistence
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8899
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: aletheia-data-pvc
