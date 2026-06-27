@@ -1,17 +1,163 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.responses import JSONResponse
+import sqlite3
+import duckdb
+import os
+import sys
+import httpx
+import logging
 
 from aletheia.core.api.routes import router
 from aletheia.core.config.settings import get_settings
 
+logger = logging.getLogger(__name__)
+
+
+def run_preflight_checks(settings) -> None:
+    # Skip preflight checks during tests or when explicitly bypassed
+    if os.getenv("ALETHEIA_SKIP_PREFLIGHT") == "true" or "pytest" in sys.modules:
+        return
+
+    # 1. Verify SQLite is reachable
+    try:
+        settings.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(settings.sqlite_path) as conn:
+            conn.execute("SELECT 1")
+    except Exception as exc:
+        raise RuntimeError(
+            f"Preflight Check Failed: SQLite database is not reachable at {settings.sqlite_path}. "
+            f"Error: {exc}"
+        ) from exc
+
+    # 2. Verify DuckDB is reachable
+    try:
+        settings.duckdb_path.parent.mkdir(parents=True, exist_ok=True)
+        config = {}
+        if settings.db_encryption_key:
+            config["encryption_key"] = settings.db_encryption_key
+        with duckdb.connect(str(settings.duckdb_path), config=config) as conn:
+            conn.execute("SELECT 1")
+    except Exception as exc:
+        raise RuntimeError(
+            f"Preflight Check Failed: DuckDB database is not reachable at {settings.duckdb_path}. "
+            f"Error: {exc}"
+        ) from exc
+
+    # 3. Verify Rust/PyO3 extension is built and importable
+    try:
+        import aletheia_rust  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeError(
+            "Preflight Check Failed: The Rust PyO3 extension 'aletheia_rust' is not built or importable. "
+            "Please compile the extension by running 'maturin develop' in the workspace."
+        ) from exc
+
+    # 4. Verify Ollama model is pulled (if Ollama is active)
+    if settings.default_llm_provider == "ollama":
+        try:
+            r = httpx.get(f"{settings.ollama_base_url}/api/tags", timeout=3.0)
+            if r.status_code != 200:
+                raise RuntimeError(f"HTTP status {r.status_code}")
+            
+            data = r.json()
+            models = data.get("models", [])
+            model_names = [m["name"] for m in models]
+            target_model = settings.default_llm_model
+            
+            found = False
+            for name in model_names:
+                if name == target_model or name.split(":")[0] == target_model.split(":")[0]:
+                    found = True
+                    break
+            
+            if not found:
+                raise RuntimeError(
+                    f"Model '{target_model}' is not pulled in Ollama. "
+                    f"Please pull it by running 'ollama pull {target_model}' in your terminal."
+                )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Preflight Check Failed: Ollama is unreachable at {settings.ollama_base_url} or "
+                f"model verification failed. Error: {exc}"
+            ) from exc
+
+
+def register_exception_handlers(app: FastAPI, settings) -> None:
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request, exc):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "code": f"HTTP_{exc.status_code}",
+                "message": exc.detail if isinstance(exc.detail, str) else "HTTP Exception",
+                "detail": exc.detail if not isinstance(exc.detail, str) else None,
+            },
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request, exc):
+        return JSONResponse(
+            status_code=422,
+            content={
+                "code": "VALIDATION_ERROR",
+                "message": "Input validation failed",
+                "detail": exc.errors(),
+            },
+        )
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request, exc):
+        logger.exception("Centralized Exception Middleware caught unhandled error:")
+        
+        detail = str(exc) if settings.debug else None
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "An unexpected error occurred during execution",
+                "detail": detail,
+            },
+        )
+
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    
+    # Run fail-fast startup preflight checks
+    run_preflight_checks(settings)
+
+    # Run automatic pruning if enabled
+    if settings.retention_days is not None and settings.retention_days > 0:
+        try:
+            from aletheia.core.db.sqlite_store import SQLiteStore
+            from aletheia.core.db.duckdb_store import DuckDBStore
+            
+            sqlite_store = SQLiteStore(settings.sqlite_path)
+            duckdb_store = DuckDBStore(settings.duckdb_path)
+            
+            deleted_events = sqlite_store.prune_old_events(settings.retention_days)
+            deleted_quotes = duckdb_store.prune_old_quotes(settings.retention_days)
+            logger.info(
+                "Data retention policy applied: pruned %d old SQLite events and %d old DuckDB quotes (> %d days).",
+                deleted_events,
+                deleted_quotes,
+                settings.retention_days,
+            )
+        except Exception as exc:
+            logger.warning("Failed to apply database retention policy on startup: %s", exc)
+
+    
     app = FastAPI(
         title="ALETHEIA",
         version="0.1.0",
         description="India-first multi-agent financial intelligence platform",
     )
+    
+    register_exception_handlers(app, settings)
+    
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -33,3 +179,4 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+

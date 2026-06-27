@@ -52,19 +52,19 @@ async def _async_run(prompt_text: str) -> None:
     react = ReActLoop(llm=llm, tool_registry=registry)
 
     async for event in react.run(prompt_text, context):
-        if event.type == "thought":
+        if event.event_type == "thought":
             console.print(f"[dim italic]Thought: {event.data.get('content')}[/dim italic]")
-        elif event.type == "tool_call":
+        elif event.event_type == "tool_call":
             args_str = ", ".join(f"{k}={v}" for k, v in event.data.get("arguments", {}).items())
-            console.print(f"[bold magenta]➔ Tool Call: {event.data.get('tool')}({args_str})[/bold magenta]")
-        elif event.type == "tool_result":
+            console.print(f"[bold magenta]-> Tool Call: {event.data.get('tool')}({args_str})[/bold magenta]")
+        elif event.event_type == "tool_result":
             res = str(event.data.get("result"))
             if len(res) > 300:
                 res = res[:297] + "..."
-            console.print(f"[bold green]✔ Tool Result: {event.data.get('tool')} -> {res}[/bold green]\n")
-        elif event.type == "error":
-            console.print(f"[bold red]✖ Error: {event.data.get('message')}[/bold red]")
-        elif event.type == "final_answer":
+            console.print(f"[bold green][OK] Tool Result: {event.data.get('tool')} -> {res}[/bold green]\n")
+        elif event.event_type == "error":
+            console.print(f"[bold red][ERROR] Error: {event.data.get('message')}[/bold red]")
+        elif event.event_type == "final_answer":
             console.print()
             console.print(
                 Panel(
@@ -109,9 +109,9 @@ def import_data(
             date_format=date_format,
             query=query,
         )
-        console.print(f"[bold green]✔ Successfully imported {rows} rows![/bold green]")
+        console.print(f"[bold green][OK] Successfully imported {rows} rows![/bold green]")
     except Exception as exc:
-        console.print(f"[bold red]✖ Import failed: {exc}[/bold red]")
+        console.print(f"[bold red][ERROR] Import failed: {exc}[/bold red]")
 
 
 @app.command()
@@ -130,6 +130,184 @@ def info():
     )
 
 
+db_app = typer.Typer(
+    name="db",
+    help="Database maintenance utilities (backup, restore, prune)",
+    no_args_is_help=True,
+)
+app.add_typer(db_app)
+
+
+@db_app.command(name="backup")
+def db_backup(
+    backup_dir: str = typer.Option(
+        "./backups", "--dir", "-d", help="Directory where database snapshots will be stored"
+    )
+):
+    """
+    Safely snapshot both SQLite and DuckDB databases.
+    """
+    import shutil
+    import datetime
+    import sqlite3
+    from pathlib import Path
+    from aletheia.core.config.settings import get_settings
+
+    settings = get_settings()
+    console.print("[bold blue]Starting Aletheia Database Backup[/bold blue]")
+
+    # Create timestamped folder name
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    target_folder = Path(backup_dir) / f"backup_{timestamp}"
+    
+    try:
+        target_folder.mkdir(parents=True, exist_ok=True)
+        
+        # 1. SQLite Safe Online Backup
+        sqlite_src = settings.sqlite_path
+        sqlite_dest = target_folder / sqlite_src.name
+        
+        console.print(f"Backing up SQLite database: [yellow]{sqlite_src}[/yellow] -> [green]{sqlite_dest}[/green]")
+        if sqlite_src.exists():
+            with sqlite3.connect(sqlite_src) as src_conn:
+                with sqlite3.connect(sqlite_dest) as dest_conn:
+                    src_conn.backup(dest_conn)
+            console.print("[OK] SQLite backup completed successfully.")
+        else:
+            console.print("[yellow]SQLite file not found; skipping SQLite backup.[/yellow]")
+            
+        # 2. DuckDB safe file copy
+        duckdb_src = settings.duckdb_path
+        duckdb_dest = target_folder / duckdb_src.name
+        
+        console.print(f"Backing up DuckDB database: [yellow]{duckdb_src}[/yellow] -> [green]{duckdb_dest}[/green]")
+        if duckdb_src.exists():
+            shutil.copy2(duckdb_src, duckdb_dest)
+            console.print("[OK] DuckDB backup completed successfully.")
+        else:
+            console.print("[yellow]DuckDB file not found; skipping DuckDB backup.[/yellow]")
+
+        console.print(f"\n[bold green][OK] Database backup completed! Saved at: {target_folder.resolve()}[/bold green]")
+        
+    except Exception as exc:
+        console.print(f"[bold red][ERROR] Database backup failed: {exc}[/bold red]")
+        raise typer.Exit(code=1)
+
+
+@db_app.command(name="restore")
+def db_restore(
+    backup_path: str = typer.Option(
+        ..., "--path", "-p", help="Path to the timestamped backup directory"
+    )
+):
+    """
+    Restore SQLite and DuckDB databases from a backup snapshot.
+    """
+    import shutil
+    from pathlib import Path
+    from aletheia.core.config.settings import get_settings
+
+    settings = get_settings()
+    backup_dir = Path(backup_path)
+    console.print(f"[bold blue]Restoring Database from Snapshot:[/bold blue] [yellow]{backup_dir.resolve()}[/yellow]")
+
+    if not backup_dir.exists() or not backup_dir.is_dir():
+        console.print(f"[bold red][ERROR] Backup directory does not exist: {backup_dir}[/bold red]")
+        raise typer.Exit(code=1)
+
+    sqlite_backup = backup_dir / settings.sqlite_path.name
+    duckdb_backup = backup_dir / settings.duckdb_path.name
+
+    if not sqlite_backup.exists() and not duckdb_backup.exists():
+        console.print("[bold red][ERROR] Backup directory contains no database files.[/bold red]")
+        raise typer.Exit(code=1)
+
+    # Perform temporary backup before overwriting (for rollback)
+    console.print("Performing rollback safety snapshot of current databases...")
+    temp_dir = Path("./data/restore_temp_safety")
+    try:
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        sqlite_temp = temp_dir / settings.sqlite_path.name
+        duckdb_temp = temp_dir / settings.duckdb_path.name
+        
+        if settings.sqlite_path.exists():
+            shutil.copy2(settings.sqlite_path, sqlite_temp)
+        if settings.duckdb_path.exists():
+            shutil.copy2(settings.duckdb_path, duckdb_temp)
+            
+        # Overwrite active database files
+        if sqlite_backup.exists():
+            console.print(f"Restoring [green]{settings.sqlite_path}[/green]...")
+            settings.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(sqlite_backup, settings.sqlite_path)
+            
+        if duckdb_backup.exists():
+            console.print(f"Restoring [green]{settings.duckdb_path}[/green]...")
+            settings.duckdb_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(duckdb_backup, settings.duckdb_path)
+            
+        # Cleanup temp safety folder
+        shutil.rmtree(temp_dir)
+        console.print("[bold green][OK] Databases successfully restored![/bold green]")
+        
+    except Exception as exc:
+        console.print(f"[bold red][ERROR] Restore failed! Attempting rollback... Error: {exc}[/bold red]")
+        # Rollback
+        try:
+            if temp_dir.exists():
+                if (temp_dir / settings.sqlite_path.name).exists() and settings.sqlite_path.exists():
+                    shutil.copy2(temp_dir / settings.sqlite_path.name, settings.sqlite_path)
+                if (temp_dir / settings.duckdb_path.name).exists() and settings.duckdb_path.exists():
+                    shutil.copy2(temp_dir / settings.duckdb_path.name, settings.duckdb_path)
+                shutil.rmtree(temp_dir)
+                console.print("[yellow][OK] Rollback succeeded. Active databases restored to original state.[/yellow]")
+        except Exception as roll_exc:
+            console.print(f"[bold red]CRITICAL: Rollback failed! Original databases might be corrupted. Error: {roll_exc}[/bold red]")
+        raise typer.Exit(code=1)
+
+
+@db_app.command(name="prune")
+def db_prune(
+    days: int = typer.Option(
+        None, "--days", "-d", help="Number of days of data to retain. Overrides .env"
+    )
+):
+    """
+    Manually prune SQLite run traces and DuckDB market quotes.
+    """
+    from aletheia.core.config.settings import get_settings
+    from aletheia.core.db.sqlite_store import SQLiteStore
+    from aletheia.core.db.duckdb_store import DuckDBStore
+
+    settings = get_settings()
+    retention = days if days is not None else settings.retention_days
+
+    if retention is None or retention <= 0:
+        console.print("[bold red][ERROR] Retention days not configured. Specify --days or set ALETHEIA_RETENTION_DAYS in .env[/bold red]")
+        raise typer.Exit(code=1)
+
+    console.print(f"[bold blue]Applying Database Retention Policy[/bold blue]")
+    console.print(f"Retaining last [yellow]{retention}[/yellow] days of data...")
+
+    try:
+        sqlite_store = SQLiteStore(settings.sqlite_path)
+        duckdb_store = DuckDBStore(settings.duckdb_path)
+
+        pruned_events = sqlite_store.prune_old_events(retention)
+        pruned_quotes = duckdb_store.prune_old_quotes(retention)
+
+        console.print(f"[OK] SQLite events pruned: [green]{pruned_events}[/green]")
+        console.print(f"[OK] DuckDB quotes pruned: [green]{pruned_quotes}[/green]")
+        console.print("[bold green][OK] Database pruning completed successfully![/bold green]")
+    except Exception as exc:
+        console.print(f"[bold red][ERROR] Database pruning failed: {exc}[/bold red]")
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()
+
 

@@ -46,10 +46,36 @@ class ChatResponse:
     provider: str = "unknown"
     input_tokens: int = 0
     output_tokens: int = 0
+    latency_secs: float = 0.0
+    cost_usd: float = 0.0
 
     @property
     def total_tokens(self) -> int:
         return self.input_tokens + self.output_tokens
+
+
+def calculate_cost(provider: str, model: str, input_tokens: int, output_tokens: int) -> float:
+    p = provider.lower()
+    m = model.lower()
+    input_rate = 0.0
+    output_rate = 0.0
+
+    if "openai" in p:
+        if "gpt-4o-mini" in m:
+            input_rate = 0.15 / 1_000_000
+            output_rate = 0.60 / 1_000_000
+        else:  # default gpt-4o
+            input_rate = 2.50 / 1_000_000
+            output_rate = 10.00 / 1_000_000
+    elif "anthropic" in p:
+        if "haiku" in m:
+            input_rate = 0.25 / 1_000_000
+            output_rate = 1.25 / 1_000_000
+        else:  # default sonnet 3.5
+            input_rate = 3.00 / 1_000_000
+            output_rate = 15.00 / 1_000_000
+
+    return (input_tokens * input_rate) + (output_tokens * output_rate)
 
 
 # ---------------------------------------------------------------------------
@@ -104,10 +130,12 @@ class OllamaChatLLM(ChatLLM):
         if tools:
             payload["tools"] = tools
 
+        start_time = time.monotonic()
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
+        latency_secs = time.monotonic() - start_time
 
         resp_msg = data.get("message", {})
         content = resp_msg.get("content", "")
@@ -117,12 +145,16 @@ class OllamaChatLLM(ChatLLM):
         prompt_eval = data.get("prompt_eval_count", 0)
         eval_count = data.get("eval_count", 0)
 
+        cost_usd = calculate_cost(self.provider_name, self.model, prompt_eval, eval_count)
+
         return ChatResponse(
             message=ChatMessage(role=role, content=content, tool_calls=tool_calls),
             finish_reason=data.get("done_reason", "stop"),
             provider=self.provider_name,
             input_tokens=prompt_eval,
             output_tokens=eval_count,
+            latency_secs=latency_secs,
+            cost_usd=cost_usd,
         )
 
 
@@ -179,10 +211,12 @@ class OpenAIChatLLM(ChatLLM):
             payload["tools"] = tools
             payload["tool_choice"] = "auto"
 
+        start_time = time.monotonic()
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
+        latency_secs = time.monotonic() - start_time
 
         choice = data["choices"][0]
         msg = choice["message"]
@@ -191,12 +225,18 @@ class OpenAIChatLLM(ChatLLM):
         tool_calls = _parse_openai_tool_calls(msg)
         usage = data.get("usage", {})
 
+        in_t = usage.get("prompt_tokens", 0)
+        out_t = usage.get("completion_tokens", 0)
+        cost_usd = calculate_cost(self.provider_name, self.model, in_t, out_t)
+
         return ChatResponse(
             message=ChatMessage(role=role, content=content, tool_calls=tool_calls),
             finish_reason=choice.get("finish_reason", "stop"),
             provider=self.provider_name,
-            input_tokens=usage.get("prompt_tokens", 0),
-            output_tokens=usage.get("completion_tokens", 0),
+            input_tokens=in_t,
+            output_tokens=out_t,
+            latency_secs=latency_secs,
+            cost_usd=cost_usd,
         )
 
 
@@ -273,6 +313,7 @@ class AnthropicChatLLM(ChatLLM):
                 })
             payload["tools"] = anthropic_tools
 
+        start_time = time.monotonic()
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
                 f"{self._base_url}/messages",
@@ -281,6 +322,7 @@ class AnthropicChatLLM(ChatLLM):
             )
             response.raise_for_status()
             data = response.json()
+        latency_secs = time.monotonic() - start_time
 
         # Parse response
         content_blocks = data.get("content", [])
@@ -304,12 +346,18 @@ class AnthropicChatLLM(ChatLLM):
         usage = data.get("usage", {})
         stop_reason = data.get("stop_reason", "end_turn")
 
+        in_t = usage.get("input_tokens", 0)
+        out_t = usage.get("output_tokens", 0)
+        cost_usd = calculate_cost(self.provider_name, self.model, in_t, out_t)
+
         return ChatResponse(
             message=ChatMessage(role="assistant", content=text_content, tool_calls=tool_calls),
             finish_reason=stop_reason,
             provider=self.provider_name,
-            input_tokens=usage.get("input_tokens", 0),
-            output_tokens=usage.get("output_tokens", 0),
+            input_tokens=in_t,
+            output_tokens=out_t,
+            latency_secs=latency_secs,
+            cost_usd=cost_usd,
         )
 
 
@@ -336,6 +384,7 @@ class LLMRouter(ChatLLM):
     """
 
     provider_name = "router"
+    _call_history: list[dict[str, Any]] = []
 
     def __init__(
         self,
@@ -403,10 +452,21 @@ class LLMRouter(ChatLLM):
                     response = await provider.chat(messages=messages, tools=tools)
                     self._record_success(provider)
                     logger.debug(
-                        "LLMRouter: provider='%s' tokens=%d",
+                        "LLMRouter: provider='%s' tokens=%d latency=%.2fs cost=$%.6f",
                         provider.provider_name,
                         response.total_tokens,
+                        response.latency_secs,
+                        response.cost_usd,
                     )
+                    LLMRouter._call_history.append({
+                        "provider": provider.provider_name,
+                        "model": provider.model,
+                        "input_tokens": response.input_tokens,
+                        "output_tokens": response.output_tokens,
+                        "latency_secs": response.latency_secs,
+                        "cost_usd": response.cost_usd,
+                        "timestamp": time.time(),
+                    })
                     return response
                 except Exception as exc:
                     last_exc = exc

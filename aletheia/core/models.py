@@ -5,7 +5,76 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+
+class AnalystContract(BaseModel):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        forbidden_keys = {"recommendations", "executive_summary", "final_decision", "portfolio_manager_overrides"}
+        for key in forbidden_keys:
+            if key in cls.__annotations__ or key in cls.__dict__:
+                raise TypeError(
+                    f"Analyst contract violation: class {cls.__name__} cannot define forbidden field '{key}'"
+                )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_analyst_mandate(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            forbidden_keys = {"recommendations", "executive_summary", "final_decision", "portfolio_manager_overrides"}
+            for key in forbidden_keys:
+                if key in data:
+                    raise ValueError(
+                        f"Analyst contract violation: analyst role is forbidden from emitting final decisions/synthesis (field '{key}' found)"
+                    )
+        return data
+
+
+class RiskConstraintContract(BaseModel):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        forbidden_keys = {"quotes", "executive_summary", "recommendations"}
+        for key in forbidden_keys:
+            if key in cls.__annotations__ or key in cls.__dict__:
+                raise TypeError(
+                    f"RiskConstraint contract violation: class {cls.__name__} cannot define forbidden field '{key}'"
+                )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_risk_mandate(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            forbidden_keys = {"quotes", "executive_summary", "recommendations"}
+            for key in forbidden_keys:
+                if key in data:
+                    raise ValueError(
+                        f"RiskConstraint contract violation: risk/constraint role is forbidden from emitting analyst details or final synthesis (field '{key}' found)"
+                    )
+        return data
+
+
+class SynthesisContract(BaseModel):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        forbidden_keys = {"quotes"}
+        for key in forbidden_keys:
+            if key in cls.__annotations__ or key in cls.__dict__:
+                raise TypeError(
+                    f"Synthesis contract violation: class {cls.__name__} cannot define forbidden field '{key}'"
+                )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_synthesis_mandate(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            forbidden_keys = {"quotes"}
+            for key in forbidden_keys:
+                if key in data:
+                    raise ValueError(
+                        f"Synthesis contract violation: synthesis role is forbidden from emitting analyst details (field '{key}' found)"
+                    )
+        return data
 
 
 class AgentName(str, Enum):
@@ -14,11 +83,18 @@ class AgentName(str, Enum):
     SENTINEL = "sentinel"
     SAGE = "sage"
     SCRIBE = "scribe"
+    DEBATE = "debate"
+    PORTFOLIO_MANAGER = "portfolio_manager"
+    SENTIMENT = "sentiment"
+    FUNDAMENTAL = "fundamental"
+    OPTIONS_FLOW = "options_flow"
+    CRITIC = "critic"
 
 
 class RunStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
+    PARTIAL = "partial"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -59,18 +135,19 @@ class DesktopRunBridge(BaseModel):
 
 
 class Holding(BaseModel):
-    symbol: str
-    quantity: float
-    average_price: float
+    symbol: str = Field(..., min_length=1, max_length=30, pattern=r"^[A-Za-z0-9/.:-]+$")
+    quantity: float = Field(..., gt=0, le=1e9)
+    average_price: float = Field(..., gt=0, le=1e7)
     asset_type: AssetType = AssetType.EQUITY
     exchange: str = "NSE"
     tax_profile: TaxProfile = TaxProfile.EQUITY
+    sector: str = "Technology"
 
 
 class Portfolio(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=100, pattern=r"^[A-Za-z0-9 _-]+$")
     base_currency: str = "INR"
-    holdings: list[Holding]
+    holdings: list[Holding] = Field(..., max_length=100)
 
 
 class RunRequest(BaseModel):
@@ -83,6 +160,10 @@ class RunRequest(BaseModel):
             AgentName.SENTINEL,
             AgentName.SAGE,
             AgentName.SCRIBE,
+            AgentName.SENTIMENT,
+            AgentName.FUNDAMENTAL,
+            AgentName.OPTIONS_FLOW,
+            AgentName.CRITIC,
         ]
     )
 
@@ -94,6 +175,7 @@ class RunSummary(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     error_message: str | None = None
+    agent_statuses: dict[str, str] = Field(default_factory=dict)
 
 
 class MarketQuote(BaseModel):
@@ -109,30 +191,76 @@ class MarketQuote(BaseModel):
     provider: str
 
 
-class CollectorOutput(BaseModel):
+class CollectorOutput(AnalystContract):
     symbol: str
     provider_used: str
     quotes: list[MarketQuote]
     warnings: list[str] = Field(default_factory=list)
     provenance: list[dict[str, Any]] = Field(default_factory=list)
+    confidence: float = 1.0
 
 
-class OracleOutput(BaseModel):
+class MultiTimeframeSignal(BaseModel):
+    timeframe: str  # "1D" | "1W" | "1M"
+    signal: str
+    confidence: float
+    indicators: dict[str, float] = Field(default_factory=dict)
+
+
+class OracleOutput(AnalystContract):
     symbol: str
     signal: str
     confidence: float
     rationale: list[str] = Field(default_factory=list)
     fair_value_gap_pct: float = 0.0
     momentum_pct: float = 0.0
+    multi_timeframe_signals: list[MultiTimeframeSignal] = Field(default_factory=list)
+    factor_exposures: dict[str, float] | None = None  # alpha, beta, smb_loading, hml_loading, r_squared
+    timeframe_agreement: str = "UNKNOWN"  # ALL_AGREE | MAJORITY_AGREE | SPLIT | NO_AGREEMENT
 
 
-class SentinelOutput(BaseModel):
+class SentinelOutput(AnalystContract):
     portfolio_var_95: float
     concentration_risk: float
     max_single_position_pct: float
     market_regime: str
     confidence: float
     alerts: list[str] = Field(default_factory=list)
+    regime_detail: str = "unknown"  # e.g. "low_vol_bull", "crash", "high_vol"
+    natural_language_brief: str = ""
+
+
+class SentimentOutput(AnalystContract):
+    symbol: str
+    sentiment_score: float  # -1.0 to 1.0
+    headline_count: int = 0
+    top_headlines: list[str] = Field(default_factory=list)
+    source_breakdown: dict[str, int] = Field(default_factory=dict)
+    verdict: str = "NEUTRAL"  # STRONGLY_POSITIVE | POSITIVE | NEUTRAL | NEGATIVE | STRONGLY_NEGATIVE
+    confidence: float = 0.5
+
+
+class FundamentalOutput(AnalystContract):
+    symbol: str
+    pe_ratio: float | None = None
+    eps_growth_pct: float | None = None
+    revenue_growth_pct: float | None = None
+    debt_to_equity: float | None = None
+    promoter_holding_pct: float | None = None
+    sector_pe: float | None = None
+    valuation_verdict: str = "FAIR"  # OVERVALUED | FAIR | UNDERVALUED
+    valuation_commentary: str = ""
+    confidence: float = 0.5
+
+
+class OptionsFlowOutput(AnalystContract):
+    symbol: str
+    put_call_ratio: float = 1.0
+    iv_rank: float = 50.0  # 0-100
+    max_pain_level: float | None = None
+    oi_concentration: str = "NEUTRAL"  # BULLISH_OI | BEARISH_OI | NEUTRAL
+    signal_hint: str = "NEUTRAL"
+    confidence: float = 0.5
 
 
 class TaxSummary(BaseModel):
@@ -151,7 +279,7 @@ class SageScenario(BaseModel):
     tax_summary: TaxSummary
 
 
-class SageOutput(BaseModel):
+class SageOutput(RiskConstraintContract):
     symbol: str
     scenario: SageScenario
     confidence: float
@@ -167,12 +295,50 @@ class Recommendation(BaseModel):
     target_price: float | None = None
 
 
-class ScribeOutput(BaseModel):
+class CriticVerdict(BaseModel):
+    passed: bool
+    score: float  # 0.0-1.0
+    notes: list[str] = Field(default_factory=list)
+    iteration: int = 1
+
+
+class ConfidenceRecord(BaseModel):
+    record_id: str = Field(default_factory=lambda: str(uuid4()))
+    run_id: str
+    symbol: str
+    agent: str
+    predicted_signal: str
+    predicted_confidence: float
+    actual_return_7d: float | None = None
+    actual_return_30d: float | None = None
+    brier_score: float | None = None
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class SEBIComplianceLog(BaseModel):
+    log_id: str = Field(default_factory=lambda: str(uuid4()))
+    run_id: str
+    symbol: str
+    action: str
+    confidence: float
+    reasoning_hash: str  # SHA-256 of executive_summary
+    disclaimer: str
+    logged_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class ScribeOutput(SynthesisContract):
     executive_summary: str
     overall_confidence: float
     agreement_level: str
     recommendations: list[Recommendation] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+    critic_passed: bool = True
+    critic_notes: list[str] = Field(default_factory=list)
+    sebi_disclaimer: str = (
+        "This report is generated by an AI system for informational purposes only. "
+        "It does not constitute financial advice. Past performance is not indicative of future results. "
+        "Consult a SEBI-registered investment advisor before making any investment decisions."
+    )
 
 
 class AgentEvent(BaseModel):
@@ -190,8 +356,15 @@ class RunResult(BaseModel):
     sentinel_output: SentinelOutput | None = None
     sage_output: list[SageOutput] = Field(default_factory=list)
     scribe_output: ScribeOutput | None = None
+    sentiment_outputs: list[SentimentOutput] = Field(default_factory=list)
+    fundamental_outputs: list[FundamentalOutput] = Field(default_factory=list)
+    options_flow_outputs: list[OptionsFlowOutput] = Field(default_factory=list)
+    critic_verdict: CriticVerdict | None = None
+    macro_context_text: str = ""
     insights: list[str] = Field(default_factory=list)
     confidence_score: float = 0.0
+    traces: list[dict[str, Any]] = Field(default_factory=list)
+    agent_statuses: dict[str, str] = Field(default_factory=dict)
 
 
 class HealthResponse(BaseModel):

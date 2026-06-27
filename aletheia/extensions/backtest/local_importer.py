@@ -161,7 +161,12 @@ def import_local_file(
         return 0
 
     import duckdb
-    with duckdb.connect(str(duckdb_path)) as conn:
+    from aletheia.core.config.settings import get_settings
+    settings = get_settings()
+    config = {}
+    if settings.db_encryption_key:
+        config["encryption_key"] = settings.db_encryption_key
+    with duckdb.connect(str(duckdb_path), config=config) as conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS historical_candles (

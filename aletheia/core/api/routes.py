@@ -48,6 +48,12 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
     Request,
+    Depends,
+)
+from aletheia.core.api.security import (
+    submit_run_limiter,
+    submit_portfolio_limiter,
+    portfolio_analysis_limiter,
 )
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -87,7 +93,7 @@ async def ready() -> dict[str, bool]:
 # Runs
 # ---------------------------------------------------------------------------
 
-@router.post("/runs")
+@router.post("/runs", dependencies=[Depends(submit_run_limiter)])
 async def create_run(
     request: RunRequest, background_tasks: BackgroundTasks, background: bool = False
 ) -> dict:
@@ -102,7 +108,7 @@ async def create_run(
         return result.model_dump(mode="json")
 
 
-@router.post("/portfolio-analysis")
+@router.post("/portfolio-analysis", dependencies=[Depends(portfolio_analysis_limiter)])
 async def portfolio_analysis(portfolio: Portfolio) -> dict:
     service = get_run_service()
     result = await service.create_run(
@@ -137,6 +143,20 @@ async def get_run_events(run_id: str) -> dict:
     return {"events": [event.model_dump(mode="json") for event in events]}
 
 
+@router.get("/runs/{run_id}/trace")
+async def get_run_trace(run_id: str) -> dict:
+    service = get_run_service()
+    events = service.get_events(run_id)
+    run_res = service.get_run(run_id)
+    spans = run_res.traces if run_res else []
+    return {
+        "run_id": run_id,
+        "trace": [event.model_dump(mode="json") for event in events],
+        "spans": spans
+    }
+
+
+
 # ---------------------------------------------------------------------------
 # Portfolios
 # ---------------------------------------------------------------------------
@@ -157,7 +177,7 @@ async def get_portfolio(name: str) -> dict:
     return portfolio.model_dump(mode="json")
 
 
-@router.post("/portfolios")
+@router.post("/portfolios", dependencies=[Depends(submit_portfolio_limiter)])
 async def save_portfolio(portfolio: Portfolio) -> dict:
     service = get_run_service()
     service.sqlite_store.save_portfolio(portfolio)
@@ -404,3 +424,36 @@ async def chat_stream(request: Request) -> StreamingResponse:
             yield event.to_sse()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+# ---------------------------------------------------------------------------
+# Intelligence Sprint Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/runs/{run_id}/calibration")
+async def get_run_calibration(run_id: str) -> dict:
+    service = get_run_service()
+    with service.sqlite_store.connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM confidence_calibration WHERE run_id = ?", (run_id,)
+        ).fetchall()
+    return {"calibration": [dict(r) for r in rows]}
+
+
+@router.get("/compliance/log")
+async def get_compliance_log(from_date: str | None = None, to_date: str | None = None, limit: int = 100) -> dict:
+    service = get_run_service()
+    log = service.sqlite_store.get_compliance_log(from_date=from_date, to_date=to_date, limit=limit)
+    return {"log": log}
+
+
+@router.get("/memory/vector-search")
+async def vector_search(q: str, limit: int = 5) -> dict:
+    if not q.strip():
+        raise HTTPException(status_code=400, detail="Query 'q' is required")
+    try:
+        from aletheia.core.memory.vector_store import VectorMemoryStore
+        store = VectorMemoryStore()
+        results = store.search(q, k=limit)
+        return {"results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Vector search failed: {e}")

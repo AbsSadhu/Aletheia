@@ -54,7 +54,12 @@ class HistoricalDataFeed:
 
     def _conn(self):
         import duckdb
-        return duckdb.connect(self._duckdb_path)
+        from aletheia.core.config.settings import get_settings
+        settings = get_settings()
+        config = {}
+        if settings.db_encryption_key:
+            config["encryption_key"] = settings.db_encryption_key
+        return duckdb.connect(self._duckdb_path, config=config)
 
     def _init_schema(self) -> None:
         with self._conn() as conn:
@@ -70,6 +75,9 @@ class HistoricalDataFeed:
                     provider VARCHAR DEFAULT 'yfinance',
                     PRIMARY KEY (symbol, date)
                 )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_historical_candles_date ON historical_candles (date)
             """)
 
     # ------------------------------------------------------------------

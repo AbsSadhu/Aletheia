@@ -903,7 +903,7 @@ fn aletheia_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(monte_carlo_var_rust, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_technical_indicators_rust, m)?)?;
 
-    // New: Technical Indicators
+    // Technical Indicators
     m.add_function(wrap_pyfunction!(calculate_macd_rust, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_bollinger_bands_rust, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_atr_rust, m)?)?;
@@ -911,20 +911,330 @@ fn aletheia_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(calculate_obv_rust, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_stochastic_rust, m)?)?;
 
-    // New: Portfolio Analytics
+    // Portfolio Analytics
     m.add_function(wrap_pyfunction!(monte_carlo_portfolio_paths_rust, m)?)?;
     m.add_function(wrap_pyfunction!(correlation_matrix_rust, m)?)?;
     m.add_function(wrap_pyfunction!(rolling_correlation_rust, m)?)?;
 
-    // New: Backtest Metrics
+    // Backtest Metrics
     m.add_function(wrap_pyfunction!(calculate_sharpe_rust, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_sortino_rust, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_calmar_rust, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_max_drawdown_rust, m)?)?;
 
-    // New: Memory + Security
+    // Memory + Security
     m.add_function(wrap_pyfunction!(bm25_score_rust, m)?)?;
     m.add_class::<RateLimiter>()?;
 
+    // Intelligence Sprint — new functions
+    m.add_function(wrap_pyfunction!(brier_score_rust, m)?)?;
+    m.add_function(wrap_pyfunction!(regime_detection_rust, m)?)?;
+    m.add_function(wrap_pyfunction!(fama_french_rust, m)?)?;
+    m.add_function(wrap_pyfunction!(options_flow_metrics_rust, m)?)?;
+
     Ok(())
+}
+
+// ============================================================
+// Intelligence Sprint — Brier Score (confidence calibration)
+// ============================================================
+
+/// Compute Brier score for a sequence of probability predictions vs. binary outcomes.
+/// predictions: probabilities [0.0, 1.0]
+/// outcomes: 1.0 if direction correct, 0.0 if wrong
+/// Returns: mean squared error (lower = better calibrated)
+#[pyfunction]
+fn brier_score_rust(predictions: Vec<f64>, outcomes: Vec<f64>) -> PyResult<f64> {
+    if predictions.len() != outcomes.len() || predictions.is_empty() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "predictions and outcomes must be non-empty and same length",
+        ));
+    }
+    let mse: f64 = predictions
+        .iter()
+        .zip(outcomes.iter())
+        .map(|(p, o)| (p - o).powi(2))
+        .sum::<f64>()
+        / predictions.len() as f64;
+    Ok(mse)
+}
+
+// ============================================================
+// Intelligence Sprint — Regime Detection (Gaussian Mixture + Viterbi)
+// ============================================================
+
+/// Detect market regime from a return series using a simplified 2- or 3-state HMM.
+/// Returns a dict: {"current_regime": "low_vol_bull", "regime_sequence": [...], "regime_labels": [...]}
+#[pyfunction]
+fn regime_detection_rust(py: Python<'_>, returns: Vec<f64>, n_regimes: u8) -> PyResult<PyObject> {
+    let n = returns.len();
+    let k = n_regimes.clamp(2, 3) as usize;
+    if n < k + 1 {
+        let d = PyDict::new(py);
+        d.set_item("current_regime", "insufficient_data")?;
+        d.set_item("regime_sequence", Vec::<usize>::new())?;
+        d.set_item("regime_labels", Vec::<&str>::new())?;
+        return Ok(d.into());
+    }
+
+    // Compute mean and std of returns for initialisation
+    let mean = returns.iter().sum::<f64>() / n as f64;
+    let variance = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / n as f64;
+    let std_dev = variance.sqrt().max(1e-8);
+
+    // Sort returns to derive regime thresholds (percentile-based init)
+    let mut sorted = returns.clone();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Define regime means/stds based on quantile split
+    let regimes: Vec<(f64, f64, &str)> = if k == 2 {
+        let median = sorted[n / 2];
+        let lower_mean = sorted[..n / 2].iter().sum::<f64>() / (n / 2) as f64;
+        let upper_mean = sorted[n / 2..].iter().sum::<f64>() / (n - n / 2) as f64;
+        let lower_std = (sorted[..n / 2].iter().map(|r| (r - lower_mean).powi(2)).sum::<f64>() / (n / 2) as f64).sqrt().max(1e-8);
+        let upper_std = (sorted[n / 2..].iter().map(|r| (r - upper_mean).powi(2)).sum::<f64>() / (n - n / 2) as f64).sqrt().max(1e-8);
+        vec![
+            (lower_mean, lower_std, if lower_mean < 0.0 { "bearish" } else { "low_vol_bull" }),
+            (upper_mean, upper_std, if upper_mean > 0.005 { "high_vol_bull" } else { "sideways" }),
+        ]
+    } else {
+        let q33 = sorted[n / 3];
+        let q67 = sorted[2 * n / 3];
+        let _median_unused = q33; // suppress warning
+        let slice0 = &sorted[..n / 3];
+        let slice1 = &sorted[n / 3..2 * n / 3];
+        let slice2 = &sorted[2 * n / 3..];
+        let m0 = slice0.iter().sum::<f64>() / slice0.len() as f64;
+        let m1 = slice1.iter().sum::<f64>() / slice1.len() as f64;
+        let m2 = slice2.iter().sum::<f64>() / slice2.len() as f64;
+        let s0 = (slice0.iter().map(|r| (r - m0).powi(2)).sum::<f64>() / slice0.len() as f64).sqrt().max(1e-8);
+        let s1 = (slice1.iter().map(|r| (r - m1).powi(2)).sum::<f64>() / slice1.len() as f64).sqrt().max(1e-8);
+        let s2 = (slice2.iter().map(|r| (r - m2).powi(2)).sum::<f64>() / slice2.len() as f64).sqrt().max(1e-8);
+        let _ = (q33, q67); // suppress unused warning
+        vec![
+            (m0, s0, "crash"),
+            (m1, s1, "sideways"),
+            (m2, s2, "bull"),
+        ]
+    };
+
+    // Viterbi decoding (simplified: greedy nearest-regime assignment)
+    let mut sequence: Vec<usize> = returns
+        .iter()
+        .map(|&r| {
+            regimes
+                .iter()
+                .enumerate()
+                .map(|(i, (mu, sigma, _))| {
+                    let z = (r - mu) / sigma;
+                    (i, -z * z) // log-likelihood approximation
+                })
+                .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(i, _)| i)
+                .unwrap_or(1)
+        })
+        .collect();
+
+    // Smooth: apply a simple 3-window majority filter to reduce noise
+    let n_seq = sequence.len();
+    for i in 1..n_seq - 1 {
+        let a = sequence[i - 1];
+        let b = sequence[i];
+        let c = sequence[i + 1];
+        if a == c && a != b {
+            sequence[i] = a; // smooth isolated flip
+        }
+    }
+
+    let current_idx = *sequence.last().unwrap_or(&1);
+    let current_label = regimes[current_idx].2;
+    let labels: Vec<&str> = regimes.iter().map(|(_, _, l)| *l).collect();
+
+    let d = PyDict::new(py);
+    d.set_item("current_regime", current_label)?;
+    d.set_item("current_regime_index", current_idx)?;
+    d.set_item("regime_sequence", sequence)?;
+    d.set_item("regime_labels", labels)?;
+    d.set_item("n_regimes", k)?;
+    Ok(d.into())
+}
+
+// ============================================================
+// Intelligence Sprint — Fama-French 3-Factor Model (OLS)
+// ============================================================
+
+/// OLS regression: r_i = alpha + beta*(r_m) + s*SMB + h*HML + error
+/// All inputs are excess returns (already risk-free adjusted) or raw returns.
+/// Returns: {"alpha", "beta", "smb_loading", "hml_loading", "r_squared"}
+#[pyfunction]
+fn fama_french_rust(
+    py: Python<'_>,
+    returns: Vec<f64>,
+    market_returns: Vec<f64>,
+    smb: Vec<f64>,
+    hml: Vec<f64>,
+) -> PyResult<PyObject> {
+    let n = returns.len();
+    if n < 5 || market_returns.len() != n || smb.len() != n || hml.len() != n {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "All return series must have the same length (min 5)",
+        ));
+    }
+
+    // Build design matrix X: [1, r_m, smb, hml] for each observation
+    // Solve via OLS: beta = (X'X)^-1 X'y
+    // Use closed-form 4x4 matrix inversion via Cramer's rule (no external deps)
+
+    let nf = n as f64;
+    // Compute means
+    let y_mean = returns.iter().sum::<f64>() / nf;
+    let x1_mean = market_returns.iter().sum::<f64>() / nf;
+    let x2_mean = smb.iter().sum::<f64>() / nf;
+    let x3_mean = hml.iter().sum::<f64>() / nf;
+
+    // Center the variables for numerical stability
+    let y_c: Vec<f64> = returns.iter().map(|r| r - y_mean).collect();
+    let x1_c: Vec<f64> = market_returns.iter().map(|r| r - x1_mean).collect();
+    let x2_c: Vec<f64> = smb.iter().map(|r| r - x2_mean).collect();
+    let x3_c: Vec<f64> = hml.iter().map(|r| r - x3_mean).collect();
+
+    // 3x3 normal equations (centered, no intercept — intercept computed separately)
+    let xx11: f64 = x1_c.iter().map(|x| x * x).sum();
+    let xx12: f64 = x1_c.iter().zip(x2_c.iter()).map(|(a, b)| a * b).sum();
+    let xx13: f64 = x1_c.iter().zip(x3_c.iter()).map(|(a, b)| a * b).sum();
+    let xx22: f64 = x2_c.iter().map(|x| x * x).sum();
+    let xx23: f64 = x2_c.iter().zip(x3_c.iter()).map(|(a, b)| a * b).sum();
+    let xx33: f64 = x3_c.iter().map(|x| x * x).sum();
+    let xy1: f64 = x1_c.iter().zip(y_c.iter()).map(|(x, y)| x * y).sum();
+    let xy2: f64 = x2_c.iter().zip(y_c.iter()).map(|(x, y)| x * y).sum();
+    let xy3: f64 = x3_c.iter().zip(y_c.iter()).map(|(x, y)| x * y).sum();
+
+    // Cramer's rule for 3x3 system
+    let det = xx11 * (xx22 * xx33 - xx23 * xx23)
+        - xx12 * (xx12 * xx33 - xx23 * xx13)
+        + xx13 * (xx12 * xx23 - xx22 * xx13);
+
+    let (beta, smb_load, hml_load) = if det.abs() < 1e-12 {
+        // Near-singular: fall back to univariate beta
+        let beta_uni = if xx11 > 1e-12 { xy1 / xx11 } else { 0.0 };
+        (beta_uni, 0.0, 0.0)
+    } else {
+        let b1 = (xy1 * (xx22 * xx33 - xx23 * xx23)
+            - xx12 * (xy2 * xx33 - xx23 * xy3)
+            + xx13 * (xy2 * xx23 - xx22 * xy3))
+            / det;
+        let b2 = (xx11 * (xy2 * xx33 - xx23 * xy3)
+            - xy1 * (xx12 * xx33 - xx23 * xx13)
+            + xx13 * (xx12 * xy3 - xy2 * xx13))
+            / det;
+        let b3 = (xx11 * (xx22 * xy3 - xy2 * xx23)
+            - xx12 * (xx12 * xy3 - xy2 * xx13)
+            + xy1 * (xx12 * xx23 - xx22 * xx13))
+            / det;
+        (b1, b2, b3)
+    };
+
+    let alpha = y_mean - beta * x1_mean - smb_load * x2_mean - hml_load * x3_mean;
+
+    // R-squared
+    let y_hat: Vec<f64> = (0..n)
+        .map(|i| alpha + beta * market_returns[i] + smb_load * smb[i] + hml_load * hml[i])
+        .collect();
+    let ss_res: f64 = returns.iter().zip(y_hat.iter()).map(|(y, yh)| (y - yh).powi(2)).sum();
+    let ss_tot: f64 = returns.iter().map(|y| (y - y_mean).powi(2)).sum();
+    let r_squared = if ss_tot > 1e-12 { 1.0 - ss_res / ss_tot } else { 0.0 };
+
+    let d = PyDict::new(py);
+    d.set_item("alpha", (alpha * 1e6).round() / 1e6)?;
+    d.set_item("beta", (beta * 1e6).round() / 1e6)?;
+    d.set_item("smb_loading", (smb_load * 1e6).round() / 1e6)?;
+    d.set_item("hml_loading", (hml_load * 1e6).round() / 1e6)?;
+    d.set_item("r_squared", (r_squared * 1e6).round() / 1e6)?;
+    Ok(d.into())
+}
+
+// ============================================================
+// Intelligence Sprint — Options Flow Metrics
+// ============================================================
+
+/// Compute put/call ratio, IV rank, and OI-based signal.
+/// calls_oi / puts_oi: open interest at each strike
+/// calls_iv / puts_iv: implied volatility at each strike
+/// iv_52w_high / iv_52w_low: ATM IV extremes over last 52 weeks
+#[pyfunction]
+fn options_flow_metrics_rust(
+    py: Python<'_>,
+    calls_oi: Vec<f64>,
+    puts_oi: Vec<f64>,
+    calls_iv: Vec<f64>,
+    puts_iv: Vec<f64>,
+    iv_52w_high: f64,
+    iv_52w_low: f64,
+) -> PyResult<PyObject> {
+    if calls_oi.is_empty() || puts_oi.is_empty() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "OI vectors must be non-empty",
+        ));
+    }
+
+    let total_calls_oi: f64 = calls_oi.iter().sum();
+    let total_puts_oi: f64 = puts_oi.iter().sum();
+    let pcr = if total_calls_oi > 0.0 {
+        total_puts_oi / total_calls_oi
+    } else {
+        1.0
+    };
+
+    // ATM IV: use weighted average (OI-weighted)
+    let total_calls_weight: f64 = calls_oi.iter().sum::<f64>().max(1e-8);
+    let total_puts_weight: f64 = puts_oi.iter().sum::<f64>().max(1e-8);
+    let calls_avg_iv: f64 = calls_oi
+        .iter()
+        .zip(calls_iv.iter())
+        .map(|(w, iv)| w * iv)
+        .sum::<f64>()
+        / total_calls_weight;
+    let puts_avg_iv: f64 = puts_oi
+        .iter()
+        .zip(puts_iv.iter())
+        .map(|(w, iv)| w * iv)
+        .sum::<f64>()
+        / total_puts_weight;
+    let atm_iv = (calls_avg_iv + puts_avg_iv) / 2.0;
+
+    // IV Rank (0-100)
+    let iv_range = (iv_52w_high - iv_52w_low).max(1e-8);
+    let iv_rank = ((atm_iv - iv_52w_low) / iv_range * 100.0).clamp(0.0, 100.0);
+
+    // IV Skew: puts_avg_iv > calls_avg_iv → bearish skew
+    let iv_skew = puts_avg_iv - calls_avg_iv;
+
+    // OI concentration signal
+    let oi_signal = if pcr > 1.3 {
+        "BEARISH_OI"  // Heavy put OI = bearish pressure
+    } else if pcr < 0.7 {
+        "BULLISH_OI"  // Heavy call OI = bullish expectation
+    } else {
+        "NEUTRAL"
+    };
+
+    // Contrarian IV signal: extreme IV = fear/greed extreme
+    let iv_signal = if iv_rank > 80.0 {
+        "CONTRARIAN_BUY"  // Extreme fear = potential bottom
+    } else if iv_rank < 20.0 {
+        "CONTRARIAN_SELL"  // Extreme complacency = potential top
+    } else {
+        "NEUTRAL"
+    };
+
+    let d = PyDict::new(py);
+    d.set_item("put_call_ratio", (pcr * 1000.0).round() / 1000.0)?;
+    d.set_item("iv_rank", (iv_rank * 100.0).round() / 100.0)?;
+    d.set_item("iv_skew", (iv_skew * 1000.0).round() / 1000.0)?;
+    d.set_item("atm_iv", (atm_iv * 1000.0).round() / 1000.0)?;
+    d.set_item("oi_concentration", oi_signal)?;
+    d.set_item("iv_signal", iv_signal)?;
+    d.set_item("total_calls_oi", total_calls_oi)?;
+    d.set_item("total_puts_oi", total_puts_oi)?;
+    Ok(d.into())
 }

@@ -42,6 +42,37 @@ jobs:
       run: |
         poetry run mypy aletheia
 
+    - name: Python Dependency Audit
+      run: |
+        poetry run pip-audit --desc on
+
+    - name: Frontend Dependency Audit
+      run: |
+        cd frontend && npm audit --audit-level=high
+
+    - name: Rust Dependency Audit
+      uses: actions-rust-lang/audit@v1
+
+    - name: Secrets Audit - Check tracked .env
+      run: |
+        if [ -n "$(git ls-files .env)" ]; then
+          echo "ERROR: .env file is tracked in git!"
+          exit 1
+        fi
+        echo "OK: .env file is not tracked in git."
+
+    - name: Secrets Audit - Check commits for high-entropy API keys
+      run: |
+        if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+          KEYS=$(git diff HEAD~1 | grep -E "sk-[a-zA-Z0-9]{32,}|sk-proj-[a-zA-Z0-9]{32,}|sk-ant-[a-zA-Z0-9]{32,}|xoxb-[a-zA-Z0-9]{32,}" || true)
+          if [ -n "$KEYS" ]; then
+            echo "ERROR: Detected potential API key pattern in git diff:"
+            echo "$KEYS"
+            exit 1
+          fi
+        fi
+        echo "OK: No potential API keys detected in commits."
+
     - name: Run Tests
       run: |
         poetry run pytest

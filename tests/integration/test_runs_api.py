@@ -62,3 +62,42 @@ def test_portfolio_analysis_endpoint() -> None:
     )
     assert response.status_code == 200
     assert response.json()["scribe_output"]["recommendations"]
+
+
+def test_run_trace_endpoint() -> None:
+    client = TestClient(app)
+    # Create a run
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "prompt": "Analyze a starter portfolio for trace",
+            "portfolio": {
+                "name": "DemoTrace",
+                "holdings": [
+                    {
+                        "symbol": "RELIANCE",
+                        "quantity": 5,
+                        "average_price": 2500,
+                        "asset_type": "equity",
+                        "exchange": "NSE",
+                        "tax_profile": "equity",
+                    }
+                ],
+            },
+        },
+    )
+    assert response.status_code == 200
+    run_id = response.json()["summary"]["run_id"]
+    
+    # Query trace
+    trace_response = client.get(f"/api/v1/runs/{run_id}/trace")
+    assert trace_response.status_code == 200
+    trace_data = trace_response.json()
+    assert trace_data["run_id"] == run_id
+    assert isinstance(trace_data["trace"], list)
+    assert len(trace_data["trace"]) > 0
+    
+    agents_seen = {event["agent"] for event in trace_data["trace"]}
+    assert "collector" in agents_seen
+    assert "oracle" in agents_seen
+
