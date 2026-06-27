@@ -9,7 +9,7 @@ from aletheia.core.config.settings import get_settings
 # Skip all tests in this file if compute engine sidecar is not enabled in settings
 pytestmark = pytest.mark.skipif(
     not get_settings().compute_engine_enabled,
-    reason="aletheia-engine compute sidecar is not enabled in settings"
+    reason="aletheia-engine compute sidecar is not enabled in settings",
 )
 
 
