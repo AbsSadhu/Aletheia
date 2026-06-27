@@ -19,3 +19,11 @@ frontend/dist/
 desktop/src-tauri/target/
 .tmp_vibe/
 *.log
+
+# Rust build artifacts
+target/
+aletheia_engine/target/
+aletheia_rust/target/
+data/
+backups/
+

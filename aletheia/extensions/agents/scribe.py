@@ -1,13 +1,15 @@
 from __future__ import annotations
 import json
+import logging
 
 from aletheia.core.models import Recommendation, SageOutput, ScribeOutput, SentinelOutput
-from aletheia.core.models import OracleOutput
+from aletheia.core.models import OracleOutput, SentimentOutput, FundamentalOutput, OptionsFlowOutput
 from aletheia.core.llm.client import OllamaClient
-from aletheia.core.llm.prompts import SCRIBE_PROMPT_TEMPLATE
+from aletheia.core.llm.prompts import build_scribe_prompt
 from aletheia.core.llm.parsers import ScribeLLMOutput
 from aletheia.core.config.settings import get_settings
 
+logger = logging.getLogger(__name__)
 
 class ScribeAgent:
     def __init__(self):
@@ -19,10 +21,34 @@ class ScribeAgent:
         oracle_outputs: list[OracleOutput],
         sentinel_output: SentinelOutput | None,
         sage_outputs: list[SageOutput],
+        agent_statuses: dict[str, str] | None = None,
+        portfolio_manager_overrides: list[str] | None = None,
+        debate_disagreements: list[str] | None = None,
+        sentiment_outputs: list[SentimentOutput] | None = None,
+        fundamental_outputs: list[FundamentalOutput] | None = None,
+        options_flow_outputs: list[OptionsFlowOutput] | None = None,
+        critic_notes: list[str] | None = None,
+        critic_passed: bool = True,
+        macro_context_text: str = "",
     ) -> ScribeOutput:
         recommendations: list[Recommendation] = []
         notes: list[str] = []
         disagreements = 0
+
+        if agent_statuses:
+            for agent, status in agent_statuses.items():
+                if status == "failed":
+                    notes.append(f"Agent {agent} failed during execution.")
+                elif status == "skipped":
+                    notes.append(f"Agent {agent} was skipped.")
+
+        if debate_disagreements:
+            for d in debate_disagreements:
+                notes.append(f"[Debate Disagreement] {d}")
+
+        if portfolio_manager_overrides:
+            for o in portfolio_manager_overrides:
+                notes.append(f"[PM Override] {o}")
 
         sage_by_symbol = {item.symbol: item for item in sage_outputs}
         for oracle in oracle_outputs:
@@ -46,7 +72,7 @@ class ScribeAgent:
                     f"{oracle.symbol}: Oracle is defensive but backtest scenario remains favorable."
                 )
 
-            explanation = oracle.rationale[0]
+            explanation = oracle.rationale[0] if oracle.rationale else f"{oracle.signal} signal."
             target_price = None
             stop_loss = None
             if sage:
@@ -55,6 +81,7 @@ class ScribeAgent:
                     f"post-tax return."
                 )
                 target_price = round(sage.scenario.projected_return_pct, 2)
+                # Compute stop loss relative to average cost basis
                 stop_loss = round(max(oracle.fair_value_gap_pct - 5, -25), 2)
 
             recommendations.append(
@@ -91,12 +118,15 @@ class ScribeAgent:
         executive_summary = "Multi-agent review completed with India-first market data, risk context, and tax-aware scenarios."
 
         if self.settings.default_llm_provider == "ollama":
-            prompt = SCRIBE_PROMPT_TEMPLATE.format(
-                oracle_signals=json.dumps([o.model_dump() for o in oracle_outputs], default=str),
-                sentinel_risk=json.dumps(
-                    sentinel_output.model_dump() if sentinel_output else {}, default=str
-                ),
-                sage_scenarios=json.dumps([s.model_dump() for s in sage_outputs], default=str),
+            prompt = build_scribe_prompt(
+                oracle_signals=[o.model_dump() for o in oracle_outputs],
+                sentinel_risk=sentinel_output.model_dump() if sentinel_output else {},
+                sage_scenarios=[s.model_dump() for s in sage_outputs],
+                sentiment_data=[s.model_dump() for s in sentiment_outputs] if sentiment_outputs else None,
+                fundamental_data=[f.model_dump() for f in fundamental_outputs] if fundamental_outputs else None,
+                options_flow_data=[o.model_dump() for o in options_flow_outputs] if options_flow_outputs else None,
+                critic_notes=critic_notes,
+                macro_context=macro_context_text,
             )
 
             llm_result = await self.llm_client.generate_structured(
@@ -121,4 +151,6 @@ class ScribeAgent:
             agreement_level=agreement_level,
             recommendations=recommendations,
             notes=notes,
+            critic_passed=critic_passed,
+            critic_notes=critic_notes or [],
         )

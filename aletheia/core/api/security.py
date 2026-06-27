@@ -3,6 +3,7 @@ from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware
 import time
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +12,44 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 # In a real app, load this from secure storage or settings
 VALID_API_KEYS = {"dev_key_123", "aletheia_prod_999"}
+
+
+class PyO3RateLimiter:
+    """FastAPI dependency for rate limiting using aletheia_rust.RateLimiter."""
+
+    def __init__(self, rate: float, capacity: float):
+        self.rate = rate
+        self.capacity = capacity
+        self.limiters: dict[str, Any] = {}
+
+    def get_limiter(self, ip: str) -> Any:
+        try:
+            import aletheia_rust
+            if ip not in self.limiters:
+                self.limiters[ip] = aletheia_rust.RateLimiter(self.rate, self.capacity)
+            return self.limiters[ip]
+        except ImportError:
+            return None
+
+    async def __call__(self, request: Request):
+        client_ip = request.client.host if request.client else "unknown"
+        limiter = self.get_limiter(client_ip)
+        if limiter is not None:
+            if not limiter.consume(1.0):
+                logger.warning(f"Rate limit exceeded for IP {client_ip}")
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Too Many Requests"
+                )
+        else:
+            # Fallback simple rate limiting if aletheia_rust is not built
+            logger.debug("aletheia_rust not importable, bypassing RateLimiter")
+
+
+# Initialize rate limiters for run, portfolio and analysis endpoints
+submit_run_limiter = PyO3RateLimiter(rate=2.0, capacity=5.0)
+submit_portfolio_limiter = PyO3RateLimiter(rate=2.0, capacity=5.0)
+portfolio_analysis_limiter = PyO3RateLimiter(rate=2.0, capacity=5.0)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

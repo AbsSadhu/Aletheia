@@ -1,11 +1,11 @@
-//! aletheia-engine — Tokio + Axum compute sidecar
+﻿//! aletheia-engine â€” Tokio + Axum compute sidecar
 //!
 //! Exposes a lightweight HTTP API for:
-//!   POST /compute/indicators        — technical indicator suite (no GIL)
-//!   POST /compute/portfolio-metrics — Sharpe, Sortino, Calmar, max drawdown
-//!   POST /compute/monte-carlo       — portfolio path simulation
-//!   POST /compute/correlation       — correlation matrix
-//!   GET  /health                    — liveness probe
+//!   POST /compute/indicators        â€” technical indicator suite (no GIL)
+//!   POST /compute/portfolio-metrics â€” Sharpe, Sortino, Calmar, max drawdown
+//!   POST /compute/monte-carlo       â€” portfolio path simulation
+//!   POST /compute/correlation       â€” correlation matrix
+//!   GET  /health                    â€” liveness probe
 //!
 //! Python binds to this via `ComputeClient` (async httpx).
 
@@ -391,6 +391,78 @@ async fn compute_correlation(Json(req): Json<CorrelationRequest>) -> impl IntoRe
     (StatusCode::OK, Json(serde_json::to_value(resp).unwrap()))
 }
 
+
+// ============================================================
+// Intelligence Sprint -- Regime Detection
+// ============================================================
+
+#[derive(Deserialize)]
+struct RegimeRequest { returns: Vec<f64>, n_regimes: Option<u8> }
+#[derive(Serialize)]
+struct RegimeResponse { current_regime: String, current_regime_index: usize, regime_sequence: Vec<usize>, regime_labels: Vec<String>, n_regimes: usize }
+
+async fn compute_regime(Json(req): Json<RegimeRequest>) -> impl IntoResponse {
+    let k = req.n_regimes.unwrap_or(3).clamp(2, 3) as usize;
+    let returns = &req.returns; let n = returns.len();
+    if n < k + 1 {
+        let r = RegimeResponse { current_regime: "insufficient_data".into(), current_regime_index: 0, regime_sequence: vec![], regime_labels: vec![], n_regimes: k };
+        return (StatusCode::OK, Json(serde_json::to_value(r).unwrap()));
+    }
+    let mut sorted = returns.clone();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mk = |sl: &[f64], label: &str| -> (f64, f64, String) { let m=sl.iter().sum::<f64>()/sl.len() as f64; let s=(sl.iter().map(|r|(r-m).powi(2)).sum::<f64>()/sl.len() as f64).sqrt().max(1e-8); (m,s,label.to_string()) };
+    let regimes: Vec<(f64,f64,String)> = if k==2 { vec![mk(&sorted[..n/2],if sorted[..n/2].iter().sum::<f64>()/(n/2) as f64<0.0{"bearish"}else{"low_vol_bull"}),mk(&sorted[n/2..],"high_vol_bull")] } else { vec![mk(&sorted[..n/3],"crash"),mk(&sorted[n/3..2*n/3],"sideways"),mk(&sorted[2*n/3..],"bull")] };
+    let mut seq: Vec<usize>=returns.iter().map(|&r|{regimes.iter().enumerate().map(|(i,(mu,sg,_))|{let z=(r-mu)/sg;(i,-z*z)}).max_by(|a,b|a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)).map(|(i,_)|i).unwrap_or(1)}).collect();
+    for i in 1..seq.len().saturating_sub(1){if seq[i-1]==seq[i+1]&&seq[i-1]!=seq[i]{seq[i]=seq[i-1];}}
+    let cur=*seq.last().unwrap_or(&1);
+    (StatusCode::OK, Json(serde_json::to_value(RegimeResponse{current_regime:regimes[cur].2.clone(),current_regime_index:cur,regime_sequence:seq,regime_labels:regimes.into_iter().map(|(_,_,l)|l).collect(),n_regimes:k}).unwrap()))
+}
+
+// ============================================================
+// Intelligence Sprint -- Fama-French Factor Model
+// ============================================================
+
+#[derive(Deserialize)]
+struct FactorModelRequest { returns: Vec<f64>, market: Vec<f64>, smb: Vec<f64>, hml: Vec<f64> }
+#[derive(Serialize)]
+struct FactorModelResponse { alpha: f64, beta: f64, smb_loading: f64, hml_loading: f64, r_squared: f64 }
+
+async fn compute_factor_model(Json(req): Json<FactorModelRequest>) -> impl IntoResponse {
+    let n=req.returns.len();
+    if n<5||req.market.len()!=n||req.smb.len()!=n||req.hml.len()!=n { return (StatusCode::BAD_REQUEST,Json(serde_json::json!({"error":"Series length mismatch or min 5 required"}))); }
+    let nf=n as f64; let (ym,x1m,x2m,x3m)=(req.returns.iter().sum::<f64>()/nf,req.market.iter().sum::<f64>()/nf,req.smb.iter().sum::<f64>()/nf,req.hml.iter().sum::<f64>()/nf);
+    let yc: Vec<f64>=req.returns.iter().map(|r|r-ym).collect(); let x1c: Vec<f64>=req.market.iter().map(|r|r-x1m).collect(); let x2c: Vec<f64>=req.smb.iter().map(|r|r-x2m).collect(); let x3c: Vec<f64>=req.hml.iter().map(|r|r-x3m).collect();
+    let xx11: f64=x1c.iter().map(|x|x*x).sum(); let xx12: f64=x1c.iter().zip(x2c.iter()).map(|(a,b)|a*b).sum(); let xx13: f64=x1c.iter().zip(x3c.iter()).map(|(a,b)|a*b).sum(); let xx22: f64=x2c.iter().map(|x|x*x).sum(); let xx23: f64=x2c.iter().zip(x3c.iter()).map(|(a,b)|a*b).sum(); let xx33: f64=x3c.iter().map(|x|x*x).sum();
+    let xy1: f64=x1c.iter().zip(yc.iter()).map(|(x,y)|x*y).sum(); let xy2: f64=x2c.iter().zip(yc.iter()).map(|(x,y)|x*y).sum(); let xy3: f64=x3c.iter().zip(yc.iter()).map(|(x,y)|x*y).sum();
+    let det=xx11*(xx22*xx33-xx23*xx23)-xx12*(xx12*xx33-xx23*xx13)+xx13*(xx12*xx23-xx22*xx13);
+    let (beta,sl,hl)=if det.abs()<1e-12{(if xx11>1e-12{xy1/xx11}else{0.0},0.0,0.0)}else{((xy1*(xx22*xx33-xx23*xx23)-xx12*(xy2*xx33-xx23*xy3)+xx13*(xy2*xx23-xx22*xy3))/det,(xx11*(xy2*xx33-xx23*xy3)-xy1*(xx12*xx33-xx23*xx13)+xx13*(xx12*xy3-xy2*xx13))/det,(xx11*(xx22*xy3-xy2*xx23)-xx12*(xx12*xy3-xy2*xx13)+xy1*(xx12*xx23-xx22*xx13))/det)};
+    let alpha=ym-beta*x1m-sl*x2m-hl*x3m; let yhat: Vec<f64>=(0..n).map(|i|alpha+beta*req.market[i]+sl*req.smb[i]+hl*req.hml[i]).collect();
+    let ss_res: f64=req.returns.iter().zip(yhat.iter()).map(|(y,yh)|(y-yh).powi(2)).sum(); let ss_tot: f64=req.returns.iter().map(|y|(y-ym).powi(2)).sum();
+    let r6=|x:f64|(x*1e6).round()/1e6; let r2=if ss_tot>1e-12{1.0-ss_res/ss_tot}else{0.0};
+    (StatusCode::OK,Json(serde_json::to_value(FactorModelResponse{alpha:r6(alpha),beta:r6(beta),smb_loading:r6(sl),hml_loading:r6(hl),r_squared:r6(r2)}).unwrap()))
+}
+
+// ============================================================
+// Intelligence Sprint -- Options Flow
+// ============================================================
+
+#[derive(Deserialize)]
+struct OptionsFlowRequest { calls_oi: Vec<f64>, puts_oi: Vec<f64>, calls_iv: Vec<f64>, puts_iv: Vec<f64>, iv_52w_high: f64, iv_52w_low: f64 }
+#[derive(Serialize)]
+struct OptionsFlowResponse { put_call_ratio: f64, iv_rank: f64, iv_skew: f64, atm_iv: f64, oi_concentration: String, iv_signal: String, total_calls_oi: f64, total_puts_oi: f64 }
+
+async fn compute_options_flow(Json(req): Json<OptionsFlowRequest>) -> impl IntoResponse {
+    if req.calls_oi.is_empty()||req.puts_oi.is_empty() { return (StatusCode::BAD_REQUEST,Json(serde_json::json!({"error":"OI vectors must be non-empty"}))); }
+    let (tc,tp)=(req.calls_oi.iter().sum::<f64>(),req.puts_oi.iter().sum::<f64>());
+    let pcr=if tc>0.0{tp/tc}else{1.0};
+    let civ=req.calls_oi.iter().zip(req.calls_iv.iter()).map(|(w,iv)|w*iv).sum::<f64>()/tc.max(1e-8);
+    let piv=req.puts_oi.iter().zip(req.puts_iv.iter()).map(|(w,iv)|w*iv).sum::<f64>()/tp.max(1e-8);
+    let atm_iv=(civ+piv)/2.0; let iv_rank=((atm_iv-req.iv_52w_low)/(req.iv_52w_high-req.iv_52w_low).max(1e-8)*100.0).clamp(0.0,100.0);
+    let oi_conc=if pcr>1.3{"BEARISH_OI"}else if pcr<0.7{"BULLISH_OI"}else{"NEUTRAL"};
+    let iv_sig=if iv_rank>80.0{"CONTRARIAN_BUY"}else if iv_rank<20.0{"CONTRARIAN_SELL"}else{"NEUTRAL"};
+    let r3=|x:f64|(x*1000.0).round()/1000.0;
+    (StatusCode::OK,Json(serde_json::to_value(OptionsFlowResponse{put_call_ratio:r3(pcr),iv_rank:r3(iv_rank),iv_skew:r3(piv-civ),atm_iv:r3(atm_iv),oi_concentration:oi_conc.into(),iv_signal:iv_sig.into(),total_calls_oi:tc,total_puts_oi:tp}).unwrap()))
+}
 // ============================================================
 // Main
 // ============================================================
@@ -415,6 +487,10 @@ async fn main() {
         .route("/compute/portfolio-metrics", post(compute_portfolio_metrics))
         .route("/compute/monte-carlo", post(compute_monte_carlo))
         .route("/compute/correlation", post(compute_correlation))
+        // Intelligence Sprint
+        .route("/compute/regime", post(compute_regime))
+        .route("/compute/factor-model", post(compute_factor_model))
+        .route("/compute/options-flow", post(compute_options_flow))
         .layer(cors);
 
     let host = std::env::var("ALETHEIA_ENGINE_HOST").unwrap_or_else(|_| "127.0.0.1".into());
@@ -429,3 +505,4 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
+

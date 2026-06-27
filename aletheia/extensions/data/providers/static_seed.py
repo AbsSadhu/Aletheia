@@ -14,6 +14,7 @@ SEED_QUOTES: dict[str, float] = {
     "ICICIBANK": 1184.0,
     "SBIN": 846.0,
     "BTC/USDT": 65200.0,
+    "DISAGREE": 2500.0,
 }
 
 
