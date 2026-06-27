@@ -970,7 +970,7 @@ fn regime_detection_rust(py: Python<'_>, returns: Vec<f64>, n_regimes: u8) -> Py
     let n = returns.len();
     let k = n_regimes.clamp(2, 3) as usize;
     if n < k + 1 {
-        let d = PyDict::new(py);
+        let d = PyDict::new_bound(py);
         d.set_item("current_regime", "insufficient_data")?;
         d.set_item("regime_sequence", Vec::<usize>::new())?;
         d.set_item("regime_labels", Vec::<&str>::new())?;
@@ -1050,7 +1050,7 @@ fn regime_detection_rust(py: Python<'_>, returns: Vec<f64>, n_regimes: u8) -> Py
     let current_label = regimes[current_idx].2;
     let labels: Vec<&str> = regimes.iter().map(|(_, _, l)| *l).collect();
 
-    let d = PyDict::new(py);
+    let d = PyDict::new_bound(py);
     d.set_item("current_regime", current_label)?;
     d.set_item("current_regime_index", current_idx)?;
     d.set_item("regime_sequence", sequence)?;
@@ -1144,7 +1144,7 @@ fn fama_french_rust(
     let ss_tot: f64 = returns.iter().map(|y| (y - y_mean).powi(2)).sum();
     let r_squared = if ss_tot > 1e-12 { 1.0 - ss_res / ss_tot } else { 0.0 };
 
-    let d = PyDict::new(py);
+    let d = PyDict::new_bound(py);
     d.set_item("alpha", (alpha * 1e6).round() / 1e6)?;
     d.set_item("beta", (beta * 1e6).round() / 1e6)?;
     d.set_item("smb_loading", (smb_load * 1e6).round() / 1e6)?;
@@ -1227,7 +1227,7 @@ fn options_flow_metrics_rust(
         "NEUTRAL"
     };
 
-    let d = PyDict::new(py);
+    let d = PyDict::new_bound(py);
     d.set_item("put_call_ratio", (pcr * 1000.0).round() / 1000.0)?;
     d.set_item("iv_rank", (iv_rank * 100.0).round() / 100.0)?;
     d.set_item("iv_skew", (iv_skew * 1000.0).round() / 1000.0)?;
