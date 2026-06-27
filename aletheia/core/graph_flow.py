@@ -56,51 +56,59 @@ def _get_new_llm_calls(start_time: float) -> list[dict[str, Any]]:
     calls = []
     for call in LLMRouter._call_history:
         if call["timestamp"] >= start_time:
-            calls.append({
-                "provider": call["provider"],
-                "model": call["model"],
-                "input_tokens": call["input_tokens"],
-                "output_tokens": call["output_tokens"],
-                "latency_secs": call["latency_secs"],
-                "cost_usd": call["cost_usd"],
-            })
+            calls.append(
+                {
+                    "provider": call["provider"],
+                    "model": call["model"],
+                    "input_tokens": call["input_tokens"],
+                    "output_tokens": call["output_tokens"],
+                    "latency_secs": call["latency_secs"],
+                    "cost_usd": call["cost_usd"],
+                }
+            )
     for call in OllamaClient._call_history:
         if call["timestamp"] >= start_time:
-            calls.append({
-                "provider": call["provider"],
-                "model": call["model"],
-                "input_tokens": call["input_tokens"],
-                "output_tokens": call["output_tokens"],
-                "latency_secs": call["latency_secs"],
-                "cost_usd": call["cost_usd"],
-            })
+            calls.append(
+                {
+                    "provider": call["provider"],
+                    "model": call["model"],
+                    "input_tokens": call["input_tokens"],
+                    "output_tokens": call["output_tokens"],
+                    "latency_secs": call["latency_secs"],
+                    "cost_usd": call["cost_usd"],
+                }
+            )
     return calls
 
 
 def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None) -> Any:
     """Creates and compiles a LangGraph StateGraph bound to the given RunService instance."""
 
-    def make_resilient_node(agent_name: str, node_func: Any, fallback_updates: Dict[str, Any]) -> Any:
+    def make_resilient_node(
+        agent_name: str, node_func: Any, fallback_updates: Dict[str, Any]
+    ) -> Any:
         async def wrapped_node(state: AgentState) -> Dict[str, Any]:
             run_id = state["run_id"]
             start_time = time.time()
-            
+
             state["agent_statuses"][agent_name] = "running"
             await run_service.update_run_progress(run_id, state, status=RunStatus.RUNNING)
-            
+
             timeout = getattr(run_service.settings, "node_timeout_secs", 30)
-            
+
             try:
                 updates = await asyncio.wait_for(node_func(state), timeout=timeout)
                 state["agent_statuses"][agent_name] = "completed"
-                
+
                 merged_state = {**state, **updates}
-                await run_service.update_run_progress(run_id, merged_state, status=RunStatus.RUNNING)
+                await run_service.update_run_progress(
+                    run_id, merged_state, status=RunStatus.RUNNING
+                )
                 return updates
             except Exception as exc:
                 logger.error("Node %s failed: %r", agent_name, exc, exc_info=True)
                 state["agent_statuses"][agent_name] = "failed"
-                
+
                 duration = time.time() - start_time
                 span = {
                     "node": agent_name,
@@ -110,13 +118,13 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                     "llm_calls": [],
                     "error": str(exc),
                 }
-                
+
                 merged_fallback = dict(fallback_updates)
                 if "traces" in merged_fallback:
                     merged_fallback["traces"].append(span)
                 else:
                     merged_fallback["traces"] = [span]
-                
+
                 try:
                     await run_service.record_event(
                         AgentEvent(
@@ -127,9 +135,11 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                     )
                 except Exception:
                     pass
-                
+
                 merged_state = {**state, **merged_fallback}
-                await run_service.update_run_progress(run_id, merged_state, status=RunStatus.PARTIAL)
+                await run_service.update_run_progress(
+                    run_id, merged_state, status=RunStatus.PARTIAL
+                )
                 return merged_fallback
 
         return wrapped_node
@@ -139,13 +149,17 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         portfolio = state["portfolio"]
         run_id = state["run_id"]
         if not portfolio:
-            return {"traces": [{
-                "node": "collect",
-                "start_time": start_time,
-                "end_time": time.time(),
-                "duration": time.time() - start_time,
-                "llm_calls": [],
-            }]}
+            return {
+                "traces": [
+                    {
+                        "node": "collect",
+                        "start_time": start_time,
+                        "end_time": time.time(),
+                        "duration": time.time() - start_time,
+                        "llm_calls": [],
+                    }
+                ]
+            }
 
         outputs = []
         for holding in portfolio.holdings:
@@ -177,7 +191,11 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
             "duration": end_time - start_time,
             "llm_calls": _get_new_llm_calls(start_time),
         }
-        return {"collector_outputs": outputs, "quotes_by_symbol": quotes_by_symbol, "traces": [span]}
+        return {
+            "collector_outputs": outputs,
+            "quotes_by_symbol": quotes_by_symbol,
+            "traces": [span],
+        }
 
     async def oracle_node(state: AgentState) -> Dict[str, Any]:
         start_time = time.time()
@@ -185,13 +203,17 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         quotes_by_symbol = state.get("quotes_by_symbol") or {}
         run_id = state["run_id"]
         if not portfolio or not quotes_by_symbol:
-            return {"traces": [{
-                "node": "oracle",
-                "start_time": start_time,
-                "end_time": time.time(),
-                "duration": time.time() - start_time,
-                "llm_calls": [],
-            }]}
+            return {
+                "traces": [
+                    {
+                        "node": "oracle",
+                        "start_time": start_time,
+                        "end_time": time.time(),
+                        "duration": time.time() - start_time,
+                        "llm_calls": [],
+                    }
+                ]
+            }
 
         oracle_outputs = []
         for holding in portfolio.holdings:
@@ -226,13 +248,17 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         quotes_by_symbol = state.get("quotes_by_symbol") or {}
         run_id = state["run_id"]
         if not portfolio or not quotes_by_symbol:
-            return {"traces": [{
-                "node": "sentinel",
-                "start_time": start_time,
-                "end_time": time.time(),
-                "duration": time.time() - start_time,
-                "llm_calls": [],
-            }]}
+            return {
+                "traces": [
+                    {
+                        "node": "sentinel",
+                        "start_time": start_time,
+                        "end_time": time.time(),
+                        "duration": time.time() - start_time,
+                        "llm_calls": [],
+                    }
+                ]
+            }
 
         sentinel_output = await run_service.sentinel.assess(
             portfolio, quotes_by_symbol, macro_context_text=state.get("macro_context_text", "")
@@ -263,14 +289,18 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         portfolio = state["portfolio"]
         run_id = state["run_id"]
         if not portfolio:
-            return {"traces": [{
-                "node": "sentiment",
-                "start_time": start_time,
-                "end_time": time.time(),
-                "duration": 0.0,
-                "llm_calls": [],
-            }]}
-        
+            return {
+                "traces": [
+                    {
+                        "node": "sentiment",
+                        "start_time": start_time,
+                        "end_time": time.time(),
+                        "duration": 0.0,
+                        "llm_calls": [],
+                    }
+                ]
+            }
+
         sentiment_outputs = []
         for holding in portfolio.holdings:
             await run_service.record_event(
@@ -290,7 +320,7 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                     payload=output.model_dump(mode="json"),
                 )
             )
-        
+
         end_time = time.time()
         span = {
             "node": "sentiment",
@@ -306,14 +336,18 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         portfolio = state["portfolio"]
         run_id = state["run_id"]
         if not portfolio:
-            return {"traces": [{
-                "node": "fundamental",
-                "start_time": start_time,
-                "end_time": time.time(),
-                "duration": 0.0,
-                "llm_calls": [],
-            }]}
-        
+            return {
+                "traces": [
+                    {
+                        "node": "fundamental",
+                        "start_time": start_time,
+                        "end_time": time.time(),
+                        "duration": 0.0,
+                        "llm_calls": [],
+                    }
+                ]
+            }
+
         fundamental_outputs = []
         for holding in portfolio.holdings:
             await run_service.record_event(
@@ -333,7 +367,7 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                     payload=output.model_dump(mode="json"),
                 )
             )
-        
+
         end_time = time.time()
         span = {
             "node": "fundamental",
@@ -349,14 +383,18 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         portfolio = state["portfolio"]
         run_id = state["run_id"]
         if not portfolio:
-            return {"traces": [{
-                "node": "options_flow",
-                "start_time": start_time,
-                "end_time": time.time(),
-                "duration": 0.0,
-                "llm_calls": [],
-            }]}
-        
+            return {
+                "traces": [
+                    {
+                        "node": "options_flow",
+                        "start_time": start_time,
+                        "end_time": time.time(),
+                        "duration": 0.0,
+                        "llm_calls": [],
+                    }
+                ]
+            }
+
         options_flow_outputs = []
         for holding in portfolio.holdings:
             await run_service.record_event(
@@ -376,7 +414,7 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                     payload=output.model_dump(mode="json"),
                 )
             )
-        
+
         end_time = time.time()
         span = {
             "node": "options_flow",
@@ -394,13 +432,17 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         oracle_outputs = state.get("oracle_outputs") or []
         run_id = state["run_id"]
         if not portfolio or not quotes_by_symbol:
-            return {"traces": [{
-                "node": "sage",
-                "start_time": start_time,
-                "end_time": time.time(),
-                "duration": time.time() - start_time,
-                "llm_calls": [],
-            }]}
+            return {
+                "traces": [
+                    {
+                        "node": "sage",
+                        "start_time": start_time,
+                        "end_time": time.time(),
+                        "duration": time.time() - start_time,
+                        "llm_calls": [],
+                    }
+                ]
+            }
 
         oracle_by_symbol = {o.symbol: o for o in oracle_outputs}
         sage_outputs = []
@@ -439,13 +481,17 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         run_id = state["run_id"]
 
         if not oracle_outputs or not sentinel_output:
-            return {"traces": [{
-                "node": "debate",
-                "start_time": start_time,
-                "end_time": time.time(),
-                "duration": time.time() - start_time,
-                "llm_calls": [],
-            }]}
+            return {
+                "traces": [
+                    {
+                        "node": "debate",
+                        "start_time": start_time,
+                        "end_time": time.time(),
+                        "duration": time.time() - start_time,
+                        "llm_calls": [],
+                    }
+                ]
+            }
 
         has_confident_buy = any(o.signal == "BUY" and o.confidence >= 0.7 for o in oracle_outputs)
         has_sentinel_risk = (
@@ -524,15 +570,20 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         run_id = state["run_id"]
 
         if not portfolio:
-            return {"traces": [{
-                "node": "portfolio_manager",
-                "start_time": start_time,
-                "end_time": time.time(),
-                "duration": time.time() - start_time,
-                "llm_calls": [],
-            }]}
+            return {
+                "traces": [
+                    {
+                        "node": "portfolio_manager",
+                        "start_time": start_time,
+                        "end_time": time.time(),
+                        "duration": time.time() - start_time,
+                        "llm_calls": [],
+                    }
+                ]
+            }
 
         from aletheia.core.risk.metrics import portfolio_market_values
+
         mkt_values = portfolio_market_values(portfolio, quotes_by_symbol)
         total_value = sum(mkt_values.values()) or 1.0
 
@@ -549,7 +600,8 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                 if score is not None and score > 0.25:
                     logger.warning(
                         "PM: Symbol %s Oracle is poorly calibrated (Brier score = %.2f > 0.25). Reducing confidence.",
-                        o.symbol, score
+                        o.symbol,
+                        score,
                     )
                     o_copy.confidence = round(o_copy.confidence * 0.7, 2)
                     o_copy.rationale.append(
@@ -682,7 +734,7 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         fundamental_outputs = state.get("fundamental_outputs") or []
         options_flow_outputs = state.get("options_flow_outputs") or []
         critic_verdict = state.get("critic_verdict")
-        
+
         critic_notes = critic_verdict.notes if critic_verdict else []
         critic_passed = critic_verdict.passed if critic_verdict else True
         macro_context_text = state.get("macro_context_text", "")
@@ -734,19 +786,23 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         sentinel_output = state.get("sentinel_output")
         sage_outputs = state.get("sage_outputs") or []
         run_id = state["run_id"]
-        
+
         if not scribe_output:
-            return {"traces": [{
-                "node": "critic",
-                "start_time": start_time,
-                "end_time": time.monotonic(),
-                "duration": 0.0,
-                "llm_calls": [],
-            }]}
-            
+            return {
+                "traces": [
+                    {
+                        "node": "critic",
+                        "start_time": start_time,
+                        "end_time": time.monotonic(),
+                        "duration": 0.0,
+                        "llm_calls": [],
+                    }
+                ]
+            }
+
         previous_verdict = state.get("critic_verdict")
         iteration = (previous_verdict.iteration + 1) if previous_verdict else 1
-        
+
         await run_service.record_event(
             AgentEvent(
                 run_id=run_id,
@@ -754,14 +810,14 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                 message=f"Auditing Scribe output (iteration {iteration})",
             )
         )
-        
+
         verdict = await run_service.critic.audit(
             scribe_output=scribe_output,
             sentinel_output=sentinel_output.model_dump() if sentinel_output else None,
             sage_outputs=[s.model_dump() for s in sage_outputs],
             iteration=iteration,
         )
-        
+
         await run_service.record_event(
             AgentEvent(
                 run_id=run_id,
@@ -770,7 +826,7 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                 payload=verdict.model_dump(mode="json"),
             )
         )
-        
+
         end_time = time.monotonic()
         span = {
             "node": "critic",
@@ -787,7 +843,11 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         "sentinel": ("sentinel", sentinel_node, {"sentinel_output": None}),
         "debate": ("debate", debate_node, {"oracle_outputs": [], "debate_disagreements": []}),
         "sage": ("sage", sage_node, {"sage_outputs": []}),
-        "portfolio_manager": ("portfolio_manager", portfolio_manager_node, {"oracle_outputs": [], "portfolio_manager_overrides": []}),
+        "portfolio_manager": (
+            "portfolio_manager",
+            portfolio_manager_node,
+            {"oracle_outputs": [], "portfolio_manager_overrides": []},
+        ),
         "scribe": ("scribe", scribe_node, {"scribe_output": None, "insights": []}),
         "sentiment": ("sentiment", sentiment_node, {"sentiment_outputs": []}),
         "fundamental": ("fundamental", fundamental_node, {"fundamental_outputs": []}),
@@ -796,7 +856,21 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
     }
 
     if enabled_agents is None:
-        enabled_agents = getattr(run_service.settings, "enabled_agents", ["collector", "oracle", "sentinel", "sage", "scribe", "sentiment", "fundamental", "options_flow", "critic"])
+        enabled_agents = getattr(
+            run_service.settings,
+            "enabled_agents",
+            [
+                "collector",
+                "oracle",
+                "sentinel",
+                "sage",
+                "scribe",
+                "sentiment",
+                "fundamental",
+                "options_flow",
+                "critic",
+            ],
+        )
 
     agents_list = list(enabled_agents)
     if "oracle" in agents_list and "sentinel" in agents_list and "debate" not in agents_list:
@@ -839,7 +913,7 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
             workflow.add_edge("oracle", "debate")
         if "sentinel" in active_node_names:
             workflow.add_edge("sentinel", "debate")
-        
+
         if "sage" in active_node_names:
             workflow.add_edge("debate", "sage")
             if "portfolio_manager" in active_node_names:
@@ -885,14 +959,7 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
 
     if "critic" in active_node_names and "scribe" in active_node_names:
         workflow.add_edge("scribe", "critic")
-        workflow.add_conditional_edges(
-            "critic",
-            route_critic,
-            {
-                "scribe": "scribe",
-                "__end__": END
-            }
-        )
+        workflow.add_conditional_edges("critic", route_critic, {"scribe": "scribe", "__end__": END})
     else:
         if "scribe" in active_node_names:
             workflow.add_edge("scribe", END)

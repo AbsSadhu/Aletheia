@@ -77,7 +77,7 @@ class OllamaClient:
 
                 latency = time.monotonic() - start_time
                 await self._circuit.record_success()
-                
+
                 # Ollama is locally hosted and free
                 cost = 0.0
                 logger.info(
@@ -87,15 +87,17 @@ class OllamaClient:
                 if "response" in data:
                     try:
                         parsed = json.loads(data["response"])
-                        OllamaClient._call_history.append({
-                            "provider": "ollama",
-                            "model": model,
-                            "input_tokens": 0,
-                            "output_tokens": 0,
-                            "latency_secs": latency,
-                            "cost_usd": 0.0,
-                            "timestamp": time.time(),
-                        })
+                        OllamaClient._call_history.append(
+                            {
+                                "provider": "ollama",
+                                "model": model,
+                                "input_tokens": 0,
+                                "output_tokens": 0,
+                                "latency_secs": latency,
+                                "cost_usd": 0.0,
+                                "timestamp": time.time(),
+                            }
+                        )
                         return parsed
                     except json.JSONDecodeError:
                         logger.error(

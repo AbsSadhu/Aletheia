@@ -1,14 +1,20 @@
 from __future__ import annotations
 
-import json
 import logging
-from aletheia.core.models import Holding, MarketQuote, OracleOutput, SentinelOutput, MultiTimeframeSignal
+from aletheia.core.models import (
+    Holding,
+    MarketQuote,
+    OracleOutput,
+    SentinelOutput,
+    MultiTimeframeSignal,
+)
 from aletheia.core.llm.client import OllamaClient
 from aletheia.core.llm.prompts import build_oracle_prompt
 from aletheia.core.llm.parsers import OracleLLMOutput
 from aletheia.core.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
+
 
 class OracleAgent:
     def __init__(self, duckdb_store=None, compute_client=None):
@@ -32,17 +38,17 @@ class OracleAgent:
 
         # F1. Multi-timeframe signals (1D / 1W / 1M)
         multi_tf_data, closes = await self._compute_multi_timeframe(holding.symbol, quote)
-        
+
         # Determine timeframe agreement
         sig1d = multi_tf_data.get("1D", {}).get("signal", "HOLD")
         sig1w = multi_tf_data.get("1W", {}).get("signal", "HOLD")
         sig1m = multi_tf_data.get("1M", {}).get("signal", "HOLD")
         signals_list = [sig1d, sig1w, sig1m]
-        
+
         buy_count = signals_list.count("BUY")
         reduce_count = signals_list.count("REDUCE")
         hold_count = signals_list.count("HOLD")
-        
+
         if buy_count == 3 or reduce_count == 3 or hold_count == 3:
             tf_agreement = "ALL_AGREE"
         elif buy_count == 2 or reduce_count == 2 or hold_count == 2:
@@ -69,7 +75,7 @@ class OracleAgent:
                 tf: {
                     "signal": val["signal"],
                     "confidence": val["confidence"],
-                    "indicators": val["indicators"]
+                    "indicators": val["indicators"],
                 }
                 for tf, val in multi_tf_data.items()
             }
@@ -93,24 +99,32 @@ class OracleAgent:
                     rationale.append(f"[LLM Insights] {parsed.rationale}")
                 except Exception as e:
                     rationale.append(f"[LLM Fallback] Parse error: {e}")
-                    signal, confidence = self._heuristic_fallback(fair_value_gap_pct, momentum_pct, rationale)
+                    signal, confidence = self._heuristic_fallback(
+                        fair_value_gap_pct, momentum_pct, rationale
+                    )
             else:
-                signal, confidence = self._heuristic_fallback(fair_value_gap_pct, momentum_pct, rationale)
+                signal, confidence = self._heuristic_fallback(
+                    fair_value_gap_pct, momentum_pct, rationale
+                )
         else:
-            signal, confidence = self._heuristic_fallback(fair_value_gap_pct, momentum_pct, rationale)
+            signal, confidence = self._heuristic_fallback(
+                fair_value_gap_pct, momentum_pct, rationale
+            )
 
         # F5. High confidence gate
         if signal == "BUY" and confidence > 0.7:
             if buy_count < 2:
                 confidence = 0.7
-                rationale.append("[High Confidence Gate] BUY confidence capped at 0.7 due to lack of multi-timeframe alignment.")
+                rationale.append(
+                    "[High Confidence Gate] BUY confidence capped at 0.7 due to lack of multi-timeframe alignment."
+                )
 
         tf_models = [
             MultiTimeframeSignal(
                 timeframe=tf,
                 signal=val["signal"],
                 confidence=val["confidence"],
-                indicators=val["indicators"]
+                indicators=val["indicators"],
             )
             for tf, val in multi_tf_data.items()
         ]
@@ -127,7 +141,9 @@ class OracleAgent:
             timeframe_agreement=tf_agreement,
         )
 
-    def _heuristic_fallback(self, fair_value_gap_pct: float, momentum_pct: float, rationale: list[str]) -> tuple[str, float]:
+    def _heuristic_fallback(
+        self, fair_value_gap_pct: float, momentum_pct: float, rationale: list[str]
+    ) -> tuple[str, float]:
         if fair_value_gap_pct > 8 and momentum_pct > 0:
             rationale.append("Price strength and positive momentum support accumulation.")
             return "BUY", 0.74
@@ -138,14 +154,16 @@ class OracleAgent:
             rationale.append("Signal remains neutral pending stronger confirmation.")
             return "HOLD", 0.5
 
-    async def _compute_multi_timeframe(self, symbol: str, quote: MarketQuote) -> tuple[dict[str, dict], list[float]]:
+    async def _compute_multi_timeframe(
+        self, symbol: str, quote: MarketQuote
+    ) -> tuple[dict[str, dict], list[float]]:
         closes = []
         if self.duckdb_store:
             try:
                 conn = self.duckdb_store._connect()
                 rows = conn.execute(
                     "SELECT close FROM market_quotes WHERE symbol = ? ORDER BY as_of DESC LIMIT 150",
-                    (symbol.upper(),)
+                    (symbol.upper(),),
                 ).fetchall()
                 conn.close()
                 closes = [r[0] for r in rows]
@@ -155,7 +173,10 @@ class OracleAgent:
         if len(closes) < 50:
             try:
                 import yfinance as yf
-                ticker_sym = f"{symbol.upper()}.NS" if not symbol.upper().endswith(".NS") else symbol.upper()
+
+                ticker_sym = (
+                    f"{symbol.upper()}.NS" if not symbol.upper().endswith(".NS") else symbol.upper()
+                )
                 ticker = yf.Ticker(ticker_sym)
                 hist = ticker.history(period="6mo")
                 if not hist.empty:
@@ -165,27 +186,46 @@ class OracleAgent:
 
         if len(closes) < 10:
             import random
+
             closes = [quote.close * (1.0 + (random.random() - 0.5) * 0.05) for _ in range(60)]
             closes[0] = quote.close
 
         sma20 = sum(closes[:20]) / 20 if len(closes) >= 20 else closes[0]
-        sig1d = "BUY" if closes[0] > sma20 * 1.01 else ("REDUCE" if closes[0] < sma20 * 0.99 else "HOLD")
-        
+        sig1d = (
+            "BUY"
+            if closes[0] > sma20 * 1.01
+            else ("REDUCE" if closes[0] < sma20 * 0.99 else "HOLD")
+        )
+
         weekly_closes = closes[::5]
         sma10_w = sum(weekly_closes[:10]) / 10 if len(weekly_closes) >= 10 else weekly_closes[0]
-        sig1w = "BUY" if weekly_closes[0] > sma10_w * 1.01 else ("REDUCE" if weekly_closes[0] < sma10_w * 0.99 else "HOLD")
+        sig1w = (
+            "BUY"
+            if weekly_closes[0] > sma10_w * 1.01
+            else ("REDUCE" if weekly_closes[0] < sma10_w * 0.99 else "HOLD")
+        )
 
         monthly_closes = closes[::20]
         sma3_m = sum(monthly_closes[:3]) / 3 if len(monthly_closes) >= 3 else monthly_closes[0]
-        sig1m = "BUY" if monthly_closes[0] > sma3_m * 1.01 else ("REDUCE" if monthly_closes[0] < sma3_m * 0.99 else "HOLD")
+        sig1m = (
+            "BUY"
+            if monthly_closes[0] > sma3_m * 1.01
+            else ("REDUCE" if monthly_closes[0] < sma3_m * 0.99 else "HOLD")
+        )
 
         return {
             "1D": {"signal": sig1d, "confidence": 0.7, "indicators": {"sma20": round(sma20, 2)}},
-            "1W": {"signal": sig1w, "confidence": 0.7, "indicators": {"sma10_w": round(sma10_w, 2)}},
+            "1W": {
+                "signal": sig1w,
+                "confidence": 0.7,
+                "indicators": {"sma10_w": round(sma10_w, 2)},
+            },
             "1M": {"signal": sig1m, "confidence": 0.7, "indicators": {"sma3_m": round(sma3_m, 2)}},
         }, closes
 
-    async def _compute_factor_exposures(self, symbol: str, closes: list[float]) -> dict[str, float] | None:
+    async def _compute_factor_exposures(
+        self, symbol: str, closes: list[float]
+    ) -> dict[str, float] | None:
         if not self.compute_client or len(closes) < 10:
             return None
         try:
@@ -204,6 +244,7 @@ class OracleAgent:
             if len(nifty_closes) < 50:
                 try:
                     import yfinance as yf
+
                     ticker = yf.Ticker("^NSEI")
                     hist = ticker.history(period="6mo")
                     if not hist.empty:
@@ -218,9 +259,13 @@ class OracleAgent:
             sub_closes = closes[:min_len]
             sub_nifty = nifty_closes[:min_len]
 
-            symbol_returns = [(sub_closes[i] - sub_closes[i+1]) / sub_closes[i+1] for i in range(min_len - 1)]
-            nifty_returns = [(sub_nifty[i] - sub_nifty[i+1]) / sub_nifty[i+1] for i in range(min_len - 1)]
-            
+            symbol_returns = [
+                (sub_closes[i] - sub_closes[i + 1]) / sub_closes[i + 1] for i in range(min_len - 1)
+            ]
+            nifty_returns = [
+                (sub_nifty[i] - sub_nifty[i + 1]) / sub_nifty[i + 1] for i in range(min_len - 1)
+            ]
+
             symbol_returns = symbol_returns[::-1]
             nifty_returns = nifty_returns[::-1]
 
@@ -236,7 +281,9 @@ class OracleAgent:
             logger.debug("OracleAgent: factor exposures computation failed: %s", exc)
             return None
 
-    async def debate(self, oracle_output: OracleOutput, sentinel_output: SentinelOutput) -> OracleOutput:
+    async def debate(
+        self, oracle_output: OracleOutput, sentinel_output: SentinelOutput
+    ) -> OracleOutput:
         prompt = f"""You are an expert financial analyst. You previously proposed the following signal for a holding:
 Symbol: {oracle_output.symbol}
 Proposed Signal: {oracle_output.signal}
@@ -274,7 +321,8 @@ Required JSON Structure:
                         symbol=oracle_output.symbol,
                         signal=signal,
                         confidence=parsed.confidence,
-                        rationale=oracle_output.rationale + [f"[Debate Node Update] {parsed.rationale}"],
+                        rationale=oracle_output.rationale
+                        + [f"[Debate Node Update] {parsed.rationale}"],
                         fair_value_gap_pct=oracle_output.fair_value_gap_pct,
                         momentum_pct=oracle_output.momentum_pct,
                         multi_timeframe_signals=oracle_output.multi_timeframe_signals,

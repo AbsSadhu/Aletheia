@@ -94,10 +94,11 @@ class SQLiteStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
         self.pool = SQLiteConnectionPool(self.db_path)
-        
+
         # Initialize database column-level encryptor
         from aletheia.core.config.settings import get_settings
         from aletheia.core.security.encryption import DatabaseEncryptor
+
         settings = get_settings()
         self.encryptor = DatabaseEncryptor(settings.db_encryption_key)
 
@@ -120,24 +121,26 @@ class SQLiteStore:
         # Run Alembic migrations programmatically
         from alembic.config import Config
         from alembic import command
-        
+
         project_root = Path(__file__).resolve().parent.parent.parent.parent
         ini_path = project_root / "alembic.ini"
         if not ini_path.exists():
             ini_path = Path("alembic.ini")
-            
+
         if ini_path.exists():
             try:
                 alembic_cfg = Config(str(ini_path))
                 db_url = f"sqlite:///{self.db_path.resolve().as_posix()}"
                 alembic_cfg.set_main_option("sqlalchemy.url", db_url)
                 alembic_cfg.set_main_option("script_location", str(project_root / "alembic"))
-                
+
                 command.upgrade(alembic_cfg, "head")
                 logger.info("SQLiteStore: Database migrated to head successfully via Alembic.")
                 self._legacy_initialize()
-            except Exception as e:
-                logger.exception("SQLiteStore: Alembic migration failed, fallback to legacy schema check:")
+            except Exception:
+                logger.exception(
+                    "SQLiteStore: Alembic migration failed, fallback to legacy schema check:"
+                )
                 self._legacy_initialize()
         else:
             logger.warning("SQLiteStore: alembic.ini not found, running legacy initialization.")
@@ -187,9 +190,7 @@ class SQLiteStore:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_agent_events_run_id ON agent_events(run_id)"
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at)")
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_agent_events_timestamp ON agent_events(timestamp)"
             )
@@ -359,7 +360,7 @@ class SQLiteStore:
             rows = conn.execute(
                 "SELECT name, base_currency, holdings_json FROM portfolios ORDER BY name ASC"
             ).fetchall()
-        
+
         portfolios = []
         for row in rows:
             decrypted_json = self.encryptor.decrypt(row["holdings_json"])
@@ -425,6 +426,7 @@ class SQLiteStore:
 
     def prune_old_events(self, days: int) -> int:
         import datetime
+
         cutoff = (datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)).isoformat()
         with self.connect() as conn:
             cursor = conn.execute("DELETE FROM agent_events WHERE timestamp < ?", (cutoff,))
@@ -442,6 +444,7 @@ class SQLiteStore:
     ) -> str:
         """Record a prediction for later outcome tracking. Returns record_id."""
         from aletheia.core.models import ConfidenceRecord
+
         rec = ConfidenceRecord(
             run_id=run_id,
             symbol=symbol,
@@ -456,9 +459,15 @@ class SQLiteStore:
                 (record_id, run_id, symbol, agent, predicted_signal, predicted_confidence, recorded_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (rec.record_id, rec.run_id, rec.symbol, rec.agent,
-                 rec.predicted_signal, rec.predicted_confidence,
-                 rec.recorded_at.isoformat()),
+                (
+                    rec.record_id,
+                    rec.run_id,
+                    rec.symbol,
+                    rec.agent,
+                    rec.predicted_signal,
+                    rec.predicted_confidence,
+                    rec.recorded_at.isoformat(),
+                ),
             )
         return rec.record_id
 
@@ -500,7 +509,10 @@ class SQLiteStore:
     def get_pending_calibration_records(self, days_old: int = 7) -> list[dict]:
         """Return records where outcomes are not yet filled (>N days old)."""
         import datetime
-        cutoff = (datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days_old)).isoformat()
+
+        cutoff = (
+            datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days_old)
+        ).isoformat()
         with self.connect() as conn:
             rows = conn.execute(
                 """
@@ -527,6 +539,7 @@ class SQLiteStore:
     ) -> str:
         """Append a SEBI compliance log entry. Returns log_id."""
         from aletheia.core.models import SEBIComplianceLog
+
         entry = SEBIComplianceLog(
             run_id=run_id,
             symbol=symbol,
@@ -542,9 +555,16 @@ class SQLiteStore:
                 (log_id, run_id, symbol, action, confidence, reasoning_hash, disclaimer, logged_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (entry.log_id, entry.run_id, entry.symbol, entry.action,
-                 entry.confidence, entry.reasoning_hash, entry.disclaimer,
-                 entry.logged_at.isoformat()),
+                (
+                    entry.log_id,
+                    entry.run_id,
+                    entry.symbol,
+                    entry.action,
+                    entry.confidence,
+                    entry.reasoning_hash,
+                    entry.disclaimer,
+                    entry.logged_at.isoformat(),
+                ),
             )
         return entry.log_id
 

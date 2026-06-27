@@ -27,7 +27,6 @@ from aletheia.core.config.settings import get_settings
 logger = logging.getLogger(__name__)
 
 
-
 class RunService:
     def __init__(
         self,
@@ -62,7 +61,7 @@ class RunService:
         self.fundamental = FundamentalAgent(llm_client=self.scribe.llm_client)
         self.options_flow = OptionsFlowAgent(compute_client=self.compute_client)
         self.critic = CriticAgent(llm_client=self.scribe.llm_client)
-        
+
         # Wire up stores to agents
         self.oracle.duckdb_store = duckdb_store
         self.oracle.compute_client = self.compute_client
@@ -106,7 +105,6 @@ class RunService:
             logger.warning("RunService: Failed to fetch agent events from DB: %s", db_exc)
             return []
 
-
     def list_runs(self, limit: int = 20) -> list[RunSummary]:
         return self.sqlite_store.list_runs(limit=limit)
 
@@ -127,7 +125,7 @@ class RunService:
                 agent_statuses=state.get("agent_statuses", {}),
                 error_message=state.get("error"),
             )
-            
+
             collector_output = state.get("collector_outputs") or []
             oracle_output = state.get("oracle_outputs") or []
             sentinel_output = state.get("sentinel_output")
@@ -135,7 +133,7 @@ class RunService:
             scribe_output = state.get("scribe_output")
             insights = state.get("insights") or []
             traces = state.get("traces") or []
-            
+
             result = RunResult(
                 summary=summary,
                 collector_output=collector_output,
@@ -181,6 +179,7 @@ class RunService:
             macro_context_text = ""
             try:
                 from aletheia.core.context.macro_injector import get_macro_injector
+
                 macro_injector = get_macro_injector(duckdb_path=str(self.duckdb_store.db_path))
                 macro_ctx = await macro_injector.get()
                 macro_context_text = macro_ctx.as_prompt_text()
@@ -195,7 +194,17 @@ class RunService:
                 active_agent_names.remove("sage")
 
             # Initialize agent statuses
-            all_agent_names = ["collector", "oracle", "sentinel", "sage", "scribe", "sentiment", "fundamental", "options_flow", "critic"]
+            all_agent_names = [
+                "collector",
+                "oracle",
+                "sentinel",
+                "sage",
+                "scribe",
+                "sentiment",
+                "fundamental",
+                "options_flow",
+                "critic",
+            ]
             agent_statuses = {}
             for name in all_agent_names:
                 if name in active_agent_names:
@@ -249,7 +258,11 @@ class RunService:
             final_agent_statuses = final_state.get("agent_statuses") or agent_statuses
 
             # Check if any active agent failed
-            any_failed = any(status == "failed" for name, status in final_agent_statuses.items() if name in active_agent_names)
+            any_failed = any(
+                status == "failed"
+                for name, status in final_agent_statuses.items()
+                if name in active_agent_names
+            )
             final_status = RunStatus.PARTIAL if any_failed else RunStatus.COMPLETED
 
             confidence_score = (
@@ -281,9 +294,13 @@ class RunService:
             self.sqlite_store.upsert_run(result.summary, result)
 
             # H7. ComplianceLogger call after each run
-            if result.summary.status in (RunStatus.COMPLETED, RunStatus.PARTIAL) and result.scribe_output:
+            if (
+                result.summary.status in (RunStatus.COMPLETED, RunStatus.PARTIAL)
+                and result.scribe_output
+            ):
                 try:
                     from aletheia.core.compliance.sebi_logger import SEBIComplianceLogger
+
                     sebi_logger = SEBIComplianceLogger(self.sqlite_store)
                     sebi_logger.log_run(
                         run_id=summary.run_id,
@@ -324,12 +341,15 @@ class RunService:
                             predicted_confidence=f.confidence,
                         )
                 except Exception as cal_exc:
-                    logger.warning("RunService: Confidence calibration recording failed: %s", cal_exc)
+                    logger.warning(
+                        "RunService: Confidence calibration recording failed: %s", cal_exc
+                    )
 
             # Auto-ingest into episodic memory for future recall
             try:
                 from aletheia.core.memory.episodic import EpisodicMemory
                 import os
+
                 mem_dir = os.path.expanduser(self.settings.memory_dir)
                 episodic = EpisodicMemory(db_path=os.path.join(mem_dir, "episodic.db"))
                 episodic.ingest_run_result(result)

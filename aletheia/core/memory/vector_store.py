@@ -9,9 +9,9 @@ Usage:
     await store.store("RELIANCE: Oracle emitted BUY signal on 2025-01-15", {"run_id": "abc"})
     results = await store.search("RELIANCE momentum signal", k=5)
 """
+
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import sqlite3
@@ -54,6 +54,7 @@ class VectorMemoryStore:
 
         try:
             import sqlite_vec  # type: ignore[import]
+
             conn.enable_load_extension(True)
             sqlite_vec.load(conn)
             conn.enable_load_extension(False)
@@ -69,7 +70,9 @@ class VectorMemoryStore:
             self._use_vector = True
             logger.info("VectorMemoryStore: sqlite-vec enabled.")
         except (ImportError, Exception) as exc:
-            logger.info("VectorMemoryStore: sqlite-vec unavailable (%s) — using BM25 fallback.", exc)
+            logger.info(
+                "VectorMemoryStore: sqlite-vec unavailable (%s) — using BM25 fallback.", exc
+            )
             self._use_vector = False
 
         # Always create text + metadata table
@@ -168,12 +171,11 @@ class VectorMemoryStore:
         # Score with Rust BM25 if available, else simple overlap
         try:
             import aletheia_rust
+
             scored = []
             corpus = [row["text_tokens"] for row in rows]
             for i, row in enumerate(rows):
-                score = aletheia_rust.bm25_score_rust(
-                    row["text_tokens"], corpus, query
-                )
+                score = aletheia_rust.bm25_score_rust(row["text_tokens"], corpus, query)
                 scored.append((score, row))
         except Exception:
             # Simple TF overlap fallback
@@ -197,6 +199,7 @@ class VectorMemoryStore:
     async def _embed(self, text: str) -> list[float] | None:
         """Call Ollama nomic-embed-text for embeddings."""
         import httpx
+
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.post(
@@ -214,7 +217,8 @@ class VectorMemoryStore:
     def _tokenize(text: str) -> str:
         """Lowercase, split on non-alphanumeric, return space-joined tokens."""
         import re
-        tokens = re.findall(r'\b[a-z0-9]{2,}\b', text.lower())
+
+        tokens = re.findall(r"\b[a-z0-9]{2,}\b", text.lower())
         return " ".join(tokens)
 
     def close(self) -> None:

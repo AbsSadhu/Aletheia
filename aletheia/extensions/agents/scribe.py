@@ -1,5 +1,4 @@
 from __future__ import annotations
-import json
 import logging
 
 from aletheia.core.models import Recommendation, SageOutput, ScribeOutput, SentinelOutput
@@ -10,6 +9,7 @@ from aletheia.core.llm.parsers import ScribeLLMOutput
 from aletheia.core.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
+
 
 class ScribeAgent:
     def __init__(self):
@@ -122,9 +122,15 @@ class ScribeAgent:
                 oracle_signals=[o.model_dump() for o in oracle_outputs],
                 sentinel_risk=sentinel_output.model_dump() if sentinel_output else {},
                 sage_scenarios=[s.model_dump() for s in sage_outputs],
-                sentiment_data=[s.model_dump() for s in sentiment_outputs] if sentiment_outputs else None,
-                fundamental_data=[f.model_dump() for f in fundamental_outputs] if fundamental_outputs else None,
-                options_flow_data=[o.model_dump() for o in options_flow_outputs] if options_flow_outputs else None,
+                sentiment_data=[s.model_dump() for s in sentiment_outputs]
+                if sentiment_outputs
+                else None,
+                fundamental_data=[f.model_dump() for f in fundamental_outputs]
+                if fundamental_outputs
+                else None,
+                options_flow_data=[o.model_dump() for o in options_flow_outputs]
+                if options_flow_outputs
+                else None,
                 critic_notes=critic_notes,
                 macro_context=macro_context_text,
             )

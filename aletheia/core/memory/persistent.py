@@ -12,6 +12,7 @@ Usage:
     snippets = memory.search("RELIANCE signal")
     snapshot = memory.build_system_prompt_snippet("analyse RELIANCE portfolio")
 """
+
 from __future__ import annotations
 
 import logging
@@ -136,7 +137,7 @@ class PersistentMemory:
             }
         """
         episodic_results = self.episodic.search(query, limit=limit // 2 + 1)
-        semantic_results = self.search_semantic(query)[:limit // 2 + 1]
+        semantic_results = self.search_semantic(query)[: limit // 2 + 1]
         return {"episodic": episodic_results, "semantic": semantic_results}
 
     def build_system_prompt_snippet(self, query: str) -> str:
@@ -210,9 +211,7 @@ def _rerank_with_rust_bm25(
 
         docs = [snippet for _, snippet, _ in candidates]
         scores = bm25_score_rust(query, docs, 1.5, 0.75)
-        ranked = sorted(
-            zip(candidates, scores), key=lambda x: x[1], reverse=True
-        )
+        ranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
         return [item for item, _ in ranked]
     except ImportError:
         return candidates  # Rust module not compiled — fall back silently

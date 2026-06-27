@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 # Valid state machine transitions
 _VALID_TRANSITIONS: dict[str, set[str]] = {
-    "proposed":  {"testing", "rejected"},
-    "testing":   {"validated", "rejected", "proposed"},
+    "proposed": {"testing", "rejected"},
+    "testing": {"validated", "rejected", "proposed"},
     "validated": {"rejected"},
-    "rejected":  {"proposed"},
+    "rejected": {"proposed"},
 }
 
 

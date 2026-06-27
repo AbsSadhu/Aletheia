@@ -7,13 +7,14 @@ Provides:
 - AnthropicChatLLM — Anthropic API
 - LLMRouter        — tries providers in priority order with retry + circuit breaker
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ToolCall:
@@ -82,6 +84,7 @@ def calculate_cost(provider: str, model: str, input_tokens: int, output_tokens: 
 # Base class
 # ---------------------------------------------------------------------------
 
+
 class ChatLLM:
     """Base interface for LLM Chat Completions with Tool Calling."""
 
@@ -102,6 +105,7 @@ class ChatLLM:
 # ---------------------------------------------------------------------------
 # Ollama
 # ---------------------------------------------------------------------------
+
 
 class OllamaChatLLM(ChatLLM):
     """Ollama local LLM — tool calling supported (Llama 3.1+, Mistral NeMo, etc.)"""
@@ -171,17 +175,20 @@ def _parse_ollama_tool_calls(resp_msg: dict) -> list[ToolCall] | None:
                 args = json.loads(args)
             except Exception:
                 args = {}
-        result.append(ToolCall(
-            id=tc.get("id", f"call_{func.get('name', 'tool')}"),
-            name=func.get("name", ""),
-            arguments=args,
-        ))
+        result.append(
+            ToolCall(
+                id=tc.get("id", f"call_{func.get('name', 'tool')}"),
+                name=func.get("name", ""),
+                arguments=args,
+            )
+        )
     return result or None
 
 
 # ---------------------------------------------------------------------------
 # OpenAI
 # ---------------------------------------------------------------------------
+
 
 class OpenAIChatLLM(ChatLLM):
     """OpenAI Chat Completions API with tool calling."""
@@ -261,6 +268,7 @@ def _parse_openai_tool_calls(msg: dict) -> list[ToolCall] | None:
 # Anthropic
 # ---------------------------------------------------------------------------
 
+
 class AnthropicChatLLM(ChatLLM):
     """Anthropic Messages API with tool use."""
 
@@ -306,11 +314,13 @@ class AnthropicChatLLM(ChatLLM):
             anthropic_tools = []
             for t in tools:
                 fn = t.get("function", {})
-                anthropic_tools.append({
-                    "name": fn.get("name", ""),
-                    "description": fn.get("description", ""),
-                    "input_schema": fn.get("parameters", {}),
-                })
+                anthropic_tools.append(
+                    {
+                        "name": fn.get("name", ""),
+                        "description": fn.get("description", ""),
+                        "input_schema": fn.get("parameters", {}),
+                    }
+                )
             payload["tools"] = anthropic_tools
 
         start_time = time.monotonic()
@@ -334,11 +344,13 @@ class AnthropicChatLLM(ChatLLM):
             if block.get("type") == "text":
                 text_content += block.get("text", "")
             elif block.get("type") == "tool_use":
-                tc_list.append(ToolCall(
-                    id=block.get("id", ""),
-                    name=block.get("name", ""),
-                    arguments=block.get("input", {}),
-                ))
+                tc_list.append(
+                    ToolCall(
+                        id=block.get("id", ""),
+                        name=block.get("name", ""),
+                        arguments=block.get("input", {}),
+                    )
+                )
 
         if tc_list:
             tool_calls = tc_list
@@ -364,6 +376,7 @@ class AnthropicChatLLM(ChatLLM):
 # ---------------------------------------------------------------------------
 # LLM Router — tries providers in order, with retry + circuit breaker
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class _CircuitState:
@@ -458,15 +471,17 @@ class LLMRouter(ChatLLM):
                         response.latency_secs,
                         response.cost_usd,
                     )
-                    LLMRouter._call_history.append({
-                        "provider": provider.provider_name,
-                        "model": provider.model,
-                        "input_tokens": response.input_tokens,
-                        "output_tokens": response.output_tokens,
-                        "latency_secs": response.latency_secs,
-                        "cost_usd": response.cost_usd,
-                        "timestamp": time.time(),
-                    })
+                    LLMRouter._call_history.append(
+                        {
+                            "provider": provider.provider_name,
+                            "model": provider.model,
+                            "input_tokens": response.input_tokens,
+                            "output_tokens": response.output_tokens,
+                            "latency_secs": response.latency_secs,
+                            "cost_usd": response.cost_usd,
+                            "timestamp": time.time(),
+                        }
+                    )
                     return response
                 except Exception as exc:
                     last_exc = exc
@@ -483,18 +498,18 @@ class LLMRouter(ChatLLM):
                     else:
                         break  # move to next provider
 
-        raise RuntimeError(
-            f"All LLM providers exhausted. Last error: {last_exc}"
-        ) from last_exc
+        raise RuntimeError(f"All LLM providers exhausted. Last error: {last_exc}") from last_exc
 
 
 # ---------------------------------------------------------------------------
 # Factory helper
 # ---------------------------------------------------------------------------
 
+
 def build_llm_router() -> LLMRouter:
     """Build an LLMRouter from current settings."""
     from aletheia.core.config.settings import get_settings
+
     settings = get_settings()
 
     provider_map: dict[str, ChatLLM] = {

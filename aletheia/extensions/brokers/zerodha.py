@@ -3,6 +3,7 @@ Zerodha Kite Connect Broker API Integration Blueprint.
 
 Provides template code to integrate Aletheia with Zerodha Kite Connect API.
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,17 +29,20 @@ class ZerodhaKiteConnector(BaseBrokerConnector):
     def _init_client(self) -> None:
         try:
             from kiteconnect import KiteConnect
+
             self.kite = KiteConnect(api_key=self.api_key)
             if self.access_token:
                 self.kite.set_access_token(self.access_token)
         except ImportError:
-            logger.warning("kiteconnect package not found. Run 'pip install kiteconnect' to use Zerodha.")
+            logger.warning(
+                "kiteconnect package not found. Run 'pip install kiteconnect' to use Zerodha."
+            )
 
     async def get_account_balance(self) -> dict[str, Any]:
         """Fetch cash margins from Zerodha."""
         if not self.kite:
             raise RuntimeError("Kite client not initialized")
-        
+
         # kite.margins() is synchronous; wrap or run direct
         margins = self.kite.margins()
         equity = margins.get("equity", {})
@@ -46,14 +50,14 @@ class ZerodhaKiteConnector(BaseBrokerConnector):
             "cash": equity.get("net", 0.0),
             "margin_used": equity.get("utilised", 0.0),
             "available_margin": equity.get("available", {}).get("cash", 0.0),
-            "currency": "INR"
+            "currency": "INR",
         }
 
     async def get_positions(self) -> list[dict[str, Any]]:
         """Fetch open net/day positions."""
         if not self.kite:
             raise RuntimeError("Kite client not initialized")
-            
+
         positions = self.kite.positions()
         net_positions = positions.get("net", [])
         return [
@@ -63,7 +67,7 @@ class ZerodhaKiteConnector(BaseBrokerConnector):
                 "average_price": pos["average_price"],
                 "pnl": pos["pnl"],
                 "exchange": pos["exchange"],
-                "product": pos["product"]  # CNC, MIS, NRML
+                "product": pos["product"],  # CNC, MIS, NRML
             }
             for pos in net_positions
         ]
@@ -72,7 +76,7 @@ class ZerodhaKiteConnector(BaseBrokerConnector):
         """Fetch order book."""
         if not self.kite:
             raise RuntimeError("Kite client not initialized")
-            
+
         orders = self.kite.orders()
         return [
             {
@@ -83,7 +87,7 @@ class ZerodhaKiteConnector(BaseBrokerConnector):
                 "status": order["status"],  # COMPLETE, REJECTED, OPEN
                 "price": order["price"],
                 "exchange": order["exchange"],
-                "order_time": str(order["order_timestamp"])
+                "order_time": str(order["order_timestamp"]),
             }
             for order in orders
         ]
@@ -102,11 +106,15 @@ class ZerodhaKiteConnector(BaseBrokerConnector):
         """
         if not self.kite:
             raise RuntimeError("Kite client not initialized")
-            
+
         # Side mapping
         side_upper = side.upper()
-        tx_type = self.kite.TRANSACTION_TYPE_BUY if side_upper == "BUY" else self.kite.TRANSACTION_TYPE_SELL
-        
+        tx_type = (
+            self.kite.TRANSACTION_TYPE_BUY
+            if side_upper == "BUY"
+            else self.kite.TRANSACTION_TYPE_SELL
+        )
+
         # Order type mapping
         type_upper = order_type.upper()
         if type_upper == "MARKET":
@@ -129,7 +137,7 @@ class ZerodhaKiteConnector(BaseBrokerConnector):
             product=product,
             order_type=k_type,
             price=price,
-            validity=self.kite.VALIDITY_DAY
+            validity=self.kite.VALIDITY_DAY,
         )
         return {"order_id": order_id, "status": "submitted"}
 
@@ -137,6 +145,6 @@ class ZerodhaKiteConnector(BaseBrokerConnector):
         """Cancel pending order by ID."""
         if not self.kite:
             raise RuntimeError("Kite client not initialized")
-            
+
         self.kite.cancel_order(variety=self.kite.VARIETY_REGULAR, order_id=order_id)
         return True

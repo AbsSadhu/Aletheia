@@ -1,11 +1,11 @@
 """
 Local Data Importer — Ingests CSV, Parquet, and DuckDB tables into the Aletheia DuckDB database.
 """
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -69,8 +69,7 @@ def normalize_dataframe(
     missing = required - set(mapping.keys())
     if missing:
         raise ValueError(
-            f"Could not map required columns: {missing}. Available: {cols}. "
-            f"Mapped: {mapping}"
+            f"Could not map required columns: {missing}. Available: {cols}. " f"Mapped: {mapping}"
         )
 
     # Rename
@@ -146,6 +145,7 @@ def import_local_file(
         df = pd.read_parquet(path)
     elif ext in {".duckdb", ".db"} or query is not None:
         import duckdb
+
         db_file = str(path) if path.exists() else ":memory:"
         if not query:
             raise ValueError("DuckDB import requires a SQL query.")
@@ -162,6 +162,7 @@ def import_local_file(
 
     import duckdb
     from aletheia.core.config.settings import get_settings
+
     settings = get_settings()
     config = {}
     if settings.db_encryption_key:

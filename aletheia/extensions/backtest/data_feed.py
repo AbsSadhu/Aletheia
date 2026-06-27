@@ -9,12 +9,11 @@ Usage:
     await feed.fetch_and_store("RELIANCE.NS", "2023-01-01", "2024-01-01")
     candles = feed.get_candles("RELIANCE.NS", "2023-01-01", "2024-01-01")
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OHLCV:
     symbol: str
-    date: str          # ISO format YYYY-MM-DD
+    date: str  # ISO format YYYY-MM-DD
     open: float
     high: float
     low: float
@@ -48,13 +47,13 @@ class HistoricalDataFeed:
     """
 
     def __init__(self, duckdb_path: str = "./data/aletheia.duckdb"):
-        import duckdb
         self._duckdb_path = str(duckdb_path)
         self._init_schema()
 
     def _conn(self):
         import duckdb
         from aletheia.core.config.settings import get_settings
+
         settings = get_settings()
         config = {}
         if settings.db_encryption_key:
@@ -105,7 +104,12 @@ class HistoricalDataFeed:
                 clean_sym = symbol.replace("LOCAL:", "")
                 if self._has_data(clean_sym, start, end):
                     return 0
-                logger.warning("HistoricalDataFeed: no local data found in DuckDB for %s (%s → %s)", symbol, start, end)
+                logger.warning(
+                    "HistoricalDataFeed: no local data found in DuckDB for %s (%s → %s)",
+                    symbol,
+                    start,
+                    end,
+                )
             return 0
 
         if not force_refresh and self._has_data(symbol, start, end):
@@ -117,11 +121,14 @@ class HistoricalDataFeed:
         except ImportError:
             raise RuntimeError("yfinance is required: pip install yfinance")
 
-        logger.info("HistoricalDataFeed: downloading %s (%s → %s, %s)", symbol, start, end, interval)
+        logger.info(
+            "HistoricalDataFeed: downloading %s (%s → %s, %s)", symbol, start, end, interval
+        )
         ticker = yf.Ticker(symbol)
 
         # yfinance is synchronous — run in thread pool
         import asyncio
+
         df = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: ticker.history(start=start, end=end, interval=interval, auto_adjust=True),
@@ -134,16 +141,18 @@ class HistoricalDataFeed:
         rows = []
         for idx, row in df.iterrows():
             date_str = str(idx.date()) if hasattr(idx, "date") else str(idx)[:10]
-            rows.append((
-                symbol,
-                date_str,
-                float(row.get("Open", 0.0) or 0.0),
-                float(row.get("High", 0.0) or 0.0),
-                float(row.get("Low", 0.0) or 0.0),
-                float(row.get("Close", 0.0) or 0.0),
-                float(row.get("Volume", 0.0) or 0.0),
-                "yfinance",
-            ))
+            rows.append(
+                (
+                    symbol,
+                    date_str,
+                    float(row.get("Open", 0.0) or 0.0),
+                    float(row.get("High", 0.0) or 0.0),
+                    float(row.get("Low", 0.0) or 0.0),
+                    float(row.get("Close", 0.0) or 0.0),
+                    float(row.get("Volume", 0.0) or 0.0),
+                    "yfinance",
+                )
+            )
 
         if not rows:
             return 0
@@ -282,9 +291,7 @@ def _assert_no_lookahead(candles: list[OHLCV]) -> None:
     prev: str | None = None
     for c in candles:
         if c.date in seen:
-            raise ValueError(
-                f"Lookahead bias detected: duplicate date {c.date} for {c.symbol}"
-            )
+            raise ValueError(f"Lookahead bias detected: duplicate date {c.date} for {c.symbol}")
         if prev is not None and c.date < prev:
             raise ValueError(
                 f"Lookahead bias detected: date {c.date} is before previous {prev} for {c.symbol}"

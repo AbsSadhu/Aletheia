@@ -21,7 +21,9 @@ class DatabaseEncryptor:
             self.fernet = Fernet(base64_key)
             logger.info("DatabaseEncryptor: Initialized with encryption key.")
         else:
-            logger.debug("DatabaseEncryptor: Initialized without encryption key. Data will be stored in plain text.")
+            logger.debug(
+                "DatabaseEncryptor: Initialized without encryption key. Data will be stored in plain text."
+            )
 
     def encrypt(self, plain_text: Optional[str]) -> Optional[str]:
         if plain_text is None:
@@ -38,10 +40,14 @@ class DatabaseEncryptor:
         if not self.fernet:
             return cipher_text
         if cipher_text.startswith("__enc__:"):
-            token = cipher_text[len("__enc__:"):]
+            token = cipher_text[len("__enc__:") :]
             try:
                 return self.fernet.decrypt(token.encode("utf-8")).decode("utf-8")
             except Exception as e:
-                logger.error("DatabaseEncryptor: Decryption failed. Possible invalid key or corrupted database data.")
-                raise ValueError("Failed to decrypt database value. Check your ALETHEIA_DB_ENCRYPTION_KEY.") from e
+                logger.error(
+                    "DatabaseEncryptor: Decryption failed. Possible invalid key or corrupted database data."
+                )
+                raise ValueError(
+                    "Failed to decrypt database value. Check your ALETHEIA_DB_ENCRYPTION_KEY."
+                ) from e
         return cipher_text

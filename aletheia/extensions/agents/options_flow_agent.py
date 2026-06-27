@@ -8,6 +8,7 @@ Delegates heavy computation to Rust sidecar (ComputeClient.options_flow()).
 Only runs for NSE equity symbols. Skips crypto, cash, non-NSE holdings.
 Timeout: 5 seconds hard cutoff.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -86,9 +87,9 @@ class OptionsFlowAgent:
     async def _compute_metrics(self, symbol: str, chain_data: dict) -> OptionsFlowOutput:
         """Parse chain data and compute OI/IV metrics."""
         records = (
-            chain_data.get("filtered", {}).get("data", []) or
-            chain_data.get("records", {}).get("data", []) or
-            []
+            chain_data.get("filtered", {}).get("data", [])
+            or chain_data.get("records", {}).get("data", [])
+            or []
         )
 
         calls_oi: list[float] = []
@@ -176,8 +177,15 @@ class OptionsFlowAgent:
         iv_range = iv_52w_high - iv_52w_low
         iv_rank = (atm_iv - iv_52w_low) / iv_range * 100 if iv_range > 0 else 50.0
         oi_conc = "BEARISH_OI" if pcr > 1.3 else ("BULLISH_OI" if pcr < 0.7 else "NEUTRAL")
-        iv_sig = "CONTRARIAN_BUY" if iv_rank > 80 else ("CONTRARIAN_SELL" if iv_rank < 20 else "NEUTRAL")
-        return {"put_call_ratio": pcr, "iv_rank": iv_rank, "oi_concentration": oi_conc, "iv_signal": iv_sig}
+        iv_sig = (
+            "CONTRARIAN_BUY" if iv_rank > 80 else ("CONTRARIAN_SELL" if iv_rank < 20 else "NEUTRAL")
+        )
+        return {
+            "put_call_ratio": pcr,
+            "iv_rank": iv_rank,
+            "oi_concentration": oi_conc,
+            "iv_signal": iv_sig,
+        }
 
     def _compute_max_pain(self, records: list[dict]) -> float | None:
         """Max pain: strike where total OI loss (calls + puts) is minimized."""
@@ -195,7 +203,10 @@ class OptionsFlowAgent:
             if not total_oi_by_strike:
                 return None
             # Strike with maximum total OI (simplistic max pain approximation)
-            return min(total_oi_by_strike, key=lambda s: abs(total_oi_by_strike[s] - max(total_oi_by_strike.values())))
+            return min(
+                total_oi_by_strike,
+                key=lambda s: abs(total_oi_by_strike[s] - max(total_oi_by_strike.values())),
+            )
         except Exception:
             return None
 

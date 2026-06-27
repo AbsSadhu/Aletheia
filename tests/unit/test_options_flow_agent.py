@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 from aletheia.extensions.agents.options_flow_agent import OptionsFlowAgent
 from aletheia.core.models import OptionsFlowOutput
 
+
 @pytest.mark.asyncio
 async def test_options_flow_agent_skip_non_nse():
     agent = OptionsFlowAgent()
@@ -13,29 +14,34 @@ async def test_options_flow_agent_skip_non_nse():
     assert res.signal_hint == "SKIP"
     assert res.confidence == 0.0
 
+
 @pytest.mark.asyncio
 async def test_options_flow_agent_compute():
     compute = MagicMock()
-    compute.options_flow = AsyncMock(return_value={
-        "put_call_ratio": 0.6,
-        "iv_rank": 25.0,
-        "oi_concentration": "BULLISH_OI",
-        "iv_signal": "NEUTRAL",
-    })
+    compute.options_flow = AsyncMock(
+        return_value={
+            "put_call_ratio": 0.6,
+            "iv_rank": 25.0,
+            "oi_concentration": "BULLISH_OI",
+            "iv_signal": "NEUTRAL",
+        }
+    )
 
     agent = OptionsFlowAgent(compute_client=compute)
     # Mock _fetch_options_chain to return synthetic chain data
-    agent._fetch_options_chain = AsyncMock(return_value={
-        "filtered": {
-            "data": [
-                {
-                    "strikePrice": 2500,
-                    "CE": {"openInterest": 1000, "impliedVolatility": 18},
-                    "PE": {"openInterest": 600, "impliedVolatility": 20},
-                }
-            ]
+    agent._fetch_options_chain = AsyncMock(
+        return_value={
+            "filtered": {
+                "data": [
+                    {
+                        "strikePrice": 2500,
+                        "CE": {"openInterest": 1000, "impliedVolatility": 18},
+                        "PE": {"openInterest": 600, "impliedVolatility": 20},
+                    }
+                ]
+            }
         }
-    })
+    )
 
     res = await agent.analyze("RELIANCE")
 
@@ -47,21 +53,24 @@ async def test_options_flow_agent_compute():
     assert res.signal_hint == "BULLISH"
     assert res.confidence == 0.7
 
+
 @pytest.mark.asyncio
 async def test_options_flow_agent_python_fallback():
     # If compute client is None, it should use python fallback compute
     agent = OptionsFlowAgent(compute_client=None)
-    agent._fetch_options_chain = AsyncMock(return_value={
-        "records": {
-            "data": [
-                {
-                    "strikePrice": 2500,
-                    "CE": {"openInterest": 1000, "impliedVolatility": 15},
-                    "PE": {"openInterest": 1500, "impliedVolatility": 17},
-                }
-            ]
+    agent._fetch_options_chain = AsyncMock(
+        return_value={
+            "records": {
+                "data": [
+                    {
+                        "strikePrice": 2500,
+                        "CE": {"openInterest": 1000, "impliedVolatility": 15},
+                        "PE": {"openInterest": 1500, "impliedVolatility": 17},
+                    }
+                ]
+            }
         }
-    })
+    )
 
     res = await agent.analyze("INFY")
 

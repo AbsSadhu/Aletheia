@@ -3,12 +3,10 @@ from pydantic import ValidationError
 from aletheia.core.models import (
     CollectorOutput,
     OracleOutput,
-    SentinelOutput,
     SageOutput,
     SageScenario,
     TaxSummary,
     TaxProfile,
-    ScribeOutput,
     Holding,
     Portfolio,
     AssetType,
@@ -30,17 +28,16 @@ def test_pydantic_org_chart_role_contracts():
             symbol="INFY",
             provider_used="yfinance",
             quotes=[],
-            recommendations=[{"symbol": "INFY", "action": "BUY", "confidence": 1.0, "explanation": "forced"}]
+            recommendations=[
+                {"symbol": "INFY", "action": "BUY", "confidence": 1.0, "explanation": "forced"}
+            ],
         )
     assert "Analyst contract violation" in str(excinfo.value)
 
     with pytest.raises(ValidationError) as excinfo:
         # OracleOutput cannot have executive_summary
         OracleOutput(
-            symbol="INFY",
-            signal="BUY",
-            confidence=0.9,
-            executive_summary="Highly bullish outlook"
+            symbol="INFY", signal="BUY", confidence=0.9, executive_summary="Highly bullish outlook"
         )
     assert "Analyst contract violation" in str(excinfo.value)
 
@@ -62,24 +59,29 @@ def test_pydantic_org_chart_role_contracts():
                 ),
             ),
             confidence=0.8,
-            executive_summary="Synthesis"
+            executive_summary="Synthesis",
         )
     # 3. Subclass contract violation: defining classes with forbidden fields raises TypeError
     with pytest.raises(TypeError) as excinfo:
+
         class BadAnalyst(AnalystContract):
             recommendations: list = []
+
     assert "Analyst contract violation" in str(excinfo.value)
 
     with pytest.raises(TypeError) as excinfo:
+
         class BadRisk(RiskConstraintContract):
             executive_summary: str = ""
+
     assert "RiskConstraint contract violation" in str(excinfo.value)
 
     with pytest.raises(TypeError) as excinfo:
+
         class BadSynthesis(SynthesisContract):
             quotes: list = []
-    assert "Synthesis contract violation" in str(excinfo.value)
 
+    assert "Synthesis contract violation" in str(excinfo.value)
 
 
 @pytest.mark.asyncio
@@ -99,7 +101,7 @@ async def test_oracle_sentinel_debate_node_convergence(run_service: RunService):
             )
         ],
     )
-    
+
     quote = MarketQuote(
         symbol="RELIANCE",
         exchange="NSE",
@@ -113,12 +115,12 @@ async def test_oracle_sentinel_debate_node_convergence(run_service: RunService):
     req = RunRequest(
         prompt="Test debate",
         portfolio=portfolio,
-        selected_agents=["collector", "oracle", "sentinel", "sage", "scribe"]
+        selected_agents=["collector", "oracle", "sentinel", "sage", "scribe"],
     )
-    
+
     # We will trigger the run. By default in conftest mock_generate, oracle debate returns HOLD, which is convergence!
     res = await run_service.create_run(req)
-    
+
     assert res.summary.status == "completed"
     # Oracle output signal should have converged to HOLD
     assert len(res.oracle_output) > 0
@@ -147,7 +149,7 @@ async def test_oracle_sentinel_debate_node_unresolved(run_service: RunService):
             )
         ],
     )
-    
+
     quote = MarketQuote(
         symbol="DISAGREE",
         exchange="NSE",
@@ -160,9 +162,9 @@ async def test_oracle_sentinel_debate_node_unresolved(run_service: RunService):
     req = RunRequest(
         prompt="Test debate unresolved",
         portfolio=portfolio,
-        selected_agents=["collector", "oracle", "sentinel", "sage", "scribe"]
+        selected_agents=["collector", "oracle", "sentinel", "sage", "scribe"],
     )
-    
+
     settings = get_settings()
     original_max_pos = settings.pm_max_position_size_pct
     original_max_sector = settings.pm_max_sector_concentration_pct
@@ -174,12 +176,12 @@ async def test_oracle_sentinel_debate_node_unresolved(run_service: RunService):
         settings.pm_max_portfolio_var_pct = 100.0
 
         res = await run_service.create_run(req)
-        
+
         assert res.summary.status == "completed"
         # Oracle output signal should remain BUY (unresolved)
         assert len(res.oracle_output) > 0
         assert res.oracle_output[0].signal == "BUY"
-        
+
         # Debate disagreement must be registered and surfaced by Scribe
         # pyrefly: ignore [missing-attribute]
         assert any("[Debate Disagreement]" in note for note in res.scribe_output.notes)
@@ -196,7 +198,7 @@ async def test_portfolio_manager_overrides(run_service: RunService):
     original_max_pos = settings.pm_max_position_size_pct
     original_max_sector = settings.pm_max_sector_concentration_pct
     original_max_var = settings.pm_max_portfolio_var_pct
-    
+
     try:
         # Set very strict PM limits
         settings.pm_max_position_size_pct = 5.0
@@ -217,7 +219,7 @@ async def test_portfolio_manager_overrides(run_service: RunService):
                 )
             ],
         )
-        
+
         quote = MarketQuote(
             symbol="DISAGREE",
             exchange="NSE",
@@ -230,21 +232,24 @@ async def test_portfolio_manager_overrides(run_service: RunService):
         req = RunRequest(
             prompt="Test PM Override disagree",
             portfolio=portfolio,
-            selected_agents=["collector", "oracle", "sentinel", "sage", "scribe"]
+            selected_agents=["collector", "oracle", "sentinel", "sage", "scribe"],
         )
-        
+
         res = await run_service.create_run(req)
-        
+
         assert res.summary.status == "completed"
         # The proposed BUY signal should be overridden to HOLD by PM due to position size (> 5%)
         assert len(res.oracle_output) > 0
         assert res.oracle_output[0].signal == "HOLD"
-        
+
         # Override note must be present in Scribe notes
         # pyrefly: ignore [missing-attribute]
         pm_notes = [note for note in res.scribe_output.notes if "[PM Override]" in note]
         assert len(pm_notes) > 0
-        assert any("position size" in note.lower() or "var" in note.lower() or "sector" in note.lower() for note in pm_notes)
+        assert any(
+            "position size" in note.lower() or "var" in note.lower() or "sector" in note.lower()
+            for note in pm_notes
+        )
 
     finally:
         # Restore settings

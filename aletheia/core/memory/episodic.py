@@ -4,12 +4,12 @@ Episodic Memory Store — SQLite FTS5 backed.
 Automatically ingests Aletheia run results so agents can recall past analyses,
 signals, and insights via full-text search.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import sqlite3
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -110,7 +110,7 @@ class EpisodicMemory:
 
         # Flatten oracle signals to JSON
         signals: dict[str, str] = {}
-        for o in (run_result.oracle_output or []):
+        for o in run_result.oracle_output or []:
             signals[o.symbol] = o.signal
 
         # Scribe summary
@@ -180,16 +180,18 @@ class EpisodicMemory:
 
         results = []
         for row in rows:
-            results.append({
-                "id": row["id"],
-                "run_id": row["run_id"],
-                "created_at": row["created_at"],
-                "symbols": row["symbols"].split(",") if row["symbols"] else [],
-                "prompt": row["prompt"],
-                "insights": row["insights"].split("\n") if row["insights"] else [],
-                "signals": json.loads(row["signals"] or "{}"),
-                "fts_rank": row["rank"],
-            })
+            results.append(
+                {
+                    "id": row["id"],
+                    "run_id": row["run_id"],
+                    "created_at": row["created_at"],
+                    "symbols": row["symbols"].split(",") if row["symbols"] else [],
+                    "prompt": row["prompt"],
+                    "insights": row["insights"].split("\n") if row["insights"] else [],
+                    "signals": json.loads(row["signals"] or "{}"),
+                    "fts_rank": row["rank"],
+                }
+            )
         return results
 
     def get_snapshot_for_prompt(self, query: str, max_episodes: int = 3) -> str:

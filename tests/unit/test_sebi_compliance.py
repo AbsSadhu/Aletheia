@@ -1,13 +1,14 @@
 import pytest
 import sqlite3
-from pathlib import Path
 from aletheia.core.db.sqlite_store import SQLiteStore
+
 
 @pytest.fixture
 def temp_store(tmp_path):
     db_file = tmp_path / "test_sebi.sqlite3"
     store = SQLiteStore(db_file)
     return store
+
 
 def test_sebi_compliance_logging(temp_store):
     # 1. Log a compliance entry
@@ -17,7 +18,7 @@ def test_sebi_compliance_logging(temp_store):
         action="BUY",
         confidence=0.9,
         reasoning_hash="hash123",
-        disclaimer="Standard SEBI Disclaimer"
+        disclaimer="Standard SEBI Disclaimer",
     )
     assert log_id is not None
     assert len(log_id) > 0

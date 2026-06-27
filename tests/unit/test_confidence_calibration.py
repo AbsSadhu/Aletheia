@@ -1,7 +1,7 @@
 import pytest
 import datetime
-from pathlib import Path
 from aletheia.core.db.sqlite_store import SQLiteStore
+
 
 @pytest.fixture
 def temp_store(tmp_path):
@@ -10,6 +10,7 @@ def temp_store(tmp_path):
     store = SQLiteStore(db_file)
     return store
 
+
 def test_confidence_calibration_crud(temp_store):
     # 1. Record a confidence prediction
     rec_id = temp_store.record_confidence(
@@ -17,7 +18,7 @@ def test_confidence_calibration_crud(temp_store):
         symbol="TATASTEEL",
         agent="oracle",
         predicted_signal="BUY",
-        predicted_confidence=0.85
+        predicted_confidence=0.85,
     )
     assert rec_id is not None
     assert len(rec_id) > 0
@@ -27,7 +28,7 @@ def test_confidence_calibration_crud(temp_store):
         record_id=rec_id,
         actual_return_7d=0.05,
         actual_return_30d=0.12,
-        brier_score=0.0225  # (0.85 - 1.0) ^ 2 = 0.0225 if actual return was positive
+        brier_score=0.0225,  # (0.85 - 1.0) ^ 2 = 0.0225 if actual return was positive
     )
 
     # 3. Retrieve rolling calibration score (Brier score)
@@ -44,7 +45,7 @@ def test_confidence_calibration_crud(temp_store):
             (record_id, run_id, symbol, agent, predicted_signal, predicted_confidence, recorded_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            ("rec-old", "run-old", "RELIANCE", "oracle", "BUY", 0.7, old_time)
+            ("rec-old", "run-old", "RELIANCE", "oracle", "BUY", 0.7, old_time),
         )
 
     pending = temp_store.get_pending_calibration_records(days_old=7)

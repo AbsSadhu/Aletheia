@@ -25,6 +25,7 @@ class PyO3RateLimiter:
     def get_limiter(self, ip: str) -> Any:
         try:
             import aletheia_rust
+
             if ip not in self.limiters:
                 self.limiters[ip] = aletheia_rust.RateLimiter(self.rate, self.capacity)
             return self.limiters[ip]
@@ -38,8 +39,7 @@ class PyO3RateLimiter:
             if not limiter.consume(1.0):
                 logger.warning(f"Rate limit exceeded for IP {client_ip}")
                 raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail="Too Many Requests"
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too Many Requests"
                 )
         else:
             # Fallback simple rate limiting if aletheia_rust is not built

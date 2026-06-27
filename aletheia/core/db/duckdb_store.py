@@ -15,6 +15,7 @@ class DuckDBStore:
 
     def _connect(self) -> duckdb.DuckDBPyConnection:
         from aletheia.core.config.settings import get_settings
+
         settings = get_settings()
         config = {}
         if settings.db_encryption_key:
@@ -70,15 +71,16 @@ class DuckDBStore:
 
     def prune_old_quotes(self, days: int) -> int:
         import datetime
-        import duckdb
+
         cutoff = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
         conn = self._connect()
         try:
-            count_res = conn.execute("SELECT COUNT(*) FROM market_quotes WHERE as_of < ?", (cutoff,)).fetchone()
+            count_res = conn.execute(
+                "SELECT COUNT(*) FROM market_quotes WHERE as_of < ?", (cutoff,)
+            ).fetchone()
             count = count_res[0] if count_res else 0
             conn.execute("DELETE FROM market_quotes WHERE as_of < ?", (cutoff,))
             conn.commit()
             return count
         finally:
             conn.close()
-

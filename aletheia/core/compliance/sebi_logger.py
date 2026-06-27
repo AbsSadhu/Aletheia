@@ -9,11 +9,11 @@ Enforces:
 
 SEBI disclaimer text: standard boilerplate required for AI-generated financial content.
 """
+
 from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,10 @@ class SEBIComplianceLogger:
                 log_ids.append(log_id)
                 logger.debug(
                     "SEBI compliance logged: run=%s symbol=%s action=%s log_id=%s",
-                    run_id, symbol, action, log_id,
+                    run_id,
+                    symbol,
+                    action,
+                    log_id,
                 )
             except Exception as exc:
                 logger.error("SEBIComplianceLogger: failed to log rec for run %s: %s", run_id, exc)
