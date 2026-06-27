@@ -52,6 +52,8 @@ jobs:
 
     - name: Rust Dependency Audit
       uses: actions-rust-lang/audit@v1
+      with:
+        workingDirectory: aletheia_rust
 
     - name: Secrets Audit - Check tracked .env
       run: |
