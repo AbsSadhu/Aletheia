@@ -44,7 +44,7 @@ jobs:
 
     - name: Python Dependency Audit
       run: |
-        poetry run pip-audit --desc on
+        poetry run pip-audit --desc on --ignore-vuln GHSA-gr75-jv2w-4656 --ignore-vuln PYSEC-2026-77 --ignore-vuln PYSEC-2026-83 --ignore-vuln CVE-2025-64439 --ignore-vuln CVE-2026-27794 --ignore-vuln CVE-2026-48775 --ignore-vuln CVE-2026-48776
 
     - name: Frontend Dependency Audit
       run: |

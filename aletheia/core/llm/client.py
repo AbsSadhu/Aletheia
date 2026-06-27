@@ -52,11 +52,16 @@ class OllamaClient:
         self.base_url = base_url
 
     async def generate_structured(
-        self, prompt: str, model: str = "llama3", format: str = "json"
+        self, prompt: str, model: Optional[str] = None, format: str = "json"
     ) -> Optional[Dict[str, Any]]:
         """
         Call Ollama API to generate a JSON response with retries, backoff, and circuit breaking.
         """
+        if model is None:
+            from aletheia.core.config.settings import get_settings
+
+            model = get_settings().default_llm_model
+
         if not await self._circuit.check_available():
             logger.error("OllamaClient: Circuit is open. Skipping request.")
             return None
