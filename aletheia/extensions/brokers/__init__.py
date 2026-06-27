@@ -1,6 +1,7 @@
 """
 Aletheia Broker Extension integrations.
 """
+
 from __future__ import annotations
 
 from aletheia.extensions.brokers.base import BaseBrokerConnector

@@ -9,12 +9,12 @@ Sources (in priority order, all best-effort):
 Timeout: 8 seconds total. Returns partial results on timeout.
 Always produces a SentimentOutput — worst case is sentiment_score=0.0, confidence=0.2.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import re
-from datetime import UTC, datetime
 
 import httpx
 
@@ -22,7 +22,9 @@ from aletheia.core.models import SentimentOutput
 
 logger = logging.getLogger(__name__)
 
-_NSE_ANNOUNCEMENTS_URL = "https://www.nseindia.com/api/corp-info?symbol={symbol}&corpType=announcements&market=equities"
+_NSE_ANNOUNCEMENTS_URL = (
+    "https://www.nseindia.com/api/corp-info?symbol={symbol}&corpType=announcements&market=equities"
+)
 _NSE_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "application/json",
@@ -31,10 +33,41 @@ _NSE_HEADERS = {
 _MONEYCONTROL_RSS = "https://www.moneycontrol.com/rss/companynews.xml"
 
 # Simple keyword-based sentiment classifier (used as LLM fallback)
-_BULLISH_WORDS = {"profit", "growth", "record", "acquisition", "expansion", "dividend", "buyback",
-                  "upgrade", "beat", "outperform", "positive", "strong", "surge", "rally", "gain"}
-_BEARISH_WORDS = {"loss", "decline", "down", "weak", "miss", "underperform", "cut", "reduce",
-                  "default", "fraud", "penalty", "sell", "crash", "fall", "concern", "risk"}
+_BULLISH_WORDS = {
+    "profit",
+    "growth",
+    "record",
+    "acquisition",
+    "expansion",
+    "dividend",
+    "buyback",
+    "upgrade",
+    "beat",
+    "outperform",
+    "positive",
+    "strong",
+    "surge",
+    "rally",
+    "gain",
+}
+_BEARISH_WORDS = {
+    "loss",
+    "decline",
+    "down",
+    "weak",
+    "miss",
+    "underperform",
+    "cut",
+    "reduce",
+    "default",
+    "fraud",
+    "penalty",
+    "sell",
+    "crash",
+    "fall",
+    "concern",
+    "risk",
+}
 
 
 class SentimentAgent:
@@ -60,7 +93,9 @@ class SentimentAgent:
                 timeout=self._timeout,
             )
         except (asyncio.TimeoutError, Exception) as exc:
-            logger.warning("SentimentAgent: headline fetch timed out/failed for %s: %s", symbol, exc)
+            logger.warning(
+                "SentimentAgent: headline fetch timed out/failed for %s: %s", symbol, exc
+            )
             headlines, source_breakdown = [], {}
 
         if not headlines:
@@ -79,7 +114,9 @@ class SentimentAgent:
             score, verdict = await self._classify_with_llm(symbol, headlines)
             confidence = 0.75
         except Exception as exc:
-            logger.debug("SentimentAgent: LLM classification failed, using keyword fallback: %s", exc)
+            logger.debug(
+                "SentimentAgent: LLM classification failed, using keyword fallback: %s", exc
+            )
             score, verdict = self._keyword_classify(headlines)
             confidence = 0.5
 
@@ -125,9 +162,9 @@ class SentimentAgent:
                 data = resp.json()
                 # NSE returns list under various keys depending on API version
                 announcements = (
-                    data.get("announcements") or
-                    data.get("data") or
-                    (data if isinstance(data, list) else [])
+                    data.get("announcements")
+                    or data.get("data")
+                    or (data if isinstance(data, list) else [])
                 )
                 headlines = [
                     a.get("subject") or a.get("description") or a.get("headline") or ""
@@ -163,12 +200,15 @@ class SentimentAgent:
         try:
             import os
             import asyncio
+
             client_id = os.environ.get("REDDIT_CLIENT_ID")
             client_secret = os.environ.get("REDDIT_CLIENT_SECRET")
             if not client_id or not client_secret:
                 return ("reddit", [])
             loop = asyncio.get_event_loop()
-            posts = await loop.run_in_executor(None, self._praw_fetch, symbol, client_id, client_secret)
+            posts = await loop.run_in_executor(
+                None, self._praw_fetch, symbol, client_id, client_secret
+            )
             return ("reddit", posts)
         except Exception as exc:
             logger.debug("Reddit fetch failed: %s", exc)
@@ -177,13 +217,16 @@ class SentimentAgent:
     def _praw_fetch(self, symbol: str, client_id: str, client_secret: str) -> list[str]:
         try:
             import praw
+
             reddit = praw.Reddit(
                 client_id=client_id,
                 client_secret=client_secret,
                 user_agent="Aletheia-SentimentAgent/1.0",
             )
             posts = []
-            for sub in reddit.subreddit("IndiaInvestments+stocks").search(symbol, limit=10, time_filter="week"):
+            for sub in reddit.subreddit("IndiaInvestments+stocks").search(
+                symbol, limit=10, time_filter="week"
+            ):
                 posts.append(sub.title)
             return posts
         except Exception:
@@ -191,7 +234,7 @@ class SentimentAgent:
 
     async def _classify_with_llm(self, symbol: str, headlines: list[str]) -> tuple[float, str]:
         """Use LLM to classify sentiment. Returns (score, verdict)."""
-        from aletheia.core.llm.prompts import build_sentiment_prompt, SENTIMENT_SCHEMA
+        from aletheia.core.llm.prompts import build_sentiment_prompt
         import json
 
         if self._llm is None:
@@ -202,7 +245,7 @@ class SentimentAgent:
         # Parse JSON response
         text = str(response_text)
         # Extract JSON from possible markdown wrapping
-        match = re.search(r'\{.*\}', text, re.DOTALL)
+        match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             data = json.loads(match.group())
             score = float(data.get("sentiment_score", 0.0))
@@ -214,7 +257,7 @@ class SentimentAgent:
         """Fallback keyword-based sentiment scoring."""
         total_score = 0.0
         for headline in headlines:
-            words = set(re.findall(r'\b\w+\b', headline.lower()))
+            words = set(re.findall(r"\b\w+\b", headline.lower()))
             bull = len(words & _BULLISH_WORDS)
             bear = len(words & _BEARISH_WORDS)
             if bull + bear > 0:

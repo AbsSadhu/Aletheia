@@ -37,10 +37,12 @@ def run_service(temp_data_dir: Path) -> RunService:
 @pytest.fixture(autouse=True)
 def configure_test_settings():
     from aletheia.core.config.settings import get_settings
+
     settings = get_settings()
     settings.tax_jurisdiction = "IN"
 
     from unittest.mock import AsyncMock, patch
+
     async def mock_generate(prompt, model=None, format=None):
         p_lower = prompt.lower()
         print(f"\n[TEST_MOCK_PROMPT] {p_lower}\n")
@@ -51,21 +53,27 @@ def configure_test_settings():
                 "max_single_position_pct": 10.0,
                 "market_regime": "balanced",
                 "confidence": 0.8,
-                "alerts": ["Reduced risk after debate"]
+                "alerts": ["Reduced risk after debate"],
             }
-        elif "you are an expert financial analyst. you previously proposed" in p_lower or "re-evaluate your signal" in p_lower:
+        elif (
+            "you are an expert financial analyst. you previously proposed" in p_lower
+            or "re-evaluate your signal" in p_lower
+        ):
             if "disagree" in p_lower:
                 return {
                     "signal": "BUY",
                     "confidence": 0.95,
-                    "rationale": "Insistent buy despite sentinel warning"
+                    "rationale": "Insistent buy despite sentinel warning",
                 }
             return {
                 "signal": "HOLD",
                 "confidence": 0.6,
-                "rationale": "Oracle agreed to lower signal to HOLD after Sentinel warnings"
+                "rationale": "Oracle agreed to lower signal to HOLD after Sentinel warnings",
             }
-        elif "determine the signal" in p_lower or "you are an expert indian equity analyst" in p_lower:
+        elif (
+            "determine the signal" in p_lower
+            or "you are an expert indian equity analyst" in p_lower
+        ):
             return {"signal": "BUY", "confidence": 0.9, "rationale": "High volume support"}
         elif "wealth manager" in p_lower or "you are scribe" in p_lower:
             return {
@@ -73,15 +81,18 @@ def configure_test_settings():
                 "synthesized_recommendation": "BUY",
                 "market_regime": "bullish",
                 "stop_loss_suggested": True,
-                "target_allocation_shift": "none"
+                "target_allocation_shift": "none",
             }
         elif "critic agent" in p_lower or "independent auditor" in p_lower:
             return {
                 "passed": True,
                 "score": 0.9,
-                "notes": ["Audited and approved scribe recommendations."]
+                "notes": ["Audited and approved scribe recommendations."],
             }
         return {}
 
-    with patch("aletheia.core.llm.client.OllamaClient.generate_structured", new=AsyncMock(side_effect=mock_generate)):
+    with patch(
+        "aletheia.core.llm.client.OllamaClient.generate_structured",
+        new=AsyncMock(side_effect=mock_generate),
+    ):
         yield

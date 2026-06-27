@@ -27,7 +27,19 @@ class Settings(BaseSettings):
     db_encryption_key: str | None = Field(default=None)
     tax_jurisdiction: str | None = Field(default=None)
     node_timeout_secs: int = Field(default=30)
-    enabled_agents: list[str] = Field(default_factory=lambda: ["collector", "oracle", "sentinel", "sage", "scribe", "sentiment", "fundamental", "options_flow", "critic"])
+    enabled_agents: list[str] = Field(
+        default_factory=lambda: [
+            "collector",
+            "oracle",
+            "sentinel",
+            "sage",
+            "scribe",
+            "sentiment",
+            "fundamental",
+            "options_flow",
+            "critic",
+        ]
+    )
 
     # --- Portfolio Manager Constraints ---
     pm_max_position_size_pct: float = Field(default=20.0)
@@ -39,7 +51,9 @@ class Settings(BaseSettings):
     default_llm_provider: str = "ollama"
     default_llm_model: str = "mistral:7b"
     # Ordered priority list: first available provider wins
-    llm_provider_priority: list[str] = Field(default_factory=lambda: ["ollama", "openai", "anthropic"])
+    llm_provider_priority: list[str] = Field(
+        default_factory=lambda: ["ollama", "openai", "anthropic"]
+    )
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     anthropic_api_key: str | None = None

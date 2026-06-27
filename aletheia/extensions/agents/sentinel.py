@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 from aletheia.core.models import MarketQuote, Portfolio, SentinelOutput, OracleOutput
 from aletheia.core.risk.metrics import assess_portfolio_risk
@@ -9,6 +8,7 @@ from aletheia.core.llm.prompts import build_sentinel_commentary_prompt, build_se
 from aletheia.core.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
+
 
 class SentinelAgent:
     def __init__(self, duckdb_store=None, compute_client=None) -> None:
@@ -44,6 +44,7 @@ class SentinelAgent:
         if len(nifty_closes) < 30:
             try:
                 import yfinance as yf
+
                 ticker = yf.Ticker("^NSEI")
                 hist = ticker.history(period="3mo")
                 if not hist.empty:
@@ -53,8 +54,11 @@ class SentinelAgent:
         if len(nifty_closes) < 10:
             nifty_closes = [22000.0 * (1.0 + (i * 0.001)) for i in range(60)]
 
-        nifty_returns = [(nifty_closes[i] - nifty_closes[i+1]) / nifty_closes[i+1] for i in range(len(nifty_closes) - 1)][::-1]
-        
+        nifty_returns = [
+            (nifty_closes[i] - nifty_closes[i + 1]) / nifty_closes[i + 1]
+            for i in range(len(nifty_closes) - 1)
+        ][::-1]
+
         if self.compute_client and nifty_returns:
             try:
                 res = await self.compute_client.regime_detection(nifty_returns)
@@ -100,19 +104,25 @@ class SentinelAgent:
 
         if not natural_language_brief:
             natural_language_brief = f"Portfolio VaR is {base_output.portfolio_var_95:.2f}. " + (
-                "Concentrated risk detected." if base_output.concentration_risk > 0.4 else "Portfolio concentration is balanced."
+                "Concentrated risk detected."
+                if base_output.concentration_risk > 0.4
+                else "Portfolio concentration is balanced."
             )
 
         base_output.natural_language_brief = natural_language_brief
         return base_output
 
-    async def debate(self, sentinel_output: SentinelOutput, oracle_outputs: list[OracleOutput]) -> SentinelOutput:
+    async def debate(
+        self, sentinel_output: SentinelOutput, oracle_outputs: list[OracleOutput]
+    ) -> SentinelOutput:
         if self.settings.default_llm_provider != "ollama":
             return sentinel_output
 
         oracle_details = []
         for o in oracle_outputs:
-            oracle_details.append(f"Holding: {o.symbol}, Signal: {o.signal}, Confidence: {o.confidence}, Rationale: {o.rationale}")
+            oracle_details.append(
+                f"Holding: {o.symbol}, Signal: {o.signal}, Confidence: {o.confidence}, Rationale: {o.rationale}"
+            )
         oracle_text = "\n".join(oracle_details)
 
         prompt = build_sentinel_debate_prompt(
@@ -133,9 +143,15 @@ class SentinelAgent:
         if llm_result and "confidence" in llm_result:
             try:
                 return SentinelOutput(
-                    portfolio_var_95=llm_result.get("portfolio_var_95", sentinel_output.portfolio_var_95),
-                    concentration_risk=llm_result.get("concentration_risk", sentinel_output.concentration_risk),
-                    max_single_position_pct=llm_result.get("max_single_position_pct", sentinel_output.max_single_position_pct),
+                    portfolio_var_95=llm_result.get(
+                        "portfolio_var_95", sentinel_output.portfolio_var_95
+                    ),
+                    concentration_risk=llm_result.get(
+                        "concentration_risk", sentinel_output.concentration_risk
+                    ),
+                    max_single_position_pct=llm_result.get(
+                        "max_single_position_pct", sentinel_output.max_single_position_pct
+                    ),
                     market_regime=llm_result.get("market_regime", sentinel_output.market_regime),
                     confidence=llm_result.get("confidence", sentinel_output.confidence),
                     alerts=llm_result.get("alerts", sentinel_output.alerts),

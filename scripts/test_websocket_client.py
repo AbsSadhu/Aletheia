@@ -7,6 +7,7 @@ Usage:
   2. Run this script in another terminal:
      .venv\Scripts\python.exe scripts/test_websocket_client.py
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -69,7 +70,9 @@ async def run_client():
             resp.raise_for_status()
             data = resp.json()
             run_id = data["summary"]["run_id"]
-            console.print(f"[green][OK] Run successfully spawned! Run ID: [bold]{run_id}[/bold][/green]\n")
+            console.print(
+                f"[green][OK] Run successfully spawned! Run ID: [bold]{run_id}[/bold][/green]\n"
+            )
     except Exception as exc:
         console.print(
             f"[bold red][ERROR] Failed to spawn run. Make sure the server is running on port 8899. Error: {exc}[/bold red]"
@@ -78,20 +81,26 @@ async def run_client():
 
     # 2. Connect via WebSockets and stream events
     socket_uri = f"{ws_url}/api/v1/ws/runs/{run_id}"
-    console.print(f"[bold yellow]2. Connecting to WebSocket endpoint: {socket_uri}...[/bold yellow]")
+    console.print(
+        f"[bold yellow]2. Connecting to WebSocket endpoint: {socket_uri}...[/bold yellow]"
+    )
 
     try:
         async with websockets.connect(socket_uri) as ws:
-            console.print("[green][OK] WebSocket Connection Established! Listening for agent progress...[/green]\n")
-            
+            console.print(
+                "[green][OK] WebSocket Connection Established! Listening for agent progress...[/green]\n"
+            )
+
             while True:
                 try:
                     message = await ws.recv()
                     event = json.loads(message)
-                    
+
                     # Handle stream completion
                     if event.get("message") == "stream_complete":
-                        console.print("\n[bold green][OK] Received 'stream_complete' signal. Closing connection.[/bold green]")
+                        console.print(
+                            "\n[bold green][OK] Received 'stream_complete' signal. Closing connection.[/bold green]"
+                        )
                         break
 
                     # Format and print agent events
@@ -131,7 +140,6 @@ async def run_client():
                     break
     except Exception as exc:
         console.print(f"[bold red][ERROR] WebSocket connection failed: {exc}[/bold red]")
-
 
 
 if __name__ == "__main__":

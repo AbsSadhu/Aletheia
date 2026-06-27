@@ -3,6 +3,7 @@ TradingView Alert Webhook Handler Blueprint.
 
 Demonstrates how to receive TradingView alert JSON payload webhooks and execute trades.
 """
+
 from __future__ import annotations
 
 import logging
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 class TradingViewAlert(BaseModel):
     """
     Standard TradingView Alert JSON payload schema.
-    
+
     Example payload:
         {
             "passphrase": "mysecretpassphrase",
@@ -26,7 +27,10 @@ class TradingViewAlert(BaseModel):
             "strategy": "RSI-Crossover"
         }
     """
-    passphrase: str = Field(..., description="Authentication passphrase to prevent unauthorized trade triggers.")
+
+    passphrase: str = Field(
+        ..., description="Authentication passphrase to prevent unauthorized trade triggers."
+    )
     symbol: str = Field(..., description="The ticker symbol to trade.")
     action: str = Field(..., description="buy or sell.")
     quantity: int = Field(..., description="The number of shares/units to trade.")
@@ -58,7 +62,7 @@ class TradingViewSignalRouter:
             alert.action.upper(),
             alert.quantity,
             alert.symbol,
-            alert.price
+            alert.price,
         )
 
         # 2. Risk check / Mandate check (e.g. limit order sizes)
@@ -78,13 +82,9 @@ class TradingViewSignalRouter:
                 side=side,
                 qty=alert.quantity,
                 order_type=order_type,
-                price=alert.price
+                price=alert.price,
             )
-            return {
-                "status": "success",
-                "strategy": alert.strategy,
-                "broker_response": res
-            }
+            return {"status": "success", "strategy": alert.strategy, "broker_response": res}
         except Exception as exc:
             logger.error("TradingView Alert Execution failed: %s", exc)
             return {"status": "error", "error": str(exc)}

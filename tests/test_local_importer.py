@@ -1,11 +1,11 @@
 """
 Tests for local data importer (local_importer.py).
 """
+
 import os
 import tempfile
 import pandas as pd
 import pytest
-import duckdb
 
 from aletheia.extensions.backtest.local_importer import import_local_file
 from aletheia.extensions.backtest.data_feed import HistoricalDataFeed
@@ -32,7 +32,7 @@ def test_import_csv() -> None:
         db_path = os.path.join(tempfile.gettempdir(), "test_db_csv.duckdb")
         if os.path.exists(db_path):
             os.remove(db_path)
-            
+
         try:
             # We explicitly specify column mapping
             mapping = {
@@ -78,7 +78,7 @@ def test_import_csv() -> None:
 def test_import_parquet() -> None:
     # Verify pyarrow is installed; if not, skip parquet test
     try:
-        import pyarrow
+        import pyarrow  # noqa: F401
     except ImportError:
         pytest.skip("pyarrow not installed — skipping parquet import test")
 
@@ -102,7 +102,7 @@ def test_import_parquet() -> None:
         db_path = os.path.join(tempfile.gettempdir(), "test_db_pq.duckdb")
         if os.path.exists(db_path):
             os.remove(db_path)
-            
+
         try:
             rows = import_local_file(
                 symbol="pq_stock",
@@ -125,4 +125,3 @@ def test_import_parquet() -> None:
     finally:
         if os.path.exists(pq_path):
             os.remove(pq_path)
-

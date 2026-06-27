@@ -1,6 +1,7 @@
 """
 Tests for ComputeClient and aletheia-engine Rust sidecar integration.
 """
+
 import pytest
 from aletheia.core.compute.client import ComputeClient
 from aletheia.core.config.settings import get_settings

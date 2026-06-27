@@ -7,6 +7,7 @@ LLM enrichment: 1-sentence valuation commentary.
 
 Always produces a FundamentalOutput — worst case is all None fields with confidence 0.2.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -64,7 +65,11 @@ class FundamentalAgent:
             commentary = await self._generate_commentary(symbol, fundamentals, verdict)
         except Exception as exc:
             logger.debug("FundamentalAgent: LLM commentary failed: %s", exc)
-            commentary = f"P/E {pe:.1f}x vs sector {sector_pe:.1f}x → {verdict}" if pe and sector_pe else "Valuation data incomplete."
+            commentary = (
+                f"P/E {pe:.1f}x vs sector {sector_pe:.1f}x → {verdict}"
+                if pe and sector_pe
+                else "Valuation data incomplete."
+            )
 
         return FundamentalOutput(
             symbol=symbol,
@@ -99,7 +104,7 @@ class FundamentalAgent:
         # NSE quote-equity response structure
         metadata = data.get("metadata", {})
         info = data.get("securityInfo", {})
-        pdSeries = data.get("priceInfo", {})
+        data.get("priceInfo", {})
 
         # P/E ratio
         pe_raw = metadata.get("pdSymbolPe") or info.get("applicableMargin")
@@ -119,7 +124,11 @@ class FundamentalAgent:
 
         # Promoter holding
         shareholding = data.get("shareholdingPatterns", {})
-        promoter_raw = shareholding.get("data", [{}])[0].get("promoterAndPromoterGroupTotal") if shareholding.get("data") else None
+        promoter_raw = (
+            shareholding.get("data", [{}])[0].get("promoterAndPromoterGroupTotal")
+            if shareholding.get("data")
+            else None
+        )
         if promoter_raw:
             try:
                 result["promoter_holding_pct"] = float(str(promoter_raw).replace("%", "").strip())
@@ -136,6 +145,7 @@ class FundamentalAgent:
     def _yfinance_fundamentals(self, symbol: str) -> dict[str, Any]:
         try:
             import yfinance as yf
+
             # NSE symbols need .NS suffix for yfinance
             ticker_sym = f"{symbol}.NS" if not symbol.endswith(".NS") else symbol
             ticker = yf.Ticker(ticker_sym)
@@ -156,9 +166,7 @@ class FundamentalAgent:
             logger.debug("yfinance fundamentals failed: %s", exc)
             return {}
 
-    def _compute_valuation_verdict(
-        self, pe: float | None, sector_pe: float | None
-    ) -> str:
+    def _compute_valuation_verdict(self, pe: float | None, sector_pe: float | None) -> str:
         if pe is None or sector_pe is None or sector_pe <= 0:
             return "FAIR"  # insufficient data — conservative default
         ratio = pe / sector_pe
@@ -168,9 +176,7 @@ class FundamentalAgent:
             return "UNDERVALUED"
         return "FAIR"
 
-    async def _generate_commentary(
-        self, symbol: str, fundamentals: dict, verdict: str
-    ) -> str:
+    async def _generate_commentary(self, symbol: str, fundamentals: dict, verdict: str) -> str:
         from aletheia.core.llm.prompts import build_fundamental_prompt
 
         if self._llm is None:
@@ -178,7 +184,7 @@ class FundamentalAgent:
         prompt = build_fundamental_prompt(symbol, {**fundamentals, "valuation_verdict": verdict})
         resp = await self._llm.generate(prompt)
         text = str(resp)
-        match = re.search(r'\{.*\}', text, re.DOTALL)
+        match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             data = json.loads(match.group())
             return str(data.get("valuation_commentary", ""))

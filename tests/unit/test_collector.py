@@ -3,7 +3,6 @@ from aletheia.extensions.data.providers.static_seed import StaticSeedProvider
 from aletheia.core.models import AssetType, Holding, TaxProfile
 from aletheia.extensions.data.provider_base import MarketDataProvider
 from aletheia.core.models import MarketQuote
-import pytest
 import asyncio
 
 
@@ -76,4 +75,3 @@ async def test_collector_fallback_on_timeout() -> None:
     assert timeout_provider.call_count == 3
     assert output.provider_used == "static_seed"
     assert output.quotes
-

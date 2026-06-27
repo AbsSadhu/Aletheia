@@ -33,7 +33,12 @@ def analyze(
 
     # Wire up the actual orchestration engine via our async agent loop
     import asyncio
-    asyncio.run(_async_run(f"Perform a comprehensive analysis on stock symbol {symbol} using provider {provider}."))
+
+    asyncio.run(
+        _async_run(
+            f"Perform a comprehensive analysis on stock symbol {symbol} using provider {provider}."
+        )
+    )
 
 
 async def _async_run(prompt_text: str) -> None:
@@ -45,7 +50,7 @@ async def _async_run(prompt_text: str) -> None:
     from rich.markdown import Markdown
     from rich.panel import Panel
 
-    settings = get_settings()
+    get_settings()
     llm = build_llm_router()
     registry = build_registry()
     context = AgentContext.from_query(prompt_text)
@@ -56,12 +61,16 @@ async def _async_run(prompt_text: str) -> None:
             console.print(f"[dim italic]Thought: {event.data.get('content')}[/dim italic]")
         elif event.event_type == "tool_call":
             args_str = ", ".join(f"{k}={v}" for k, v in event.data.get("arguments", {}).items())
-            console.print(f"[bold magenta]-> Tool Call: {event.data.get('tool')}({args_str})[/bold magenta]")
+            console.print(
+                f"[bold magenta]-> Tool Call: {event.data.get('tool')}({args_str})[/bold magenta]"
+            )
         elif event.event_type == "tool_result":
             res = str(event.data.get("result"))
             if len(res) > 300:
                 res = res[:297] + "..."
-            console.print(f"[bold green][OK] Tool Result: {event.data.get('tool')} -> {res}[/bold green]\n")
+            console.print(
+                f"[bold green][OK] Tool Result: {event.data.get('tool')} -> {res}[/bold green]\n"
+            )
         elif event.event_type == "error":
             console.print(f"[bold red][ERROR] Error: {event.data.get('message')}[/bold red]")
         elif event.event_type == "final_answer":
@@ -83,14 +92,19 @@ def run_prompt(
     Run an agentic task using natural language in the terminal.
     """
     import asyncio
+
     asyncio.run(_async_run(prompt))
 
 
 @app.command(name="import-data")
 def import_data(
-    symbol: str = typer.Option(..., "--symbol", "-s", help="The symbol name to assign to the imported data"),
+    symbol: str = typer.Option(
+        ..., "--symbol", "-s", help="The symbol name to assign to the imported data"
+    ),
     path: str = typer.Option(..., "--file", "-f", help="Path to the CSV, Parquet, or DuckDB file"),
-    date_format: str = typer.Option(None, "--date-format", "-d", help="Optional date parsing format, e.g. %Y-%m-%d"),
+    date_format: str = typer.Option(
+        None, "--date-format", "-d", help="Optional date parsing format, e.g. %Y-%m-%d"
+    ),
     query: str = typer.Option(None, "--query", "-q", help="Optional SQL query for DuckDB files"),
 ):
     """
@@ -142,7 +156,7 @@ app.add_typer(db_app)
 def db_backup(
     backup_dir: str = typer.Option(
         "./backups", "--dir", "-d", help="Directory where database snapshots will be stored"
-    )
+    ),
 ):
     """
     Safely snapshot both SQLite and DuckDB databases.
@@ -159,15 +173,17 @@ def db_backup(
     # Create timestamped folder name
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     target_folder = Path(backup_dir) / f"backup_{timestamp}"
-    
+
     try:
         target_folder.mkdir(parents=True, exist_ok=True)
-        
+
         # 1. SQLite Safe Online Backup
         sqlite_src = settings.sqlite_path
         sqlite_dest = target_folder / sqlite_src.name
-        
-        console.print(f"Backing up SQLite database: [yellow]{sqlite_src}[/yellow] -> [green]{sqlite_dest}[/green]")
+
+        console.print(
+            f"Backing up SQLite database: [yellow]{sqlite_src}[/yellow] -> [green]{sqlite_dest}[/green]"
+        )
         if sqlite_src.exists():
             with sqlite3.connect(sqlite_src) as src_conn:
                 with sqlite3.connect(sqlite_dest) as dest_conn:
@@ -175,20 +191,24 @@ def db_backup(
             console.print("[OK] SQLite backup completed successfully.")
         else:
             console.print("[yellow]SQLite file not found; skipping SQLite backup.[/yellow]")
-            
+
         # 2. DuckDB safe file copy
         duckdb_src = settings.duckdb_path
         duckdb_dest = target_folder / duckdb_src.name
-        
-        console.print(f"Backing up DuckDB database: [yellow]{duckdb_src}[/yellow] -> [green]{duckdb_dest}[/green]")
+
+        console.print(
+            f"Backing up DuckDB database: [yellow]{duckdb_src}[/yellow] -> [green]{duckdb_dest}[/green]"
+        )
         if duckdb_src.exists():
             shutil.copy2(duckdb_src, duckdb_dest)
             console.print("[OK] DuckDB backup completed successfully.")
         else:
             console.print("[yellow]DuckDB file not found; skipping DuckDB backup.[/yellow]")
 
-        console.print(f"\n[bold green][OK] Database backup completed! Saved at: {target_folder.resolve()}[/bold green]")
-        
+        console.print(
+            f"\n[bold green][OK] Database backup completed! Saved at: {target_folder.resolve()}[/bold green]"
+        )
+
     except Exception as exc:
         console.print(f"[bold red][ERROR] Database backup failed: {exc}[/bold red]")
         raise typer.Exit(code=1)
@@ -198,7 +218,7 @@ def db_backup(
 def db_restore(
     backup_path: str = typer.Option(
         ..., "--path", "-p", help="Path to the timestamped backup directory"
-    )
+    ),
 ):
     """
     Restore SQLite and DuckDB databases from a backup snapshot.
@@ -209,7 +229,9 @@ def db_restore(
 
     settings = get_settings()
     backup_dir = Path(backup_path)
-    console.print(f"[bold blue]Restoring Database from Snapshot:[/bold blue] [yellow]{backup_dir.resolve()}[/yellow]")
+    console.print(
+        f"[bold blue]Restoring Database from Snapshot:[/bold blue] [yellow]{backup_dir.resolve()}[/yellow]"
+    )
 
     if not backup_dir.exists() or not backup_dir.is_dir():
         console.print(f"[bold red][ERROR] Backup directory does not exist: {backup_dir}[/bold red]")
@@ -229,43 +251,53 @@ def db_restore(
         if temp_dir.exists():
             shutil.rmtree(temp_dir)
         temp_dir.mkdir(parents=True, exist_ok=True)
-        
+
         sqlite_temp = temp_dir / settings.sqlite_path.name
         duckdb_temp = temp_dir / settings.duckdb_path.name
-        
+
         if settings.sqlite_path.exists():
             shutil.copy2(settings.sqlite_path, sqlite_temp)
         if settings.duckdb_path.exists():
             shutil.copy2(settings.duckdb_path, duckdb_temp)
-            
+
         # Overwrite active database files
         if sqlite_backup.exists():
             console.print(f"Restoring [green]{settings.sqlite_path}[/green]...")
             settings.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(sqlite_backup, settings.sqlite_path)
-            
+
         if duckdb_backup.exists():
             console.print(f"Restoring [green]{settings.duckdb_path}[/green]...")
             settings.duckdb_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(duckdb_backup, settings.duckdb_path)
-            
+
         # Cleanup temp safety folder
         shutil.rmtree(temp_dir)
         console.print("[bold green][OK] Databases successfully restored![/bold green]")
-        
+
     except Exception as exc:
-        console.print(f"[bold red][ERROR] Restore failed! Attempting rollback... Error: {exc}[/bold red]")
+        console.print(
+            f"[bold red][ERROR] Restore failed! Attempting rollback... Error: {exc}[/bold red]"
+        )
         # Rollback
         try:
             if temp_dir.exists():
-                if (temp_dir / settings.sqlite_path.name).exists() and settings.sqlite_path.exists():
+                if (
+                    temp_dir / settings.sqlite_path.name
+                ).exists() and settings.sqlite_path.exists():
                     shutil.copy2(temp_dir / settings.sqlite_path.name, settings.sqlite_path)
-                if (temp_dir / settings.duckdb_path.name).exists() and settings.duckdb_path.exists():
+                if (
+                    temp_dir / settings.duckdb_path.name
+                ).exists() and settings.duckdb_path.exists():
                     shutil.copy2(temp_dir / settings.duckdb_path.name, settings.duckdb_path)
                 shutil.rmtree(temp_dir)
-                console.print("[yellow][OK] Rollback succeeded. Active databases restored to original state.[/yellow]")
+                console.print(
+                    "[yellow][OK] Rollback succeeded. Active databases restored to original state.[/yellow]"
+                )
         except Exception as roll_exc:
-            console.print(f"[bold red]CRITICAL: Rollback failed! Original databases might be corrupted. Error: {roll_exc}[/bold red]")
+            console.print(
+                f"[bold red]CRITICAL: Rollback failed! Original databases might be corrupted. Error: {roll_exc}[/bold red]"
+            )
         raise typer.Exit(code=1)
 
 
@@ -273,7 +305,7 @@ def db_restore(
 def db_prune(
     days: int = typer.Option(
         None, "--days", "-d", help="Number of days of data to retain. Overrides .env"
-    )
+    ),
 ):
     """
     Manually prune SQLite run traces and DuckDB market quotes.
@@ -286,10 +318,12 @@ def db_prune(
     retention = days if days is not None else settings.retention_days
 
     if retention is None or retention <= 0:
-        console.print("[bold red][ERROR] Retention days not configured. Specify --days or set ALETHEIA_RETENTION_DAYS in .env[/bold red]")
+        console.print(
+            "[bold red][ERROR] Retention days not configured. Specify --days or set ALETHEIA_RETENTION_DAYS in .env[/bold red]"
+        )
         raise typer.Exit(code=1)
 
-    console.print(f"[bold blue]Applying Database Retention Policy[/bold blue]")
+    console.print("[bold blue]Applying Database Retention Policy[/bold blue]")
     console.print(f"Retaining last [yellow]{retention}[/yellow] days of data...")
 
     try:
@@ -309,5 +343,3 @@ def db_prune(
 
 if __name__ == "__main__":
     app()
-
-

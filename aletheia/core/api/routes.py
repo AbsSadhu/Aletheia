@@ -35,6 +35,7 @@ Endpoints:
   Chat:
     POST /chat/stream
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -75,6 +76,7 @@ router = APIRouter(prefix="/api/v1")
 # Health
 # ---------------------------------------------------------------------------
 
+
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     settings = get_settings()
@@ -92,6 +94,7 @@ async def ready() -> dict[str, bool]:
 # ---------------------------------------------------------------------------
 # Runs
 # ---------------------------------------------------------------------------
+
 
 @router.post("/runs", dependencies=[Depends(submit_run_limiter)])
 async def create_run(
@@ -152,14 +155,14 @@ async def get_run_trace(run_id: str) -> dict:
     return {
         "run_id": run_id,
         "trace": [event.model_dump(mode="json") for event in events],
-        "spans": spans
+        "spans": spans,
     }
-
 
 
 # ---------------------------------------------------------------------------
 # Portfolios
 # ---------------------------------------------------------------------------
+
 
 @router.get("/portfolios")
 async def list_portfolios() -> dict:
@@ -197,10 +200,11 @@ async def delete_portfolio(name: str) -> dict:
 # Backtest
 # ---------------------------------------------------------------------------
 
+
 class BacktestRequest(BaseModel):
     symbols: list[str] = Field(..., min_length=1)
     start_date: str  # YYYY-MM-DD
-    end_date: str    # YYYY-MM-DD
+    end_date: str  # YYYY-MM-DD
     strategy: str = "oracle_signals"
     initial_capital: float = 100_000.0
 
@@ -220,8 +224,7 @@ async def run_backtest(request: BacktestRequest) -> dict:
 
     # Fetch data for all symbols
     fetch_tasks = [
-        feed.fetch_and_store(sym, request.start_date, request.end_date)
-        for sym in request.symbols
+        feed.fetch_and_store(sym, request.start_date, request.end_date) for sym in request.symbols
     ]
     try:
         await asyncio.gather(*fetch_tasks)
@@ -268,6 +271,7 @@ async def run_backtest(request: BacktestRequest) -> dict:
 # Hypotheses
 # ---------------------------------------------------------------------------
 
+
 class ProposeHypothesisRequest(BaseModel):
     title: str
     description: str
@@ -287,6 +291,7 @@ class AddEvidenceRequest(BaseModel):
 def _get_hypothesis_registry():
     settings = get_settings()
     from aletheia.extensions.hypotheses.registry import HypothesisRegistry
+
     return HypothesisRegistry(db_path=str(settings.data_dir / "hypotheses.db"))
 
 
@@ -346,6 +351,7 @@ async def add_hypothesis_evidence(hypo_id: str, request: AddEvidenceRequest) -> 
 # Memory Search
 # ---------------------------------------------------------------------------
 
+
 @router.get("/memory/search")
 async def memory_search(q: str, limit: int = 8) -> dict:
     """
@@ -356,6 +362,7 @@ async def memory_search(q: str, limit: int = 8) -> dict:
 
     settings = get_settings()
     from aletheia.core.memory.persistent import PersistentMemory
+
     memory = PersistentMemory(memory_dir=settings.memory_dir)
     results = memory.search(q, limit=limit)
     return results
@@ -364,6 +371,7 @@ async def memory_search(q: str, limit: int = 8) -> dict:
 # ---------------------------------------------------------------------------
 # WebSocket
 # ---------------------------------------------------------------------------
+
 
 @router.websocket("/ws/runs/{run_id}")
 async def run_events(websocket: WebSocket, run_id: str) -> None:
@@ -396,6 +404,7 @@ async def run_events(websocket: WebSocket, run_id: str) -> None:
 # Chat Stream (upgraded to use LLM router)
 # ---------------------------------------------------------------------------
 
+
 @router.post("/chat/stream")
 async def chat_stream(request: Request) -> StreamingResponse:
     """
@@ -414,6 +423,7 @@ async def chat_stream(request: Request) -> StreamingResponse:
 
         if portfolio_data:
             from aletheia.core.models import Portfolio
+
             try:
                 portfolio = Portfolio(**portfolio_data)
                 context.portfolio = portfolio
@@ -425,9 +435,11 @@ async def chat_stream(request: Request) -> StreamingResponse:
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+
 # ---------------------------------------------------------------------------
 # Intelligence Sprint Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/runs/{run_id}/calibration")
 async def get_run_calibration(run_id: str) -> dict:
@@ -440,7 +452,9 @@ async def get_run_calibration(run_id: str) -> dict:
 
 
 @router.get("/compliance/log")
-async def get_compliance_log(from_date: str | None = None, to_date: str | None = None, limit: int = 100) -> dict:
+async def get_compliance_log(
+    from_date: str | None = None, to_date: str | None = None, limit: int = 100
+) -> dict:
     service = get_run_service()
     log = service.sqlite_store.get_compliance_log(from_date=from_date, to_date=to_date, limit=limit)
     return {"log": log}
@@ -452,6 +466,7 @@ async def vector_search(q: str, limit: int = 5) -> dict:
         raise HTTPException(status_code=400, detail="Query 'q' is required")
     try:
         from aletheia.core.memory.vector_store import VectorMemoryStore
+
         store = VectorMemoryStore()
         results = store.search(q, k=limit)
         return {"results": results}

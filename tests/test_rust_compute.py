@@ -1,6 +1,7 @@
 """
 Tests for aletheia_rust PyO3 module — 30+ function validation suite.
 """
+
 import math
 import pytest
 
@@ -8,6 +9,7 @@ import pytest
 def _import_rust():
     try:
         import aletheia_rust
+
         return aletheia_rust
     except ImportError:
         pytest.skip("aletheia_rust not compiled — skipping Rust tests")
@@ -16,6 +18,7 @@ def _import_rust():
 # ============================================================
 # Technical Indicators
 # ============================================================
+
 
 class TestTechnicalIndicators:
     def test_sma_basic(self):
@@ -50,7 +53,7 @@ class TestTechnicalIndicators:
         upper = [x for x in result["upper"] if x is not None]
         lower = [x for x in result["lower"] if x is not None]
         middle = [x for x in result["middle"] if x is not None]
-        assert all(u >= m >= l for u, m, l in zip(upper, middle, lower))
+        assert all(u >= m >= low for u, m, low in zip(upper, middle, lower))
 
     def test_atr(self):
         rust = _import_rust()
@@ -82,10 +85,10 @@ class TestTechnicalIndicators:
         result = rust.calculate_obv_rust(closes, volumes)
         obv = result["obv"]
         assert obv[0] == 0.0
-        assert obv[1] == 2000.0   # price up, add volume
-        assert obv[2] == 3500.0   # price up, add 1500
-        assert obv[3] == 3000.0   # price down, subtract 500
-        assert obv[4] == 6000.0   # price up, add 3000
+        assert obv[1] == 2000.0  # price up, add volume
+        assert obv[2] == 3500.0  # price up, add 1500
+        assert obv[3] == 3000.0  # price down, subtract 500
+        assert obv[4] == 6000.0  # price up, add 3000
 
     def test_stochastic(self):
         rust = _import_rust()
@@ -101,6 +104,7 @@ class TestTechnicalIndicators:
 # ============================================================
 # Portfolio Analytics
 # ============================================================
+
 
 class TestPortfolioAnalytics:
     def test_correlation_matrix_identity(self):
@@ -141,6 +145,7 @@ class TestPortfolioAnalytics:
 # ============================================================
 # Backtest Metrics
 # ============================================================
+
 
 class TestBacktestMetrics:
     def _trending_returns(self):
@@ -187,6 +192,7 @@ class TestBacktestMetrics:
 # BM25 and Memory
 # ============================================================
 
+
 class TestBM25:
     def test_basic_relevance(self):
         rust = _import_rust()
@@ -217,6 +223,7 @@ class TestBM25:
 # RateLimiter
 # ============================================================
 
+
 class TestRateLimiter:
     def test_basic_consume(self):
         rust = _import_rust()
@@ -235,6 +242,7 @@ class TestRateLimiter:
 # ============================================================
 # Options Pricing
 # ============================================================
+
 
 class TestOptionsPricing:
     def test_call_at_the_money(self):

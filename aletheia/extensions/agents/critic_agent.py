@@ -9,11 +9,10 @@ Pattern: Reflexion / self-critique loop (max 2 iterations).
 - If score < 0.6 → sends CriticVerdict(passed=False) back → Scribe must revise once
 - Max 2 iterations to avoid infinite loop (after 2nd attempt, passes regardless with critic_notes)
 """
+
 from __future__ import annotations
 
-import json
 import logging
-import re
 
 from aletheia.core.models import CriticVerdict, ScribeOutput
 
@@ -63,7 +62,9 @@ class CriticAgent:
             )
 
         try:
-            return await self._llm_audit(scribe_output, sentinel_output or {}, sage_outputs or [], iteration)
+            return await self._llm_audit(
+                scribe_output, sentinel_output or {}, sage_outputs or [], iteration
+            )
         except Exception as exc:
             logger.warning("CriticAgent: LLM audit failed: %s", exc)
             return self._rule_based_audit(scribe_output, sentinel_output or {}, iteration)
@@ -130,7 +131,9 @@ class CriticAgent:
 
         # Check: summary length (too short = non-substantive)
         if len(scribe_output.executive_summary) < 100:
-            notes.append("Executive summary is too brief — insufficient detail for a retail investor.")
+            notes.append(
+                "Executive summary is too brief — insufficient detail for a retail investor."
+            )
             score -= 0.1
 
         score = max(0.0, min(1.0, score))

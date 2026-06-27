@@ -1,7 +1,8 @@
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 from datetime import UTC, datetime
 from aletheia.core.context.macro_injector import MacroContext, MacroContextInjector
+
 
 def test_macro_context_prompt_formatting():
     # Test formatting with all fields populated
@@ -11,7 +12,7 @@ def test_macro_context_prompt_formatting():
         nifty_50_momentum_pct=4.2,
         crude_oil_usd=82.5,
         fetched_at=datetime.now(UTC),
-        notes=["USD/INR checked"]
+        notes=["USD/INR checked"],
     )
     prompt = ctx.as_prompt_text()
     assert "RBI repo rate: 6.50%" in prompt
@@ -27,7 +28,11 @@ def test_macro_context_prompt_formatting():
         nifty_50_momentum_pct=None,
         crude_oil_usd=None,
     )
-    assert ctx_empty.as_prompt_text() == "Macro data unavailable — agents operating without macro context."
+    assert (
+        ctx_empty.as_prompt_text()
+        == "Macro data unavailable — agents operating without macro context."
+    )
+
 
 @pytest.mark.asyncio
 async def test_macro_injector_fetch_fallback():

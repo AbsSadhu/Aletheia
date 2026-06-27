@@ -61,18 +61,18 @@ def run_preflight_checks(settings) -> None:
             r = httpx.get(f"{settings.ollama_base_url}/api/tags", timeout=3.0)
             if r.status_code != 200:
                 raise RuntimeError(f"HTTP status {r.status_code}")
-            
+
             data = r.json()
             models = data.get("models", [])
             model_names = [m["name"] for m in models]
             target_model = settings.default_llm_model
-            
+
             found = False
             for name in model_names:
                 if name == target_model or name.split(":")[0] == target_model.split(":")[0]:
                     found = True
                     break
-            
+
             if not found:
                 raise RuntimeError(
                     f"Model '{target_model}' is not pulled in Ollama. "
@@ -111,7 +111,7 @@ def register_exception_handlers(app: FastAPI, settings) -> None:
     @app.exception_handler(Exception)
     async def global_exception_handler(request, exc):
         logger.exception("Centralized Exception Middleware caught unhandled error:")
-        
+
         detail = str(exc) if settings.debug else None
         return JSONResponse(
             status_code=500,
@@ -125,7 +125,7 @@ def register_exception_handlers(app: FastAPI, settings) -> None:
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    
+
     # Run fail-fast startup preflight checks
     run_preflight_checks(settings)
 
@@ -134,10 +134,10 @@ def create_app() -> FastAPI:
         try:
             from aletheia.core.db.sqlite_store import SQLiteStore
             from aletheia.core.db.duckdb_store import DuckDBStore
-            
+
             sqlite_store = SQLiteStore(settings.sqlite_path)
             duckdb_store = DuckDBStore(settings.duckdb_path)
-            
+
             deleted_events = sqlite_store.prune_old_events(settings.retention_days)
             deleted_quotes = duckdb_store.prune_old_quotes(settings.retention_days)
             logger.info(
@@ -149,15 +149,14 @@ def create_app() -> FastAPI:
         except Exception as exc:
             logger.warning("Failed to apply database retention policy on startup: %s", exc)
 
-    
     app = FastAPI(
         title="ALETHEIA",
         version="0.1.0",
         description="India-first multi-agent financial intelligence platform",
     )
-    
+
     register_exception_handlers(app, settings)
-    
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -179,4 +178,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-

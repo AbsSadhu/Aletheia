@@ -10,6 +10,7 @@ Provides a pre-run briefing injected into every agent's system prompt:
 Cache TTL: 15 minutes (avoids repeated API calls within a single session).
 All fetches are best-effort — failure returns a degraded context, never raises.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -28,10 +29,10 @@ _CACHE_TTL = timedelta(minutes=15)
 class MacroContext:
     rbi_repo_rate_pct: float | None
     usd_inr: float | None
-    nifty_50_momentum_pct: float | None   # 50-day momentum vs 200-day SMA
-    crude_oil_usd: float | None            # Brent, USD/barrel
-    fetched_at: datetime = None           # type: ignore[assignment]
-    notes: list[str] = None               # type: ignore[assignment]
+    nifty_50_momentum_pct: float | None  # 50-day momentum vs 200-day SMA
+    crude_oil_usd: float | None  # Brent, USD/barrel
+    fetched_at: datetime = None  # type: ignore[assignment]
+    notes: list[str] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         if self.fetched_at is None:
@@ -131,7 +132,7 @@ class MacroContextInjector:
         try:
             # commodities-api.com free tier: Brent crude
             async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(
+                await client.get(
                     "https://api.exchangerate-api.com/v4/latest/USD",
                     headers={"Accept": "application/json"},
                 )
@@ -151,6 +152,7 @@ class MacroContextInjector:
             return await self._fetch_nifty_from_yfinance()
         try:
             import duckdb
+
             con = duckdb.connect(self._duckdb_path, read_only=True)
             result = con.execute(
                 """
@@ -182,6 +184,7 @@ class MacroContextInjector:
     def _yfinance_nifty(self) -> float | None:
         try:
             import yfinance as yf
+
             nifty = yf.download("^NSEI", period="3mo", interval="1d", progress=False)
             if nifty.empty or len(nifty) < 51:
                 return None

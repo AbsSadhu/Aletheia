@@ -88,7 +88,7 @@ def test_run_trace_endpoint() -> None:
     )
     assert response.status_code == 200
     run_id = response.json()["summary"]["run_id"]
-    
+
     # Query trace
     trace_response = client.get(f"/api/v1/runs/{run_id}/trace")
     assert trace_response.status_code == 200
@@ -96,8 +96,7 @@ def test_run_trace_endpoint() -> None:
     assert trace_data["run_id"] == run_id
     assert isinstance(trace_data["trace"], list)
     assert len(trace_data["trace"]) > 0
-    
+
     agents_seen = {event["agent"] for event in trace_data["trace"]}
     assert "collector" in agents_seen
     assert "oracle" in agents_seen
-

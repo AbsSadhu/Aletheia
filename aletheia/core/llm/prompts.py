@@ -8,6 +8,7 @@ Usage:
     from aletheia.core.llm.prompts import build_oracle_prompt
     prompt = build_oracle_prompt(holding_data, quote_data, macro_context)
 """
+
 from __future__ import annotations
 
 import json
@@ -16,6 +17,7 @@ import json
 # ─────────────────────────────────────────────────────────────
 # Schema injection helper
 # ─────────────────────────────────────────────────────────────
+
 
 def _json_schema_footer(schema: dict) -> str:
     return (
@@ -114,8 +116,14 @@ Quantitative Risk Assessment:
 def build_sentinel_debate_prompt(sentinel_output: dict, oracle_text: str) -> str:
     schema = {
         "type": "object",
-        "required": ["portfolio_var_95", "concentration_risk", "max_single_position_pct",
-                     "market_regime", "confidence", "alerts"],
+        "required": [
+            "portfolio_var_95",
+            "concentration_risk",
+            "max_single_position_pct",
+            "market_regime",
+            "confidence",
+            "alerts",
+        ],
         "properties": {
             "portfolio_var_95": {"type": "number"},
             "concentration_risk": {"type": "number"},
@@ -141,8 +149,13 @@ Oracle analyst signals:
 
 SCRIBE_SCHEMA = {
     "type": "object",
-    "required": ["executive_summary", "synthesized_recommendation", "market_regime",
-                 "stop_loss_suggested", "target_allocation_shift"],
+    "required": [
+        "executive_summary",
+        "synthesized_recommendation",
+        "market_regime",
+        "stop_loss_suggested",
+        "target_allocation_shift",
+    ],
     "properties": {
         "executive_summary": {"type": "string"},
         "synthesized_recommendation": {"type": "string"},
@@ -165,20 +178,21 @@ def build_scribe_prompt(
 ) -> str:
     macro_section = f"\n\nMacro Context:\n{macro_context}" if macro_context else ""
     sentiment_section = (
-        f"\n\nSentiment Analysis:\n{json.dumps(sentiment_data, indent=2)}"
-        if sentiment_data else ""
+        f"\n\nSentiment Analysis:\n{json.dumps(sentiment_data, indent=2)}" if sentiment_data else ""
     )
     fundamental_section = (
         f"\n\nFundamental Data:\n{json.dumps(fundamental_data, indent=2)}"
-        if fundamental_data else ""
+        if fundamental_data
+        else ""
     )
     options_section = (
-        f"\n\nOptions Flow:\n{json.dumps(options_flow_data, indent=2)}"
-        if options_flow_data else ""
+        f"\n\nOptions Flow:\n{json.dumps(options_flow_data, indent=2)}" if options_flow_data else ""
     )
     critic_section = (
-        f"\n\nCritic Notes (address these in your summary):\n" + "\n".join(f"- {n}" for n in critic_notes)
-        if critic_notes else ""
+        "\n\nCritic Notes (address these in your summary):\n"
+        + "\n".join(f"- {n}" for n in critic_notes)
+        if critic_notes
+        else ""
     )
 
     return f"""You are Scribe, the synthesis agent for an Indian multi-agent investment research system.
@@ -205,8 +219,10 @@ SENTIMENT_SCHEMA = {
     "required": ["sentiment_score", "verdict", "key_themes"],
     "properties": {
         "sentiment_score": {"type": "number", "minimum": -1.0, "maximum": 1.0},
-        "verdict": {"type": "string", "enum": ["STRONGLY_POSITIVE", "POSITIVE", "NEUTRAL",
-                                                "NEGATIVE", "STRONGLY_NEGATIVE"]},
+        "verdict": {
+            "type": "string",
+            "enum": ["STRONGLY_POSITIVE", "POSITIVE", "NEUTRAL", "NEGATIVE", "STRONGLY_NEGATIVE"],
+        },
         "key_themes": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
     },
 }
@@ -289,4 +305,6 @@ Sage Scenarios:
 # ─────────────────────────────────────────────────────────────
 
 ORACLE_PROMPT_TEMPLATE = """{holding_data}\n{quote_data}"""  # replaced by build_oracle_prompt
-SCRIBE_PROMPT_TEMPLATE = """{oracle_signals}\n{sentinel_risk}\n{sage_scenarios}"""  # replaced by build_scribe_prompt
+SCRIBE_PROMPT_TEMPLATE = (
+    """{oracle_signals}\n{sentinel_risk}\n{sage_scenarios}"""  # replaced by build_scribe_prompt
+)

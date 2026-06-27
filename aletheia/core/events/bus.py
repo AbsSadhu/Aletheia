@@ -4,6 +4,7 @@ Aletheia Event Bus — async pub/sub for typed agent events.
 Publishers: every LangGraph node (via run_service)
 Subscribers: WebSocket broadcaster, ComplianceLogger, audit logger
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -127,9 +128,7 @@ class EventBus:
             try:
                 await handler(event)
             except Exception as exc:
-                logger.exception(
-                    "EventBus handler %s raised: %s", handler.__name__, exc
-                )
+                logger.exception("EventBus handler %s raised: %s", handler.__name__, exc)
 
 
 # Module-level singleton — imported by run_service, routes, etc.

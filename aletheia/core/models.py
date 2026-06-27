@@ -11,7 +11,12 @@ from pydantic import BaseModel, Field, model_validator
 class AnalystContract(BaseModel):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        forbidden_keys = {"recommendations", "executive_summary", "final_decision", "portfolio_manager_overrides"}
+        forbidden_keys = {
+            "recommendations",
+            "executive_summary",
+            "final_decision",
+            "portfolio_manager_overrides",
+        }
         for key in forbidden_keys:
             if key in cls.__annotations__ or key in cls.__dict__:
                 raise TypeError(
@@ -22,7 +27,12 @@ class AnalystContract(BaseModel):
     @classmethod
     def validate_analyst_mandate(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            forbidden_keys = {"recommendations", "executive_summary", "final_decision", "portfolio_manager_overrides"}
+            forbidden_keys = {
+                "recommendations",
+                "executive_summary",
+                "final_decision",
+                "portfolio_manager_overrides",
+            }
             for key in forbidden_keys:
                 if key in data:
                     raise ValueError(
@@ -215,7 +225,9 @@ class OracleOutput(AnalystContract):
     fair_value_gap_pct: float = 0.0
     momentum_pct: float = 0.0
     multi_timeframe_signals: list[MultiTimeframeSignal] = Field(default_factory=list)
-    factor_exposures: dict[str, float] | None = None  # alpha, beta, smb_loading, hml_loading, r_squared
+    factor_exposures: dict[str, float] | None = (
+        None  # alpha, beta, smb_loading, hml_loading, r_squared
+    )
     timeframe_agreement: str = "UNKNOWN"  # ALL_AGREE | MAJORITY_AGREE | SPLIT | NO_AGREEMENT
 
 
@@ -236,7 +248,9 @@ class SentimentOutput(AnalystContract):
     headline_count: int = 0
     top_headlines: list[str] = Field(default_factory=list)
     source_breakdown: dict[str, int] = Field(default_factory=dict)
-    verdict: str = "NEUTRAL"  # STRONGLY_POSITIVE | POSITIVE | NEUTRAL | NEGATIVE | STRONGLY_NEGATIVE
+    verdict: str = (
+        "NEUTRAL"  # STRONGLY_POSITIVE | POSITIVE | NEUTRAL | NEGATIVE | STRONGLY_NEGATIVE
+    )
     confidence: float = 0.5
 
 

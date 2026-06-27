@@ -10,6 +10,7 @@ Usage:
     metrics = await client.portfolio_metrics(returns=daily_returns)
     paths = await client.monte_carlo(initial_value=100_000, daily_vol=0.01)
 """
+
 from __future__ import annotations
 
 import logging
@@ -179,7 +180,9 @@ class ComputeClient:
                 resp.raise_for_status()
                 return resp.json()
         except Exception as exc:
-            logger.warning("ComputeClient: sidecar call to %s failed (%s), using PyO3 fallback", path, exc)
+            logger.warning(
+                "ComputeClient: sidecar call to %s failed (%s), using PyO3 fallback", path, exc
+            )
             return {}
 
     # ------------------------------------------------------------------
@@ -189,6 +192,7 @@ class ComputeClient:
     def _fallback_indicators(self, closes: list[float], window: int) -> dict[str, Any]:
         try:
             from aletheia_rust import calculate_technical_indicators_rust  # type: ignore[import]
+
             return calculate_technical_indicators_rust(closes, window)
         except ImportError:
             logger.warning("aletheia_rust not compiled — returning empty indicators")
@@ -204,6 +208,7 @@ class ComputeClient:
                 calculate_calmar_rust,
                 calculate_max_drawdown_rust,
             )
+
             equity = [1.0]
             v = 1.0
             for r in returns:
@@ -221,9 +226,13 @@ class ComputeClient:
             }
         except ImportError:
             return {
-                "sharpe": 0.0, "sortino": 0.0, "calmar": 0.0,
-                "max_drawdown": 0.0, "max_drawdown_pct": 0.0,
-                "annualized_return": 0.0, "annualized_vol": 0.0,
+                "sharpe": 0.0,
+                "sortino": 0.0,
+                "calmar": 0.0,
+                "max_drawdown": 0.0,
+                "max_drawdown_pct": 0.0,
+                "annualized_return": 0.0,
+                "annualized_vol": 0.0,
             }
 
     def _fallback_monte_carlo(
@@ -231,6 +240,7 @@ class ComputeClient:
     ) -> dict[str, Any]:
         try:
             from aletheia_rust import monte_carlo_portfolio_paths_rust  # type: ignore[import]
+
             return monte_carlo_portfolio_paths_rust(initial_value, daily_vol, 0.0, n_paths, n_days)
         except ImportError:
             return {"p50": [initial_value] * (n_days + 1), "n_paths": n_paths, "n_days": n_days}
@@ -240,13 +250,17 @@ class ComputeClient:
     ) -> dict[str, Any]:
         try:
             from aletheia_rust import correlation_matrix_rust  # type: ignore[import]
+
             result = correlation_matrix_rust(returns_matrix)
             if labels:
                 result["labels"] = labels
             return result
         except ImportError:
             n = len(returns_matrix)
-            return {"matrix": [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)], "n_assets": n}
+            return {
+                "matrix": [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)],
+                "n_assets": n,
+            }
 
     # ------------------------------------------------------------------
     # Intelligence Sprint -- Regime Detection
@@ -264,6 +278,7 @@ class ComputeClient:
     def _fallback_regime(self, returns: list, n_regimes: int) -> dict:
         try:
             from aletheia_rust import regime_detection_rust  # type: ignore[import]
+
             return regime_detection_rust(returns, n_regimes)
         except ImportError:
             return {"current_regime": "unknown", "regime_sequence": [], "regime_labels": []}
@@ -272,7 +287,9 @@ class ComputeClient:
     # Intelligence Sprint -- Fama-French Factor Model
     # ------------------------------------------------------------------
 
-    async def factor_model(self, returns: list, market_returns: list, smb: list = None, hml: list = None) -> dict:
+    async def factor_model(
+        self, returns: list, market_returns: list, smb: list = None, hml: list = None
+    ) -> dict:
         """Compute Fama-French 3-factor model exposures."""
         n = len(returns)
         smb = smb or [0.0] * n
@@ -284,39 +301,93 @@ class ComputeClient:
                 return res
         return self._fallback_factor_model(returns, market_returns, smb, hml)
 
-    def _fallback_factor_model(self, returns: list, market_returns: list, smb: list, hml: list) -> dict:
+    def _fallback_factor_model(
+        self, returns: list, market_returns: list, smb: list, hml: list
+    ) -> dict:
         try:
             from aletheia_rust import fama_french_rust  # type: ignore[import]
+
             return fama_french_rust(returns, market_returns, smb, hml)
         except ImportError:
             n = len(returns)
-            if n < 2: return {"alpha": 0.0, "beta": 1.0, "smb_loading": 0.0, "hml_loading": 0.0, "r_squared": 0.0}
-            ym = sum(returns)/n; xm = sum(market_returns)/n
-            cov = sum((returns[i]-ym)*(market_returns[i]-xm) for i in range(n))/n
-            var = sum((market_returns[i]-xm)**2 for i in range(n))/n
-            beta = cov/var if var > 0 else 1.0
-            return {"alpha": ym-beta*xm, "beta": beta, "smb_loading": 0.0, "hml_loading": 0.0, "r_squared": 0.0}
+            if n < 2:
+                return {
+                    "alpha": 0.0,
+                    "beta": 1.0,
+                    "smb_loading": 0.0,
+                    "hml_loading": 0.0,
+                    "r_squared": 0.0,
+                }
+            ym = sum(returns) / n
+            xm = sum(market_returns) / n
+            cov = sum((returns[i] - ym) * (market_returns[i] - xm) for i in range(n)) / n
+            var = sum((market_returns[i] - xm) ** 2 for i in range(n)) / n
+            beta = cov / var if var > 0 else 1.0
+            return {
+                "alpha": ym - beta * xm,
+                "beta": beta,
+                "smb_loading": 0.0,
+                "hml_loading": 0.0,
+                "r_squared": 0.0,
+            }
 
     # ------------------------------------------------------------------
     # Intelligence Sprint -- Options Flow
     # ------------------------------------------------------------------
 
-    async def options_flow(self, calls_oi: list, puts_oi: list, calls_iv: list, puts_iv: list, iv_52w_high: float = 50.0, iv_52w_low: float = 10.0) -> dict:
+    async def options_flow(
+        self,
+        calls_oi: list,
+        puts_oi: list,
+        calls_iv: list,
+        puts_iv: list,
+        iv_52w_high: float = 50.0,
+        iv_52w_low: float = 10.0,
+    ) -> dict:
         """Compute PCR, IV rank, OI concentration metrics."""
-        payload = {"calls_oi": calls_oi, "puts_oi": puts_oi, "calls_iv": calls_iv, "puts_iv": puts_iv, "iv_52w_high": iv_52w_high, "iv_52w_low": iv_52w_low}
+        payload = {
+            "calls_oi": calls_oi,
+            "puts_oi": puts_oi,
+            "calls_iv": calls_iv,
+            "puts_iv": puts_iv,
+            "iv_52w_high": iv_52w_high,
+            "iv_52w_low": iv_52w_low,
+        }
         if self._use_sidecar():
             res = await self._post("/compute/options-flow", payload)
             if res:
                 return res
-        return self._fallback_options_flow(calls_oi, puts_oi, calls_iv, puts_iv, iv_52w_high, iv_52w_low)
+        return self._fallback_options_flow(
+            calls_oi, puts_oi, calls_iv, puts_iv, iv_52w_high, iv_52w_low
+        )
 
-    def _fallback_options_flow(self, calls_oi: list, puts_oi: list, calls_iv: list, puts_iv: list, iv_52w_high: float, iv_52w_low: float) -> dict:
+    def _fallback_options_flow(
+        self,
+        calls_oi: list,
+        puts_oi: list,
+        calls_iv: list,
+        puts_iv: list,
+        iv_52w_high: float,
+        iv_52w_low: float,
+    ) -> dict:
         try:
             from aletheia_rust import options_flow_metrics_rust  # type: ignore[import]
-            return options_flow_metrics_rust(calls_oi, puts_oi, calls_iv, puts_iv, iv_52w_high, iv_52w_low)
+
+            return options_flow_metrics_rust(
+                calls_oi, puts_oi, calls_iv, puts_iv, iv_52w_high, iv_52w_low
+            )
         except ImportError:
-            tc = sum(calls_oi); tp = sum(puts_oi); pcr = tp/tc if tc > 0 else 1.0
-            return {"put_call_ratio": pcr, "iv_rank": 50.0, "oi_concentration": "BEARISH_OI" if pcr>1.3 else ("BULLISH_OI" if pcr<0.7 else "NEUTRAL"), "iv_signal": "NEUTRAL"}
+            tc = sum(calls_oi)
+            tp = sum(puts_oi)
+            pcr = tp / tc if tc > 0 else 1.0
+            return {
+                "put_call_ratio": pcr,
+                "iv_rank": 50.0,
+                "oi_concentration": "BEARISH_OI"
+                if pcr > 1.3
+                else ("BULLISH_OI" if pcr < 0.7 else "NEUTRAL"),
+                "iv_signal": "NEUTRAL",
+            }
 
     # ------------------------------------------------------------------
     # Intelligence Sprint -- Brier Score (sync)
@@ -326,7 +397,9 @@ class ComputeClient:
         """Compute Brier score for confidence calibration."""
         try:
             from aletheia_rust import brier_score_rust  # type: ignore[import]
+
             return brier_score_rust(predictions, outcomes)
         except ImportError:
-            if not predictions: return 0.0
-            return sum((p-o)**2 for p,o in zip(predictions,outcomes))/len(predictions)
+            if not predictions:
+                return 0.0
+            return sum((p - o) ** 2 for p, o in zip(predictions, outcomes)) / len(predictions)

@@ -91,7 +91,7 @@ class CollectorAgent:
                 msg = f"{provider.name}: Failed after {attempts} attempts"
                 warnings.append(msg)
                 provenance.append({"provider": provider.name, "error": "Max retries exceeded"})
-                
+
                 # Log the fallback if there's another provider in the list
                 next_index = self.providers.index(provider) + 1
                 if next_index < len(self.providers):
@@ -110,4 +110,3 @@ class CollectorAgent:
             warnings=warnings or ["No provider could return quote data"],
             provenance=provenance,
         )
-

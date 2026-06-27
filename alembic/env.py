@@ -5,7 +5,6 @@ from sqlalchemy import pool
 
 from alembic import context
 
-import os
 import sys
 from pathlib import Path
 
@@ -21,10 +20,10 @@ config = context.config
 current_url = config.get_main_option("sqlalchemy.url")
 if not current_url or "driver://user:pass" in current_url or current_url.strip() == "":
     from aletheia.core.config.settings import get_settings
+
     settings = get_settings()
     db_url = f"sqlite:///{settings.sqlite_path.resolve().as_posix()}"
     config.set_main_option("sqlalchemy.url", db_url)
-
 
 
 # Interpret the config file for Python logging.
@@ -82,9 +81,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
