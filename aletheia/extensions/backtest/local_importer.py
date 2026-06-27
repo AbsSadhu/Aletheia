@@ -69,7 +69,7 @@ def normalize_dataframe(
     missing = required - set(mapping.keys())
     if missing:
         raise ValueError(
-            f"Could not map required columns: {missing}. Available: {cols}. " f"Mapped: {mapping}"
+            f"Could not map required columns: {missing}. Available: {cols}. Mapped: {mapping}"
         )
 
     # Rename
