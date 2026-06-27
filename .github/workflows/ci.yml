@@ -50,8 +50,15 @@ jobs:
       run: |
         cd frontend && npm audit --audit-level=high
 
-    - name: Rust Dependency Audit
+    - name: Rust Dependency Audit (Library)
       uses: actions-rust-lang/audit@v1
+      with:
+        workingDirectory: aletheia_rust
+
+    - name: Rust Dependency Audit (Engine)
+      uses: actions-rust-lang/audit@v1
+      with:
+        workingDirectory: aletheia_engine
 
     - name: Secrets Audit - Check tracked .env
       run: |
