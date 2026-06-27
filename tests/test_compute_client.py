@@ -9,6 +9,8 @@ from aletheia.core.config.settings import get_settings
 
 @pytest.mark.asyncio
 async def test_compute_engine_availability() -> None:
+    if not get_settings().compute_engine_enabled:
+        pytest.skip("compute engine sidecar is disabled in this environment")
     client = ComputeClient()
     # Check if the sidecar is running and available
     available = await client.is_engine_available()
@@ -17,14 +19,13 @@ async def test_compute_engine_availability() -> None:
 
 @pytest.mark.asyncio
 async def test_sidecar_indicators() -> None:
+    if not get_settings().compute_engine_enabled:
+        pytest.skip("compute engine sidecar is disabled in this environment")
     client = ComputeClient()
     closes = [10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0]
     highs = [11.0] * 10
     lows = [9.0] * 10
     volumes = [1000.0] * 10
-
-    # Ensure compute sidecar is enabled in settings (it should be since we updated .env)
-    assert get_settings().compute_engine_enabled is True
 
     result = await client.indicators(
         closes=closes,
