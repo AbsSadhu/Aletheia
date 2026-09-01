@@ -7,6 +7,9 @@ import RunsList from "./pages/RunsList";
 import RunDetail from "./pages/RunDetail";
 import Portfolio from "./pages/Portfolio";
 import SettingsPage from "./pages/Settings";
+import PaperTrades from "./pages/PaperTrades";
+import FactorExplorer from "./pages/FactorExplorer";
+import ShadowTrader from "./pages/ShadowTrader";
 import { fetchHealth } from "./lib/api";
 
 export default function App() {
@@ -36,6 +39,9 @@ export default function App() {
           <Route path="/runs" element={<RunsList />} />
           <Route path="/runs/:runId" element={<RunDetail />} />
           <Route path="/portfolio" element={<Portfolio />} />
+          <Route path="/paper-trades" element={<PaperTrades />} />
+          <Route path="/shadow-trader" element={<ShadowTrader />} />
+          <Route path="/factors" element={<FactorExplorer />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </div>

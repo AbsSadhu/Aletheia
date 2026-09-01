@@ -5,12 +5,18 @@ import {
   Briefcase,
   Settings,
   Activity,
+  TrendingUp,
+  FlaskConical,
+  Ghost,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/runs", icon: Play, label: "Runs" },
   { to: "/portfolio", icon: Briefcase, label: "Portfolio" },
+  { to: "/paper-trades", icon: TrendingUp, label: "Paper Trades" },
+  { to: "/shadow-trader", icon: Ghost, label: "Shadow Trader" },
+  { to: "/factors", icon: FlaskConical, label: "Factor Explorer" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -55,7 +61,7 @@ export default function Sidebar({ backendOnline }: SidebarProps) {
         </div>
         <div className="sidebar-status" style={{ marginTop: 6 }}>
           <Activity size={12} />
-          <span>v0.1.0 · Phase 3</span>
+          <span>v0.1.0 · Sprint 3</span>
         </div>
       </div>
     </aside>
