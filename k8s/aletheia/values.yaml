@@ -1,0 +1,125 @@
+# ============================================================
+#  ALETHEIA Helm Chart — Default Values
+# ============================================================
+
+replicaCount: 1
+
+image:
+  backend:
+    repository: ghcr.io/abssadhu/aletheia-backend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: ghcr.io/abssadhu/aletheia-frontend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+# ----------------------------------------------------------
+# Service configuration
+# ----------------------------------------------------------
+service:
+  backend:
+    type: ClusterIP
+    port: 8899
+  frontend:
+    type: ClusterIP
+    port: 80
+
+# ----------------------------------------------------------
+# Ingress
+# ----------------------------------------------------------
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: aletheia.local
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /
+          pathType: Prefix
+          service: frontend
+  tls: []
+
+# ----------------------------------------------------------
+# Resources
+# ----------------------------------------------------------
+resources:
+  backend:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+  frontend:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
+# ----------------------------------------------------------
+# Horizontal Pod Autoscaler
+# ----------------------------------------------------------
+autoscaling:
+  enabled: true
+  backend:
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# ----------------------------------------------------------
+# Persistent storage for SQLite + DuckDB data
+# ----------------------------------------------------------
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+# ----------------------------------------------------------
+# Environment / secrets
+# ----------------------------------------------------------
+env:
+  ALETHEIA_LOG_LEVEL: "INFO"
+  ALETHEIA_SKIP_PREFLIGHT: "false"
+
+secretEnv:
+  # These are mounted from a Kubernetes Secret named 'aletheia-secrets'
+  OPENAI_API_KEY: ""
+  ANTHROPIC_API_KEY: ""
+  ZERODHA_API_KEY: ""
+  ZERODHA_API_SECRET: ""
+
+# ----------------------------------------------------------
+# Monitoring (Prometheus ServiceMonitor)
+# ----------------------------------------------------------
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: "15s"
+    path: "/metrics"
+    namespace: "monitoring"
+
+# ----------------------------------------------------------
+# Liveness & Readiness probes
+# ----------------------------------------------------------
+probes:
+  backend:
+    liveness:
+      path: /api/v1/health
+      initialDelaySeconds: 20
+      periodSeconds: 30
+    readiness:
+      path: /api/v1/health/ready
+      initialDelaySeconds: 10
+      periodSeconds: 15

@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aletheia.fullname" . }}-backend
+  labels:
+    {{- include "aletheia.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  type: {{ .Values.service.backend.type }}
+  ports:
+    - port: {{ .Values.service.backend.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "aletheia.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aletheia.fullname" . }}-frontend
+  labels:
+    {{- include "aletheia.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  type: {{ .Values.service.frontend.type }}
+  ports:
+    - port: {{ .Values.service.frontend.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "aletheia.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+---
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aletheia.fullname" . }}
+  namespace: {{ .Values.monitoring.serviceMonitor.namespace }}
+  labels:
+    {{- include "aletheia.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aletheia.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  endpoints:
+    - port: http
+      path: {{ .Values.monitoring.serviceMonitor.path }}
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+{{- end }}
+---
+{{- if .Values.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aletheia.fullname" . }}-data
+  labels:
+    {{- include "aletheia.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{- end }}
+---
+{{- if .Values.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "aletheia.fullname" . }}-backend
+  labels:
+    {{- include "aletheia.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "aletheia.fullname" . }}-backend
+  minReplicas: {{ .Values.autoscaling.backend.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.backend.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.backend.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.backend.targetMemoryUtilizationPercentage }}
+{{- end }}

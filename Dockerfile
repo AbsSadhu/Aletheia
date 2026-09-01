@@ -1,39 +1,57 @@
-FROM python:3.13-slim
+# ---------------------------------------------------------------------------
+# Stage 1: build the aletheia_rust PyO3 extension into a wheel.
+# Must use the SAME Python minor version as the runtime stage below — the
+# extension is built against a specific CPython ABI, not abi3.
+# ---------------------------------------------------------------------------
+FROM python:3.13-slim AS rust-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN pip install --no-cache-dir maturin
+
+WORKDIR /build
+COPY aletheia_rust ./aletheia_rust
+
+RUN maturin build --release --manifest-path aletheia_rust/Cargo.toml -o /wheels
+
+# ---------------------------------------------------------------------------
+# Stage 2: runtime image — production dependencies only, plus the wheel
+# built above. No dev/test tooling ships in this image.
+# ---------------------------------------------------------------------------
+FROM python:3.13-slim AS runtime
 
 WORKDIR /app
 
-# Install system dependencies (needed for compiling Python packages and Rust extensions if necessary)
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast dependency resolution
 RUN pip install --no-cache-dir uv
 
-# Copy dependencies definitions
-COPY pyproject.toml .
-# If we had a uv lock file, we would copy it here. We'll use uv pip install system
-# Since we have aletheia_rust compiled locally, we will copy the entire project and run uv sync
-
+COPY pyproject.toml poetry.lock* ./
 COPY . .
 
-# Set up the environment
+COPY --from=rust-builder /wheels /wheels
+
 RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install python dependencies
-# Note: In production, the rust wheel should be pre-compiled and copied, or maturin build should be run.
-# For simplicity in this Dockerfile, we will just install the standard dependencies.
-RUN uv pip install -e .[dev]
+# Production dependencies only (no dev/test group), then the locally-built
+# Rust extension wheel — required by the startup preflight check in
+# aletheia/core/main.py, which hard-fails if aletheia_rust isn't importable.
+RUN uv pip install -e . \
+    && uv pip install /wheels/*.whl
 
-# Expose the application port
 EXPOSE 8899
 
-# Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s \
   CMD curl -f http://localhost:8899/api/v1/health || exit 1
 
-# Start the application
 CMD ["uvicorn", "aletheia.core.main:app", "--host", "0.0.0.0", "--port", "8899"]

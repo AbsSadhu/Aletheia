@@ -1,33 +1,122 @@
 version: "3.9"
 
+# ============================================================
+#  ALETHEIA — Production Docker Compose Stack
+#  Services:
+#    - backend      FastAPI + LangGraph agents (port 8899)
+#    - frontend     React 19 / Vite static server (port 5173)
+#    - prometheus   Metrics scraper (port 9090)
+#    - grafana      Dashboards (port 3000)
+# ============================================================
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
+  # ----------------------------------------------------------
+  # FastAPI Backend
+  # ----------------------------------------------------------
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.backend
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    container_name: aletheia-backend
     env_file:
       - .env.example
+    environment:
+      - ALETHEIA_SKIP_PREFLIGHT=false
+      - ALETHEIA_LOG_LEVEL=INFO
     ports:
       - "8899:8899"
     volumes:
-      - ./backend:/app
       - aletheia-data:/app/data
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8899 --reload
+      - aletheia-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8899/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - aletheia-net
 
+  # ----------------------------------------------------------
+  # React Frontend
+  # ----------------------------------------------------------
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: aletheia-frontend
     environment:
-      VITE_API_BASE_URL: http://localhost:8899
+      - VITE_API_BASE_URL=http://backend:8899
     ports:
-      - "5173:5173"
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - aletheia-net
+
+  # ----------------------------------------------------------
+  # Prometheus — Metrics Scraper
+  # ----------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: aletheia-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
     depends_on:
       - backend
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - aletheia-net
+
+  # ----------------------------------------------------------
+  # Grafana — Observability Dashboards
+  # ----------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: aletheia-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env before starting Grafana}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/aletheia.json
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - aletheia-net
+
+networks:
+  aletheia-net:
+    driver: bridge
 
 volumes:
   aletheia-data:
-
+  aletheia-logs:
+  prometheus-data:
+  grafana-data:
