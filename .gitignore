@@ -27,3 +27,11 @@ aletheia_rust/target/
 data/
 backups/
 
+# Claude Code local dev tooling — not Aletheia product code
+.claude/settings.local.json
+.agents/
+.claude/skills/
+skills-lock.json
+
+# pytest-cov artifact
+.coverage
