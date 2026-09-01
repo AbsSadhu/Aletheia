@@ -1,3 +1,4 @@
+import inspect
 import json
 import logging
 from fastmcp import FastMCP
@@ -8,8 +9,7 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
     "Aletheia MCP Server",
-    description="Aletheia Financial Intelligence multi-agent framework tools",
-    dependencies=["fastmcp"],
+    instructions="Aletheia Financial Intelligence multi-agent framework tools",
 )
 
 registry = build_registry()
@@ -36,6 +36,19 @@ def _register_tools():
             # FastMCP uses the function docstring and name
             wrapper.__name__ = t_name
             wrapper.__doc__ = func_desc
+
+            # FastMCP inspects the wrapper's signature to build the tool's
+            # input schema and rejects a bare **kwargs. Advertise the real
+            # tool's execute() parameters instead, minus its own trailing
+            # **kwargs catch-all (also unrepresentable in MCP's schema).
+            exec_sig = inspect.signature(registry.get(t_name).execute)
+            params = [
+                p for p in exec_sig.parameters.values() if p.kind != inspect.Parameter.VAR_KEYWORD
+            ]
+            wrapper.__signature__ = exec_sig.replace(parameters=params)
+            wrapper.__annotations__ = {
+                p.name: p.annotation for p in params if p.annotation is not inspect.Parameter.empty
+            }
             return wrapper
 
         mcp.add_tool(make_wrapper(func_name))

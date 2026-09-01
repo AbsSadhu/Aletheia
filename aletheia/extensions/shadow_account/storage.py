@@ -93,6 +93,25 @@ class ShadowAccountStorage:
             )
             conn.commit()
 
+    def list_snapshots(self, limit: int = 200) -> List[AccountSnapshot]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM snapshots ORDER BY timestamp ASC LIMIT ?", (limit,)
+            ).fetchall()
+            result = []
+            for row in rows:
+                positions = [VirtualPosition(**p) for p in json.loads(row["positions"])]
+                result.append(
+                    AccountSnapshot(
+                        timestamp=datetime.fromisoformat(row["timestamp"]),
+                        total_equity=row["total_equity"],
+                        cash_balance=row["cash_balance"],
+                        positions=positions,
+                    )
+                )
+            return result
+
     def get_latest_snapshot(self) -> Optional[AccountSnapshot]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row

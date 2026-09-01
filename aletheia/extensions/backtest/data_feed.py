@@ -97,6 +97,7 @@ class HistoricalDataFeed:
         Returns the number of rows inserted/updated.
         """
         symbol = symbol.upper()
+        original_symbol = symbol
 
         if symbol.startswith("LOCAL:") or self._is_local_symbol(symbol):
             logger.info("HistoricalDataFeed: using local data for %s", symbol)
@@ -112,7 +113,9 @@ class HistoricalDataFeed:
                 )
             return 0
 
-        if not force_refresh and self._has_data(symbol, start, end):
+        if not force_refresh and (
+            self._has_data(symbol, start, end) or self._has_data(original_symbol, start, end)
+        ):
             logger.info("HistoricalDataFeed: cache hit for %s (%s → %s)", symbol, start, end)
             return 0
 
@@ -134,6 +137,19 @@ class HistoricalDataFeed:
             lambda: ticker.history(start=start, end=end, interval=interval, auto_adjust=True),
         )
 
+        if (df is None or df.empty) and (symbol.endswith(".NS") or symbol.endswith(".BO")):
+            fallback_sym = symbol.split(".")[0]
+            logger.info("HistoricalDataFeed: fallback downloading raw symbol %s", fallback_sym)
+            fallback_ticker = yf.Ticker(fallback_sym)
+            df = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: fallback_ticker.history(
+                    start=start, end=end, interval=interval, auto_adjust=True
+                ),
+            )
+            if df is not None and not df.empty:
+                symbol = fallback_sym
+
         if df is None or df.empty:
             logger.warning("HistoricalDataFeed: no data returned for %s", symbol)
             return 0
@@ -153,6 +169,19 @@ class HistoricalDataFeed:
                     "yfinance",
                 )
             )
+            if symbol != original_symbol:
+                rows.append(
+                    (
+                        original_symbol,
+                        date_str,
+                        float(row.get("Open", 0.0) or 0.0),
+                        float(row.get("High", 0.0) or 0.0),
+                        float(row.get("Low", 0.0) or 0.0),
+                        float(row.get("Close", 0.0) or 0.0),
+                        float(row.get("Volume", 0.0) or 0.0),
+                        "yfinance",
+                    )
+                )
 
         if not rows:
             return 0

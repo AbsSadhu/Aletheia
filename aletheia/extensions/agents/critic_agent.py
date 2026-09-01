@@ -81,6 +81,7 @@ class CriticAgent:
         scribe_dict = scribe_output.model_dump(mode="json")
         prompt = build_critic_prompt(scribe_dict, sentinel_output, sage_outputs)
 
+        # pyrefly: ignore [missing-attribute]
         data = await self._llm.generate_structured(prompt=prompt)
         if not data:
             raise ValueError("CriticAgent: LLM returned empty response")

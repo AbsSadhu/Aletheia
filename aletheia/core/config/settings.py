@@ -10,21 +10,32 @@ class Settings(BaseSettings):
         env_file=".env",
         env_prefix="ALETHEIA_",
         case_sensitive=False,
+        extra="ignore",
     )
 
     env: str = "development"
     debug: bool = True
     host: str = "127.0.0.1"
     port: int = 8899
-    allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173,tauri://localhost"
+    # tauri://localhost covers macOS/Linux; http(s)://tauri.localhost covers
+    # Windows and Android, where WebView2/webview map the custom protocol to
+    # a virtual host instead of a custom scheme (see tauri::WebviewWindow's
+    # `use_https_scheme` docs — defaults to plain http on Windows).
+    allowed_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "tauri://localhost,http://tauri.localhost,https://tauri.localhost"
+    )
     sqlite_path: Path = Field(default=Path("./data/aletheia.sqlite3"))
     duckdb_path: Path = Field(default=Path("./data/aletheia.duckdb"))
     data_dir: Path = Field(default=Path("./data"))
     reports_dir: Path = Field(default=Path("./data/reports"))
     exports_dir: Path = Field(default=Path("./data/exports"))
+    log_dir: Path = Field(default=Path("./data/logs"))
+    plugin_dir: Path = Field(default=Path("./plugins"))
     memory_dir: str = "~/.aletheia/memory"
     retention_days: int | None = Field(default=30)
     db_encryption_key: str | None = Field(default=None)
+    api_keys: list[str] = Field(default_factory=list)
     tax_jurisdiction: str | None = Field(default=None)
     node_timeout_secs: int = Field(default=30)
     enabled_agents: list[str] = Field(
@@ -52,12 +63,14 @@ class Settings(BaseSettings):
     default_llm_model: str = "mistral:7b"
     # Ordered priority list: first available provider wins
     llm_provider_priority: list[str] = Field(
-        default_factory=lambda: ["ollama", "openai", "anthropic"]
+        default_factory=lambda: ["ollama", "openai", "anthropic", "gemini"]
     )
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-haiku-4-5"
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-1.5-pro"
     enable_cloud_llm_fallback: bool = False
     llm_max_retries: int = 2
     llm_retry_delay_secs: float = 1.0
@@ -65,6 +78,10 @@ class Settings(BaseSettings):
     # --- Rust Compute Engine Sidecar ---
     compute_engine_url: str = "http://127.0.0.1:18899"
     compute_engine_enabled: bool = False  # Set True when aletheia-engine binary is running
+
+    execution_db_path: Path = Field(default=Path("./data/execution.sqlite3"))
+    execution_mode: str = "simulation"
+    execution_observation_days_required: int = 7
 
     enable_audit_logs: bool = True
     enable_desktop_bridge: bool = True
@@ -78,8 +95,19 @@ class Settings(BaseSettings):
     langsmith_api_key: str | None = None
     langsmith_project: str = "aletheia"
 
+    cache_default_ttl_secs: float = 300.0
+    cache_max_size: int = 256
+    log_level: str = "INFO"
+
     def ensure_directories(self) -> None:
-        for path in (self.data_dir, self.reports_dir, self.exports_dir):
+        for path in (
+            self.data_dir,
+            self.reports_dir,
+            self.exports_dir,
+            self.log_dir,
+            self.plugin_dir,
+            self.execution_db_path.parent,
+        ):
             path.mkdir(parents=True, exist_ok=True)
 
         import os

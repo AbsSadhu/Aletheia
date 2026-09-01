@@ -5,13 +5,14 @@ import time
 import logging
 from typing import Any
 
+from aletheia.core.config.settings import get_settings
+
 logger = logging.getLogger(__name__)
 
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
-# In a real app, load this from secure storage or settings
-VALID_API_KEYS = {"dev_key_123", "aletheia_prod_999"}
+_warned_open_auth = False
 
 
 class PyO3RateLimiter:
@@ -82,12 +83,34 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
 
 
+def _auth_disabled_warning() -> None:
+    global _warned_open_auth
+    if not _warned_open_auth:
+        logger.warning(
+            "ALETHEIA_API_KEYS is not configured — API auth is DISABLED. "
+            "Set ALETHEIA_API_KEYS to require an API key on every request."
+        )
+        _warned_open_auth = True
+
+
+def is_authorized(supplied_key: str | None) -> bool:
+    """Transport-agnostic key check shared by the HTTP dependency and the
+    WebSocket handler (which can't rely on custom headers from a browser)."""
+    api_keys = get_settings().api_keys
+    if not api_keys:
+        _auth_disabled_warning()
+        return True
+    return supplied_key is not None and supplied_key in api_keys
+
+
 async def verify_api_key(request: Request):
+    # Health checks must stay reachable without a key (Docker/k8s probes don't send headers).
+    if request.url.path.startswith("/api/v1/health"):
+        return None
+
     api_key = request.headers.get(API_KEY_NAME)
-    # Require API key only in production or if explicitly configured
-    # For now, we simulate basic auth
-    if api_key and api_key not in VALID_API_KEYS:
+    if not is_authorized(api_key):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials"
         )
     return api_key

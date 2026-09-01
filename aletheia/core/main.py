@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 import sqlite3
 import duckdb
 import os
@@ -10,8 +12,25 @@ import sys
 import httpx
 import logging
 
-from aletheia.core.api.routes import router
+from aletheia.core.api.routes import router, ws_router
+from aletheia.core.api.security import verify_api_key
+from aletheia.core.api.dependencies import get_container
 from aletheia.core.config.settings import get_settings
+from aletheia.core.infrastructure.logging import configure_logging
+
+try:
+    from prometheus_client import (
+        Counter,
+        Histogram,
+        Gauge,
+        generate_latest,
+        CONTENT_TYPE_LATEST,
+        REGISTRY as _DEFAULT_REGISTRY,
+    )
+
+    _PROMETHEUS_AVAILABLE = True
+except ImportError:
+    _PROMETHEUS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +144,8 @@ def register_exception_handlers(app: FastAPI, settings) -> None:
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_logging(settings.log_dir, settings.log_level)
+    container = get_container()
 
     # Run fail-fast startup preflight checks
     run_preflight_checks(settings)
@@ -149,10 +170,25 @@ def create_app() -> FastAPI:
         except Exception as exc:
             logger.warning("Failed to apply database retention policy on startup: %s", exc)
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        plugins = container.resolve("plugins")
+        scheduler = container.resolve("scheduler")
+        metrics = container.resolve("metrics")
+        plugins.load_all()
+        await scheduler.start()
+        metrics.increment("app.startups")
+        try:
+            yield
+        finally:
+            await scheduler.stop()
+            metrics.increment("app.shutdowns")
+
     app = FastAPI(
         title="ALETHEIA",
         version="0.1.0",
         description="India-first multi-agent financial intelligence platform",
+        lifespan=lifespan,
     )
 
     register_exception_handlers(app, settings)
@@ -164,7 +200,19 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.include_router(router)
+    app.include_router(router, dependencies=[Depends(verify_api_key)])
+    app.include_router(ws_router)
+
+    health_registry = container.resolve("health")
+    health_registry.register(
+        "sqlite",
+        lambda: {"ok": settings.sqlite_path.parent.exists(), "path": str(settings.sqlite_path)},
+    )
+    health_registry.register(
+        "duckdb",
+        lambda: {"ok": settings.duckdb_path.parent.exists(), "path": str(settings.duckdb_path)},
+    )
+    health_registry.register("event_bus", lambda: {"ok": True})
 
     @app.get("/")
     async def root() -> dict[str, str]:
@@ -173,6 +221,72 @@ def create_app() -> FastAPI:
             "version": "0.1.0",
             "docs": "/docs",
         }
+
+    # ------------------------------------------------------------------
+    # Prometheus /metrics scraping endpoint
+    # ------------------------------------------------------------------
+    if _PROMETHEUS_AVAILABLE:
+        # Define application-level metrics (idempotent — no-op if already registered)
+        def _safe_counter(name: str, doc: str, labels: list[str] | None = None) -> "Counter":
+            try:
+                return Counter(name, doc, labels or [])
+            except Exception:
+                return _DEFAULT_REGISTRY._names_to_collectors.get(name)  # type: ignore[return-value]
+
+        def _safe_histogram(name: str, doc: str, labels: list[str] | None = None) -> "Histogram":
+            try:
+                return Histogram(name, doc, labels or [])
+            except Exception:
+                return _DEFAULT_REGISTRY._names_to_collectors.get(name)  # type: ignore[return-value]
+
+        def _safe_gauge(name: str, doc: str) -> "Gauge":
+            try:
+                return Gauge(name, doc)
+            except Exception:
+                return _DEFAULT_REGISTRY._names_to_collectors.get(name)  # type: ignore[return-value]
+
+        _runs_total = _safe_counter(
+            "aletheia_runs_total",
+            "Total number of agent pipeline runs",
+            ["status"],
+        )
+        _request_latency = _safe_histogram(
+            "aletheia_http_request_duration_seconds",
+            "HTTP request latency in seconds",
+            ["method", "endpoint"],
+        )
+        _active_runs = _safe_gauge("aletheia_active_runs", "Currently executing agent runs")
+
+        import time as _time
+        from starlette.middleware.base import BaseHTTPMiddleware
+        from starlette.requests import Request as StarletteRequest
+
+        class PrometheusMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: StarletteRequest, call_next):  # type: ignore[override]
+                start = _time.perf_counter()
+                response = await call_next(request)
+                elapsed = _time.perf_counter() - start
+                endpoint = request.url.path
+                if _request_latency is not None:
+                    _request_latency.labels(  # type: ignore[union-attr]
+                        method=request.method, endpoint=endpoint
+                    ).observe(elapsed)
+                return response
+
+        app.add_middleware(PrometheusMiddleware)
+
+        @app.get("/metrics", include_in_schema=False)
+        async def prometheus_metrics() -> Response:
+            """Prometheus scraping endpoint."""
+            data = generate_latest()
+            return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+
+        logger.info("Prometheus /metrics endpoint registered.")
+    else:
+        logger.warning(
+            "prometheus-client not installed — /metrics endpoint unavailable. "
+            "Install with: pip install prometheus-client"
+        )
 
     return app
 

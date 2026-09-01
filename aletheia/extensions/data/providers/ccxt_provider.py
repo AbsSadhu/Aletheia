@@ -9,6 +9,10 @@ from aletheia.core.models import MarketQuote
 class CCXTProvider(MarketDataProvider):
     name = "ccxt"
 
+    @classmethod
+    def check_available(cls, settings) -> bool:
+        return settings.ccxt_enabled
+
     def __init__(self) -> None:
         self.exchange = ccxt.binance()
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 import datetime
@@ -20,6 +21,28 @@ from aletheia.core.models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_nan(obj: object) -> object:
+    """
+    Recursively replace NaN and Infinity float values with 0.0.
+
+    PyO3 and numpy produce float NaN values that json.dumps() converts to JSON
+    null. json.loads() then produces Python None. Pydantic v2 rejects NaN floats.
+    We sanitize only actual NaN/Inf floats here. None values are coerced at
+    the Pydantic validation level where we have schema types.
+    """
+    import math
+
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return 0.0
+        return obj
+    if isinstance(obj, dict):
+        return {k: _sanitize_nan(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_nan(item) for item in obj]
+    return obj
 
 
 class SQLiteConnectionPool:
@@ -118,9 +141,16 @@ class SQLiteStore:
             self.pool.return_connection(connection)
 
     def _initialize(self) -> None:
-        # Run Alembic migrations programmatically
-        from alembic.config import Config
-        from alembic import command
+        # Run Alembic migrations programmatically when the package is available.
+        try:
+            from alembic.config import Config
+            from alembic import command
+        except Exception:
+            logger.warning(
+                "SQLiteStore: Alembic package unavailable or shadowed; running legacy initialization."
+            )
+            self._legacy_initialize()
+            return
 
         project_root = Path(__file__).resolve().parent.parent.parent.parent
         ini_path = project_root / "alembic.ini"
@@ -225,10 +255,24 @@ class SQLiteStore:
                     confidence REAL NOT NULL,
                     reasoning_hash TEXT NOT NULL,
                     disclaimer TEXT NOT NULL,
-                    logged_at TEXT NOT NULL
+                    logged_at TEXT NOT NULL,
+                    prev_hash TEXT NOT NULL DEFAULT '',
+                    entry_hash TEXT NOT NULL DEFAULT ''
                 )
                 """
             )
+            # Migration for DBs created before the hash-chain columns existed.
+            existing_cols = {
+                row[1] for row in conn.execute("PRAGMA table_info(compliance_log)").fetchall()
+            }
+            if "prev_hash" not in existing_cols:
+                conn.execute(
+                    "ALTER TABLE compliance_log ADD COLUMN prev_hash TEXT NOT NULL DEFAULT ''"
+                )
+            if "entry_hash" not in existing_cols:
+                conn.execute(
+                    "ALTER TABLE compliance_log ADD COLUMN entry_hash TEXT NOT NULL DEFAULT ''"
+                )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_compliance_logged_at ON compliance_log(logged_at)"
             )
@@ -252,7 +296,12 @@ class SQLiteStore:
             conn.close()
 
     def upsert_run(self, summary: RunSummary, result: RunResult | None = None) -> None:
-        payload = result.model_dump_json() if result else None
+        if result is not None:
+            # Sanitize NaN/Inf that PyO3/numpy may have injected before persisting
+            clean_dict = _sanitize_nan(result.model_dump(mode="json"))
+            payload: str | None = json.dumps(clean_dict)
+        else:
+            payload = None
         encrypted_payload = self.encryptor.encrypt(payload)
         with self.connect() as conn:
             conn.execute(
@@ -304,15 +353,36 @@ class SQLiteStore:
     def get_run(self, run_id: str) -> RunResult | None:
         with self.connect() as conn:
             row = conn.execute(
-                "SELECT result_json FROM runs WHERE run_id = ?",
+                "SELECT run_id, status, prompt, created_at, updated_at, error_message, result_json FROM runs WHERE run_id = ?",
                 (run_id,),
             ).fetchone()
-        if row is None or row["result_json"] is None:
+        if row is None:
             return None
+
+        summary = RunSummary(
+            run_id=row["run_id"],
+            status=RunStatus(row["status"]),
+            prompt=row["prompt"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            error_message=row["error_message"],
+        )
+
+        if row["result_json"] is None:
+            return RunResult(summary=summary)
+
         decrypted_json = self.encryptor.decrypt(row["result_json"])
         if decrypted_json is None:
-            return None
-        return RunResult.model_validate(json.loads(decrypted_json))
+            return RunResult(summary=summary)
+
+        try:
+            raw = json.loads(decrypted_json)
+            raw = _sanitize_nan(raw)
+            raw["summary"] = summary.model_dump(mode="json")
+            return RunResult.model_validate(raw)
+        except Exception as exc:
+            logger.error("Failed to parse result_json for run %s: %s", run_id, exc)
+            return RunResult(summary=summary)
 
     def save_portfolio(self, portfolio: Portfolio) -> None:
         import datetime
@@ -528,6 +598,38 @@ class SQLiteStore:
 
     # ── SEBI Compliance Log ────────────────────────────────────────────────
 
+    # Genesis marker for the hash chain's first entry — no real hash output
+    # can be all zeros, so this is unambiguous as "chain start", not a value
+    # that could collide with a real prior entry_hash.
+    _CHAIN_GENESIS_HASH = "0" * 64
+
+    @staticmethod
+    def _compute_entry_hash(
+        prev_hash: str,
+        log_id: str,
+        run_id: str,
+        symbol: str,
+        action: str,
+        confidence: float,
+        reasoning_hash: str,
+        disclaimer: str,
+        logged_at: str,
+    ) -> str:
+        payload = "|".join(
+            [
+                prev_hash,
+                log_id,
+                run_id,
+                symbol,
+                action,
+                repr(confidence),
+                reasoning_hash,
+                disclaimer,
+                logged_at,
+            ]
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
     def log_compliance(
         self,
         run_id: str,
@@ -537,23 +639,45 @@ class SQLiteStore:
         reasoning_hash: str,
         disclaimer: str,
     ) -> str:
-        """Append a SEBI compliance log entry. Returns log_id."""
+        """Append a SEBI compliance log entry, chained to the prior entry's
+        hash. Returns log_id."""
         from aletheia.core.models import SEBIComplianceLog
 
-        entry = SEBIComplianceLog(
-            run_id=run_id,
-            symbol=symbol,
-            action=action,
-            confidence=confidence,
-            reasoning_hash=reasoning_hash,
-            disclaimer=disclaimer,
-        )
         with self.connect() as conn:
+            last = conn.execute(
+                "SELECT entry_hash FROM compliance_log ORDER BY rowid DESC LIMIT 1"
+            ).fetchone()
+            prev_hash = (
+                last["entry_hash"] if last and last["entry_hash"] else self._CHAIN_GENESIS_HASH
+            )
+
+            entry = SEBIComplianceLog(
+                run_id=run_id,
+                symbol=symbol,
+                action=action,
+                confidence=confidence,
+                reasoning_hash=reasoning_hash,
+                disclaimer=disclaimer,
+                prev_hash=prev_hash,
+            )
+            logged_at_iso = entry.logged_at.isoformat()
+            entry.entry_hash = self._compute_entry_hash(
+                prev_hash,
+                entry.log_id,
+                entry.run_id,
+                entry.symbol,
+                entry.action,
+                entry.confidence,
+                entry.reasoning_hash,
+                entry.disclaimer,
+                logged_at_iso,
+            )
+
             conn.execute(
                 """
                 INSERT INTO compliance_log
-                (log_id, run_id, symbol, action, confidence, reasoning_hash, disclaimer, logged_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (log_id, run_id, symbol, action, confidence, reasoning_hash, disclaimer, logged_at, prev_hash, entry_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     entry.log_id,
@@ -563,7 +687,9 @@ class SQLiteStore:
                     entry.confidence,
                     entry.reasoning_hash,
                     entry.disclaimer,
-                    entry.logged_at.isoformat(),
+                    logged_at_iso,
+                    entry.prev_hash,
+                    entry.entry_hash,
                 ),
             )
         return entry.log_id
@@ -588,3 +714,52 @@ class SQLiteStore:
         with self.connect() as conn:
             rows = conn.execute(query, params).fetchall()
         return [dict(r) for r in rows]
+
+    def verify_compliance_chain(self) -> dict:
+        """
+        Walk compliance_log in insertion order and recompute each entry_hash
+        from its stored fields, checking it matches both the stored value and
+        the next row's prev_hash. Detects tampering that bypasses the app
+        (e.g. a raw file edit) — the DB-level triggers only block UPDATE/DELETE
+        through normal SQL, not a hex editor.
+
+        Rows written before this hash-chain existed have empty entry_hash and
+        are reported separately as unverifiable, not as tampered.
+        """
+        with self.connect() as conn:
+            rows = [
+                dict(r)
+                for r in conn.execute("SELECT * FROM compliance_log ORDER BY rowid ASC").fetchall()
+            ]
+
+        broken: list[str] = []
+        unverifiable: list[str] = []
+        prev_hash = self._CHAIN_GENESIS_HASH
+        for row in rows:
+            if not row.get("entry_hash"):
+                unverifiable.append(row["log_id"])
+                prev_hash = self._CHAIN_GENESIS_HASH  # chain restarts after a gap
+                continue
+            if row.get("prev_hash") != prev_hash:
+                broken.append(row["log_id"])
+            expected = self._compute_entry_hash(
+                row["prev_hash"],
+                row["log_id"],
+                row["run_id"],
+                row["symbol"],
+                row["action"],
+                row["confidence"],
+                row["reasoning_hash"],
+                row["disclaimer"],
+                row["logged_at"],
+            )
+            if expected != row["entry_hash"]:
+                broken.append(row["log_id"])
+            prev_hash = row["entry_hash"]
+
+        return {
+            "total_entries": len(rows),
+            "unverifiable_entries": unverifiable,
+            "broken_entries": sorted(set(broken)),
+            "chain_intact": not broken,
+        }
