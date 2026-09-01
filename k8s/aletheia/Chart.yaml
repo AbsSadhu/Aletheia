@@ -1,0 +1,18 @@
+apiVersion: v2
+name: aletheia
+description: |
+  ALETHEIA — India-First Multi-Agent Financial Intelligence Platform.
+  Deploys the FastAPI backend, React frontend, and optional monitoring stack.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - aletheia
+  - finance
+  - langgraph
+  - india
+  - nse
+  - bse
+maintainers:
+  - name: Aletheia Team
+    email: admin@aletheia.local

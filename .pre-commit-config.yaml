@@ -1,0 +1,45 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.10
+    hooks:
+      # Linter: catches code style issues, unused imports, etc.
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+      # Formatter: ensures consistent code style
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Prevents accidentally committing secrets or large files
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+      - id: check-yaml
+        # k8s manifests legitimately use multiple `---`-separated documents
+        # per file (see k8s/service.yaml).
+        args: [--allow-multiple-documents]
+        exclude: ^\.github/
+      - id: check-toml
+      - id: end-of-file-fixer
+        exclude: \.(png|jpg|svg|ico|woff2?)$
+      - id: trailing-whitespace
+        exclude: \.(png|jpg|svg|ico|woff2?)$
+      - id: no-commit-to-branch
+        args: [--branch, main]
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args:
+          - "--baseline"
+          - ".secrets.baseline"
+        exclude: |
+          (?x)^(
+            .*\.env\.example|
+            .*\.env\.test|
+            tests/.*
+          )$
