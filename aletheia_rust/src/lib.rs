@@ -1238,3 +1238,153 @@ fn options_flow_metrics_rust(
     d.set_item("total_puts_oi", total_puts_oi)?;
     Ok(d.into())
 }
+
+// ============================================================
+// Unit tests — pure-Rust functions ComputeClient's PyO3 fallback path
+// actually calls (see aletheia/core/compute/client.py). These don't need
+// a GIL/Python interpreter since none of them take a `Python<'_>` param
+// or build PyObjects — they're plain numeric functions PyO3 just wraps.
+// ============================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn approx_eq(a: f64, b: f64, tol: f64) -> bool {
+        (a - b).abs() < tol
+    }
+
+    #[test]
+    fn norm_cdf_at_zero_is_one_half() {
+        assert!(approx_eq(norm_cdf(0.0), 0.5, 1e-3));
+    }
+
+    #[test]
+    fn norm_cdf_is_monotonic_increasing() {
+        assert!(norm_cdf(-1.0) < norm_cdf(0.0));
+        assert!(norm_cdf(0.0) < norm_cdf(1.0));
+    }
+
+    #[test]
+    fn norm_cdf_symmetry() {
+        // Phi(-x) = 1 - Phi(x)
+        assert!(approx_eq(norm_cdf(-1.5), 1.0 - norm_cdf(1.5), 1e-3));
+    }
+
+    #[test]
+    fn norm_pdf_peaks_at_zero() {
+        assert!(norm_pdf(0.0) > norm_pdf(1.0));
+        assert!(norm_pdf(0.0) > norm_pdf(-1.0));
+    }
+
+    #[test]
+    fn tax_drag_known_profiles() {
+        assert_eq!(tax_drag("equity"), 0.15);
+        assert_eq!(tax_drag("fno"), 0.175);
+        assert_eq!(tax_drag("mutual_fund"), 0.20);
+    }
+
+    #[test]
+    fn tax_drag_is_case_insensitive() {
+        assert_eq!(tax_drag("EQUITY"), tax_drag("equity"));
+    }
+
+    #[test]
+    fn tax_drag_unknown_profile_falls_back_to_equity_rate() {
+        assert_eq!(tax_drag("nonsense"), 0.15);
+    }
+
+    #[test]
+    fn sharpe_of_empty_returns_is_zero() {
+        assert_eq!(calculate_sharpe_rust(vec![], 0.06, 252.0), 0.0);
+    }
+
+    #[test]
+    fn sharpe_of_zero_variance_returns_is_zero_not_nan() {
+        // Constant returns -> std == 0 -> must short-circuit, not divide by zero.
+        let result = calculate_sharpe_rust(vec![0.01, 0.01, 0.01], 0.0, 252.0);
+        assert_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn sharpe_positive_for_consistently_positive_excess_returns() {
+        let returns = vec![0.01, 0.02, 0.015, 0.008, 0.012];
+        let sharpe = calculate_sharpe_rust(returns, 0.0, 252.0);
+        assert!(sharpe > 0.0);
+    }
+
+    #[test]
+    fn sharpe_matches_hand_computed_value() {
+        // mean=0.01, population std=0.0, degenerate case handled above;
+        // use a small series with known population variance instead.
+        let returns = vec![0.02, -0.02];
+        // mean = 0.0, so with rfr=0 the excess is 0 -> Sharpe should be 0.
+        let sharpe = calculate_sharpe_rust(returns, 0.0, 252.0);
+        assert!(approx_eq(sharpe, 0.0, 1e-9));
+    }
+
+    #[test]
+    fn sortino_of_empty_returns_is_zero() {
+        assert_eq!(calculate_sortino_rust(vec![], 0.0, 252.0), 0.0);
+    }
+
+    #[test]
+    fn sortino_is_infinite_when_no_downside_deviation() {
+        let result = calculate_sortino_rust(vec![0.01, 0.02, 0.03], 0.0, 252.0);
+        assert!(result.is_infinite());
+    }
+
+    #[test]
+    fn sortino_ignores_upside_volatility() {
+        // Sortino should only penalize returns below the target.
+        let mild_upside = vec![0.01, -0.01, 0.01, -0.01];
+        let wild_upside = vec![0.01, -0.01, 0.50, -0.01];
+        let sortino_mild = calculate_sortino_rust(mild_upside, 0.0, 252.0);
+        let sortino_wild = calculate_sortino_rust(wild_upside, 0.0, 252.0);
+        // Same downside profile, but wild_upside has a much higher mean ->
+        // higher (better) Sortino, not penalized for the upside swing.
+        assert!(sortino_wild > sortino_mild);
+    }
+
+    #[test]
+    fn calmar_of_empty_returns_is_zero() {
+        assert_eq!(calculate_calmar_rust(vec![], 252.0), 0.0);
+    }
+
+    #[test]
+    fn calmar_is_infinite_when_no_drawdown() {
+        // Monotonically increasing equity curve -> zero drawdown.
+        let result = calculate_calmar_rust(vec![0.01, 0.01, 0.01], 252.0);
+        assert!(result.is_infinite());
+    }
+
+    #[test]
+    fn calmar_penalizes_larger_drawdowns() {
+        let small_dd = vec![0.05, -0.02, 0.05, -0.02];
+        let large_dd = vec![0.05, -0.20, 0.05, -0.02];
+        let calmar_small = calculate_calmar_rust(small_dd, 252.0);
+        let calmar_large = calculate_calmar_rust(large_dd, 252.0);
+        assert!(calmar_small > calmar_large);
+    }
+
+    #[test]
+    fn brier_score_perfect_predictions_is_zero() {
+        let score = brier_score_rust(vec![1.0, 0.0, 1.0], vec![1.0, 0.0, 1.0]).unwrap();
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn brier_score_worst_case_predictions_is_one() {
+        let score = brier_score_rust(vec![1.0, 0.0], vec![0.0, 1.0]).unwrap();
+        assert_eq!(score, 1.0);
+    }
+
+    #[test]
+    fn brier_score_mismatched_lengths_errors() {
+        assert!(brier_score_rust(vec![1.0, 0.0], vec![1.0]).is_err());
+    }
+
+    #[test]
+    fn brier_score_empty_input_errors() {
+        assert!(brier_score_rust(vec![], vec![]).is_err());
+    }
+}
