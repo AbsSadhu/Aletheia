@@ -24,8 +24,8 @@ The architecture separates the authoritative **Python/FastAPI** agentic core, hi
 ## 🚧 Project Status & Roadmap
 
 > [!IMPORTANT]
-> **Aletheia is currently under active development.** 
-> The multi-agent orchestration engine is fully functional as a local API and CLI with comprehensive unit/integration test suites (75+ tests passing 100%). The web/desktop frontend layouts are being wired to the new endpoints.
+> **Aletheia is currently under active development.**
+> The multi-agent orchestration engine, the React/Tauri desktop app, and a terminal dashboard (`aletheia tui`) are all functional and verified running end-to-end locally, backed by 138 Python unit tests, 32 Rust tests, and 8 frontend tests.
 
 ### Development Progress: Sprint 2.5 & Sprint 3.5 Completed ✅
 
@@ -36,16 +36,17 @@ All nine intelligence agents, structured debate loops, deterministic Portfolio M
 | **1** | **Skeleton & Data Layer** | Monorepo layout, Pydantic schema validation, Data providers (yfinance/CCXT) | ✅ Done |
 | **2** | **Engine Foundations** | LangGraph orchestration, heuristic agents, Rust/PyO3 math backend | ✅ Done |
 | **2.5** | **Resilience & Org-Chart** | Per-node timeouts, partial-failure tolerance, Pydantic role contracts, Debate/PM node | ✅ Done |
-| **3** | **Rich Frontend & Live Streaming** | React Tailwind UI, WebSocket agent reasoning stream visualization | 🔲 *Next up* |
+| **3** | **Rich Frontend & Live Streaming** | React UI, WebSocket agent reasoning stream visualization, desktop (Tauri) app | ✅ Done |
 | **3.5** | **Intelligence Upgrade** | sqlite-vec RAG vector memory, news sentiment classifier, options chain metrics, Scribe-Critic loop | ✅ Done |
 | **4** | **LLM Integration** | Ollama local model support, prompt synthesis, CLI wizard | ✅ Done (Basic) |
-| **5** | **Production Hardening** | Encryption at rest, PDF reports, Docker/K8s deployment | 🔲 Planned |
+| **4.5** | **Terminal Dashboard** | `aletheia tui` — portfolio, live run streaming, paper trades, recent runs | ✅ Done |
+| **5** | **Production Hardening** | Encryption at rest, PDF reports, Docker build fixed, CI test coverage | 🟡 Partial — K8s deployment untested, dependency version bumps pending |
 
 ---
 
-## 🖥️ Preview (UI Coming Soon)
+## 🖥️ Preview
 
-Below is a preview of the upcoming Aletheia analytics dashboard, showcasing portfolio composition, capital gains tax drag projection, risk profile gauges, and real-time agent output streaming.
+The React/Tauri desktop app and terminal dashboard are both functional today — the mockup below predates them; run `aletheia tui` or the desktop app to see the real thing. It shows portfolio composition, capital gains tax drag projection, risk profile gauges, and real-time agent output streaming.
 
 <p align="center">
   <img src="docs/images/dashboard_mockup.png" alt="Aletheia Dashboard Preview" width="90%">
@@ -61,39 +62,39 @@ Aletheia uses a concurrent/sequential pipeline built on **LangGraph** where agen
 graph TD
     UI["Frontend / Desktop Shell"] -->|REST / WS| API["FastAPI Gateway"]
     API -->|Orchestrate| Engine["RunService (LangGraph StateGraph)"]
-    
+
     subgraph Multi-Agent Intelligence Core & Org-Chart
         Engine --> Collector["Collector Agent (Data Normalization & Sourcing)"]
-        
+
         Collector -->|Parallel Fan-Out| Oracle["Oracle Agent (Trend & Signals)"]
         Collector -->|Parallel Fan-Out| Sentinel["Sentinel Agent (Portfolio VaR & Regimes)"]
         Collector -->|Parallel Fan-Out| Sentiment["Sentiment Agent (News Classifier)"]
         Collector -->|Parallel Fan-Out| Fundamental["Fundamental Agent (Valuation Multiples)"]
         Collector -->|Parallel Fan-Out| OptionsFlow["Options Flow Agent (PCR, IV Rank, Max Pain)"]
-        
+
         Oracle -.->|Disagreement Dialog Loop| DebateNode{"Debate Node"}
         Sentinel -.->|Disagreement Dialog Loop| DebateNode
-        
+
         DebateNode -->|Consensus or Registered Disagreement| PMNode["Portfolio Manager Node (Deterministic Rules & Limits)"]
         Sentiment --> PMNode
         Fundamental --> PMNode
         OptionsFlow --> PMNode
-        
+
         PMNode --> Sage["Sage Agent (Tax-Aware Indian Market Projections)"]
-        
+
         Sage -->|Fan-In / Join| Scribe["Scribe Agent (Narrative Synthesis)"]
         Scribe --> Critic["Critic Agent (Reflexion Auditor - Max 2 Runs)"]
-        
+
         Critic -->|Failed / Revise| Scribe
         Critic -->|Passed / Complete| FinalOutput["Final Scribe Output"]
     end
-    
+
     subgraph Data & Storage Layer
         Collector --> DuckDB[("DuckDB (Quotes & Analytical OHLCV)")]
         Engine --> SQLite[("SQLite (Transactional Runs, Agent Status, SEBI Logs)")]
         Engine --> VecStore[("sqlite-vec (Vector RAG Memory)")]
     end
-    
+
     FinalOutput --> API
 ```
 
@@ -139,7 +140,7 @@ To enforce institutional-grade risk management and prevent LLM hallucinations fr
 - **Per-Node Timeouts:** Nodes are executed within `asyncio.wait_for` wrappers to prevent network hanging.
 - **Partial-Failure Handling:** Scribe produces report summaries even when individual non-critical agents fail, noting data gaps in warning headers.
 - **Rate Limiting:** Protects API endpoints with token bucket rate limiters.
-- **Append-Only SEBI Log:** All emitted recommendations are stored in an append-only, immutable SQLite database with triggers preventing deletions or updates.
+- **Append-Only SEBI Log:** All emitted recommendations are stored in an append-only, immutable SQLite database with triggers preventing deletions or updates, plus a SHA-256 hash chain (each entry links to the previous one's hash) so tampering that bypasses the triggers via raw file access is still detectable — see `GET /api/v1/compliance/verify`.
 - **AES-256 Encryption:** Encrypts API payloads and intermediate run states stored in SQLite at rest.
 
 ---
@@ -180,6 +181,12 @@ GET /api/v1/memory/vector-search?q=Reliance
 ```
 
 Detailed onboarding docs, threat models, and architectural guides are located in the [docs/](docs/) directory.
+
+---
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup, how to run the Python/Rust/frontend test suites, and PR expectations.
 
 ---
 
