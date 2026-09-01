@@ -9,8 +9,18 @@ tauri-build = { version = "2.0.1", features = [] }
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri = { version = "2.0.1", features = [] }
+tauri = { version = "2.0.1", features = ["tray-icon"] }
+tauri-plugin-shell = "2.0.0"
+reqwest = { version = "0.12", default-features = false, features = ["blocking"] }
+
+[target.'cfg(windows)'.dependencies]
+win32job = "2"
 
 [features]
-default = []
-
+# Standard Tauri feature: selects embedded `frontendDist` assets over `devUrl`
+# at build time (tauri-2.11.3/build.rs: `dev = !has_feature("custom-protocol")`).
+# Without this, EVERY build — debug or release — loads devUrl and expects
+# `npm run dev` to be running standalone, which is why the packaged app
+# showed ERR_CONNECTION_REFUSED regardless of profile.
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
