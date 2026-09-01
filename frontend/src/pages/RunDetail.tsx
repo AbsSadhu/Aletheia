@@ -13,7 +13,20 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle2,
+  Download,
+  FileSpreadsheet,
 } from "lucide-react";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8899";
+
+function triggerDownload(url: string): void {
+  const a = document.createElement("a");
+  a.href = url;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
@@ -161,8 +174,10 @@ export default function RunDetail() {
 
   const scribe = run.scribe_output;
   const sentinel = run.sentinel_output;
-  const oracleOutputs = run.oracle_output;
-  const sageOutputs = run.sage_output;
+  const oracleOutputs = run.oracle_output ?? [];
+  const sageOutputs = run.sage_output ?? [];
+  const insights = run.insights ?? [];
+  const collectorOutput = run.collector_output ?? [];
   const recs = scribe?.recommendations ?? [];
 
   // Determine active agent pipeline step
@@ -203,11 +218,33 @@ export default function RunDetail() {
             {new Date(run.summary.created_at).toLocaleString()}
           </span>
           {scribe && (
-            <span style={{ marginLeft: "auto", fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
+            <span style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
               Confidence: <strong>{(scribe.overall_confidence * 100).toFixed(0)}%</strong>
               &nbsp;· Agreement: <strong>{scribe.agreement_level}</strong>
             </span>
           )}
+          <div style={{ marginLeft: "auto", display: "flex", gap: "var(--space-2)" }}>
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize: "var(--text-xs)", padding: "6px 12px", gap: 5 }}
+              title="Export PDF Report"
+              onClick={() =>
+                triggerDownload(`${API_BASE_URL}/api/v1/runs/${runId}/export?format=pdf`)
+              }
+            >
+              <Download size={13} /> PDF
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize: "var(--text-xs)", padding: "6px 12px", gap: 5 }}
+              title="Export Excel Workbook"
+              onClick={() =>
+                triggerDownload(`${API_BASE_URL}/api/v1/runs/${runId}/export?format=excel`)
+              }
+            >
+              <FileSpreadsheet size={13} /> Excel
+            </button>
+          </div>
         </div>
 
         {/* Live Execution Steps Progress Bar */}
@@ -334,7 +371,7 @@ export default function RunDetail() {
           <div>
             <div className="card-subtitle" style={{ marginBottom: "var(--space-3)" }}>Insights</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginBottom: "var(--space-5)" }}>
-              {run.insights.map((insight, i) => (
+              {insights.map((insight, i) => (
                 <div
                   key={i}
                   style={{
@@ -367,7 +404,7 @@ export default function RunDetail() {
                     </tr>
                   </thead>
                   <tbody>
-                    {run.collector_output.map((co) => {
+                    {collectorOutput.map((co) => {
                       const q = co.quotes[co.quotes.length - 1];
                       return (
                         <tr key={co.symbol}>
@@ -680,7 +717,7 @@ export default function RunDetail() {
                       <div className="event-item-time">
                         {new Date(evt.timestamp).toLocaleTimeString()}
                       </div>
-                      
+
                       {/* Optional Expandable payload details */}
                       {evt.payload && (
                         <div style={{ marginTop: 8 }}>

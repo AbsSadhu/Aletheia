@@ -11,23 +11,33 @@ import {
   FileSpreadsheet,
   Info,
   DollarSign,
+  Cpu,
 } from "lucide-react";
-
 import TopBar from "../components/TopBar";
+
 import {
   listPortfolios,
   savePortfolio,
   deletePortfolio,
+  syncZerodha,
 } from "../lib/api";
 import type { PortfolioData, Holding } from "../lib/types";
 
 const SUGGESTED_SYMBOLS = [
+  // NSE Stocks
   "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK",
   "BHARTIARTL", "SBI", "LICI", "ITC", "HINDUNILVR",
   "LT", "BAJFINANCE", "HCLTECH", "MARUTI", "SUNPHARMA",
   "ADANIENT", "KOTAKBANK", "TITAN", "AXISBANK", "ULTRACEMCO",
   "NTPC", "TATAMOTORS", "ONGC", "COALINDIA", "ADANIPORTS",
-  "JIOFIN", "POWERGRID", "ASIANPAINT", "BPCL", "M&M"
+  "JIOFIN", "POWERGRID", "ASIANPAINT", "BPCL", "M&M",
+  "WIPRO", "HINDALCO", "JSWSTEEL", "TATASTEEL", "GRASIM",
+  "ADANIPOWER", "HAL", "BEL", "ZOMATO", "PAYTM",
+  // US Stocks
+  "AAPL", "MSFT", "GOOG", "AMZN", "TSLA", "NVDA", "META",
+  "NFLX", "AMD", "INTC", "BRK-B", "JPM", "V", "DIS", "COIN",
+  // Crypto
+  "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "ADA-USD"
 ];
 
 export default function Portfolio() {
@@ -36,6 +46,27 @@ export default function Portfolio() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [syncingZerodha, setSyncingZerodha] = useState(false);
+
+  const handleSyncZerodha = async () => {
+    if (!selectedPortfolio) return;
+    try {
+      setSyncingZerodha(true);
+      setError(null);
+      const res = await syncZerodha(selectedPortfolio.name);
+      setSelectedPortfolio(res.portfolio);
+      triggerSuccess(
+        res.is_mock
+          ? `Synced ${res.synced} mock holdings from Zerodha (using mock settings).`
+          : `Successfully synced ${res.synced} live holdings from Zerodha Kite!`
+      );
+      await loadData();
+    } catch (err) {
+      triggerError(err instanceof Error ? err.message : "Failed to sync Zerodha");
+    } finally {
+      setSyncingZerodha(false);
+    }
+  };
 
   // Portfolio form state
   const [newPortfolioName, setNewPortfolioName] = useState("");
@@ -638,6 +669,19 @@ export default function Portfolio() {
                   <div style={{ display: "flex", gap: "var(--space-2)" }}>
                     <button
                       className="btn btn-secondary"
+                      onClick={handleSyncZerodha}
+                      disabled={syncingZerodha}
+                      style={{ display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      {syncingZerodha ? (
+                        <div className="spinner" style={{ width: 14, height: 14 }} />
+                      ) : (
+                        <Cpu size={16} style={{ color: "var(--amber)" }} />
+                      )}
+                      Sync Zerodha Kite
+                    </button>
+                    <button
+                      className="btn btn-secondary"
                       onClick={() => setShowCsvImport(!showCsvImport)}
                     >
                       <FileSpreadsheet size={16} />
@@ -869,6 +913,9 @@ export default function Portfolio() {
                           fontFamily: "var(--font-mono)",
                         }}
                       />
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: 2 }}>
+                        Supports any yfinance ticker (e.g. AAPL, BTC-USD)
+                      </span>
                       {showSuggestions && symbolSuggestions.length > 0 && (
                         <div
                           style={{

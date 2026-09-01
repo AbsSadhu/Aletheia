@@ -16,7 +16,7 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 import TopBar from "../components/TopBar";
-import { fetchHealth, listRuns, listPortfolios, createRun } from "../lib/api";
+import { fetchHealth, listRuns, listPortfolios, createRun, getRun } from "../lib/api";
 import type { RunResult, RunSummary, HealthData, PortfolioData } from "../lib/types";
 
 const AGENT_META = [
@@ -64,12 +64,7 @@ export default function Dashboard() {
       if (runsData.runs.length > 0) {
         const latest = runsData.runs[0];
         try {
-          const response = await fetch(
-            `${import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8899"}/api/v1/runs/${latest.run_id}`
-          );
-          if (response.ok) {
-            setLatestRun(await response.json());
-          }
+          setLatestRun(await getRun(latest.run_id));
         } catch {
           /* ignore – we still show the dashboard */
         }
