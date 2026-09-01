@@ -8,6 +8,43 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, model_validator
 
 
+def coerce_none_and_nan(cls, data: Any) -> Any:
+    if isinstance(data, dict):
+        import math
+
+        for klass in cls.__mro__:
+            for field_name, annotation in getattr(klass, "__annotations__", {}).items():
+                if field_name not in data:
+                    continue
+                val = data[field_name]
+                ann_str = str(annotation)
+
+                # Check for strict float vs optional float
+                is_strict_float = annotation is float or annotation == "float"
+
+                if is_strict_float:
+                    if val is None:
+                        data[field_name] = 0.0
+                    elif isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+                        data[field_name] = 0.0
+                elif isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+                    data[field_name] = 0.0
+
+                # Check if it is a dictionary of floats
+                if "dict[str, float]" in ann_str or "Dict[str, float]" in ann_str:
+                    if isinstance(val, dict):
+                        cleaned = {}
+                        for k, v in val.items():
+                            if v is None:
+                                cleaned[k] = 0.0
+                            elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                                cleaned[k] = 0.0
+                            else:
+                                cleaned[k] = v
+                        data[field_name] = cleaned
+    return data
+
+
 class AnalystContract(BaseModel):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -38,6 +75,7 @@ class AnalystContract(BaseModel):
                     raise ValueError(
                         f"Analyst contract violation: analyst role is forbidden from emitting final decisions/synthesis (field '{key}' found)"
                     )
+            coerce_none_and_nan(cls, data)
         return data
 
 
@@ -61,6 +99,7 @@ class RiskConstraintContract(BaseModel):
                     raise ValueError(
                         f"RiskConstraint contract violation: risk/constraint role is forbidden from emitting analyst details or final synthesis (field '{key}' found)"
                     )
+            coerce_none_and_nan(cls, data)
         return data
 
 
@@ -84,6 +123,7 @@ class SynthesisContract(BaseModel):
                     raise ValueError(
                         f"Synthesis contract violation: synthesis role is forbidden from emitting analyst details (field '{key}' found)"
                     )
+            coerce_none_and_nan(cls, data)
         return data
 
 
@@ -213,14 +253,19 @@ class CollectorOutput(AnalystContract):
 class MultiTimeframeSignal(BaseModel):
     timeframe: str  # "1D" | "1W" | "1M"
     signal: str
-    confidence: float
+    confidence: float = 0.0
     indicators: dict[str, float] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_fields(cls, data: Any) -> Any:
+        return coerce_none_and_nan(cls, data)
 
 
 class OracleOutput(AnalystContract):
     symbol: str
     signal: str
-    confidence: float
+    confidence: float = 0.0
     rationale: list[str] = Field(default_factory=list)
     fair_value_gap_pct: float = 0.0
     momentum_pct: float = 0.0
@@ -232,11 +277,11 @@ class OracleOutput(AnalystContract):
 
 
 class SentinelOutput(AnalystContract):
-    portfolio_var_95: float
-    concentration_risk: float
-    max_single_position_pct: float
-    market_regime: str
-    confidence: float
+    portfolio_var_95: float = 0.0
+    concentration_risk: float = 0.0
+    max_single_position_pct: float = 0.0
+    market_regime: str = "unknown"
+    confidence: float = 0.0
     alerts: list[str] = Field(default_factory=list)
     regime_detail: str = "unknown"  # e.g. "low_vol_bull", "crash", "high_vol"
     natural_language_brief: str = ""
@@ -284,6 +329,11 @@ class TaxSummary(BaseModel):
     estimated_tax_amount: float
     post_tax_profit: float
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_fields(cls, data: Any) -> Any:
+        return coerce_none_and_nan(cls, data)
+
 
 class SageScenario(BaseModel):
     scenario_name: str
@@ -291,6 +341,11 @@ class SageScenario(BaseModel):
     projected_post_tax_return_pct: float
     projected_sharpe: float
     tax_summary: TaxSummary
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_fields(cls, data: Any) -> Any:
+        return coerce_none_and_nan(cls, data)
 
 
 class SageOutput(RiskConstraintContract):
@@ -308,12 +363,22 @@ class Recommendation(BaseModel):
     stop_loss: float | None = None
     target_price: float | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_fields(cls, data: Any) -> Any:
+        return coerce_none_and_nan(cls, data)
+
 
 class CriticVerdict(BaseModel):
     passed: bool
     score: float  # 0.0-1.0
     notes: list[str] = Field(default_factory=list)
     iteration: int = 1
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_fields(cls, data: Any) -> Any:
+        return coerce_none_and_nan(cls, data)
 
 
 class ConfidenceRecord(BaseModel):
@@ -328,6 +393,11 @@ class ConfidenceRecord(BaseModel):
     brier_score: float | None = None
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_fields(cls, data: Any) -> Any:
+        return coerce_none_and_nan(cls, data)
+
 
 class SEBIComplianceLog(BaseModel):
     log_id: str = Field(default_factory=lambda: str(uuid4()))
@@ -338,6 +408,18 @@ class SEBIComplianceLog(BaseModel):
     reasoning_hash: str  # SHA-256 of executive_summary
     disclaimer: str
     logged_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    # Hash-chain fields (tamper-evidence on top of the DB-level append-only
+    # triggers): prev_hash links to the previous row's entry_hash, forming a
+    # chain an editor with raw file access — bypassing the app and its SQL
+    # triggers — cannot alter without breaking. Populated by
+    # SQLiteStore.log_compliance(); "" here is only the pre-persist default.
+    prev_hash: str = ""
+    entry_hash: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_fields(cls, data: Any) -> Any:
+        return coerce_none_and_nan(cls, data)
 
 
 class ScribeOutput(SynthesisContract):
@@ -379,6 +461,11 @@ class RunResult(BaseModel):
     confidence_score: float = 0.0
     traces: list[dict[str, Any]] = Field(default_factory=list)
     agent_statuses: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_fields(cls, data: Any) -> Any:
+        return coerce_none_and_nan(cls, data)
 
 
 class HealthResponse(BaseModel):

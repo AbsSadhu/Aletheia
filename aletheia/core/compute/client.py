@@ -403,3 +403,18 @@ class ComputeClient:
             if not predictions:
                 return 0.0
             return sum((p - o) ** 2 for p, o in zip(predictions, outcomes)) / len(predictions)
+
+    # ------------------------------------------------------------------
+    # Portfolio Risk Assessment (sync, PyO3-only — no sidecar route yet)
+    # ------------------------------------------------------------------
+
+    def assess_portfolio_risk(self, portfolio: Any, quotes_by_symbol: dict) -> dict[str, Any]:
+        """VaR/concentration/regime assessment for the Sentinel agent."""
+        try:
+            from aletheia_rust import assess_portfolio_risk_rust  # type: ignore[import]
+
+            return assess_portfolio_risk_rust(portfolio, quotes_by_symbol)
+        except Exception:
+            from aletheia.core.risk.metrics import fallback_assess_portfolio_risk
+
+            return fallback_assess_portfolio_risk(portfolio, quotes_by_symbol)

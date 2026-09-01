@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aletheia Investment Intelligence Report</title>
+  <style>
+    :root {
+      --accent: #6366f1;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --border: #1e1e2e;
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #ffffff;
+      color: #1a1a2e;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .cover {
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a0a3e 50%, #0a1a3e 100%);
+      color: white;
+      padding: 60px 50px;
+      min-height: 200px;
+    }
+    .cover-logo { font-size: 32px; font-weight: 900; letter-spacing: 4px; color: #818cf8; margin-bottom: 8px; }
+    .cover-subtitle { font-size: 12px; letter-spacing: 2px; color: #64748b; text-transform: uppercase; margin-bottom: 40px; }
+    .cover-title { font-size: 26px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; }
+    .cover-meta { font-size: 11px; color: #94a3b8; }
+    .cover-badge {
+      display: inline-block;
+      background: rgba(99,102,241,0.2);
+      border: 1px solid #6366f1;
+      color: #818cf8;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 16px;
+    }
+    .body-content { padding: 40px 50px; }
+    h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a1a3e;
+      border-bottom: 2px solid #6366f1;
+      padding-bottom: 6px;
+      margin: 30px 0 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    h3 { font-size: 13px; font-weight: 600; color: #1e293b; margin: 16px 0 8px; }
+    p { color: #334155; margin-bottom: 10px; }
+    .summary-box {
+      background: #f1f5f9;
+      border-left: 4px solid #6366f1;
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 20px;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .kpi-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 4px; }
+    .kpi-value { font-size: 18px; font-weight: 700; color: #1e293b; }
+    .kpi-value.green { color: #16a34a; }
+    .kpi-value.red { color: #dc2626; }
+    .kpi-value.purple { color: #6366f1; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 11px;
+    }
+    th {
+      background: #1e293b;
+      color: #94a3b8;
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+    }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-buy { background: #dcfce7; color: #15803d; }
+    .badge-sell { background: #fee2e2; color: #b91c1c; }
+    .badge-hold { background: #fef9c3; color: #a16207; }
+    .badge-reduce { background: #fee2e2; color: #b91c1c; }
+    .risk-row { display: flex; gap: 16px; margin-bottom: 16px; }
+    .risk-metric { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+    .risk-name { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+    .risk-val { font-size: 16px; font-weight: 700; color: #1e293b; margin-top: 2px; }
+    .chart-img { width: 100%; max-height: 260px; object-fit: contain; margin: 12px 0; }
+    .footer {
+      margin-top: 40px;
+      border-top: 1px solid #e2e8f0;
+      padding: 16px 50px;
+      font-size: 9px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+    .disclaimer {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 10px;
+      color: #78350f;
+      margin-top: 24px;
+    }
+    .page-break { page-break-after: always; }
+    @media print {
+      body { background: white; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Cover -->
+  <div class="cover">
+    <div class="cover-logo">Aλ ALETHEIA</div>
+    <div class="cover-subtitle">India-First Multi-Agent Financial Intelligence</div>
+    <div class="cover-title">Investment Intelligence Report</div>
+    <div class="cover-meta">
+      Run ID: {{ run_id }} &nbsp;|&nbsp; {{ generated_at }} &nbsp;|&nbsp; Portfolio: {{ portfolio_name }}
+    </div>
+    <div class="cover-badge">{{ status }}</div>
+  </div>
+
+  <div class="body-content">
+
+    <!-- KPI Strip -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Portfolio Value</div>
+        <div class="kpi-value purple">₹{{ portfolio_value }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Holdings</div>
+        <div class="kpi-value">{{ num_holdings }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Confidence</div>
+        <div class="kpi-value {{ 'green' if confidence >= 0.6 else 'red' }}">{{ '%.0f'|format(confidence*100) }}%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Agent Verdict</div>
+        <div class="kpi-value" style="font-size:12px;">{{ overall_verdict }}</div>
+      </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <h2>Executive Summary</h2>
+    <div class="summary-box">
+      {{ executive_summary | default("No executive summary generated.", true) }}
+    </div>
+
+    <!-- Holdings Table -->
+    {% if holdings %}
+    <h2>Portfolio Holdings</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th><th>Exchange</th><th>Quantity</th><th>Avg Price (₹)</th><th>Value (₹)</th><th>Asset Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in holdings %}
+        <tr>
+          <td><strong>{{ h.symbol }}</strong></td>
+          <td>{{ h.exchange }}</td>
+          <td>{{ h.quantity }}</td>
+          <td>{{ '%.2f'|format(h.average_price) }}</td>
+          <td>{{ '%.0f'|format(h.quantity * h.average_price) }}</td>
+          <td>{{ h.asset_type }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Recommendations -->
+    {% if recommendations %}
+    <h2>Agent Recommendations</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th><th>Action</th><th>Target Price</th><th>Confidence</th><th>Reasoning</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recommendations %}
+        <tr>
+          <td><strong>{{ r.symbol }}</strong></td>
+          <td>
+            <span class="badge badge-{{ r.action | lower }}">{{ r.action }}</span>
+          </td>
+          <td>{{ '₹%.2f'|format(r.target_price) if r.target_price else '—' }}</td>
+          <td>{{ '%.0f'|format(r.confidence * 100) }}%</td>
+          <td style="max-width:300px; word-wrap:break-word;">{{ r.reasoning[:200] if r.reasoning else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <div class="page-break"></div>
+
+    <!-- Risk Metrics -->
+    {% if risk %}
+    <h2>Sentinel Risk Brief</h2>
+    <div class="risk-row">
+      <div class="risk-metric">
+        <div class="risk-name">VaR (95%)</div>
+        <div class="risk-val {{ 'red' if risk.var_95 < -0.03 else '' }}">{{ '%.2f'|format(risk.var_95 * 100) }}%</div>
+      </div>
+      <div class="risk-metric">
+        <div class="risk-name">Sharpe Ratio</div>
+        <div class="risk-val {{ 'green' if risk.sharpe > 1 else '' }}">{{ '%.2f'|format(risk.sharpe) }}</div>
+      </div>
+      <div class="risk-metric">
+        <div class="risk-name">Max Drawdown</div>
+        <div class="risk-val red">{{ '%.2f'|format(risk.max_drawdown * 100) }}%</div>
+      </div>
+      <div class="risk-metric">
+        <div class="risk-name">Win Rate</div>
+        <div class="risk-val {{ 'green' if risk.win_rate > 0.5 else 'red' }}">{{ '%.1f'|format(risk.win_rate * 100) }}%</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Tax Scenarios -->
+    {% if tax_scenarios %}
+    <h2>Sage Tax Projections</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Scenario</th><th>Duration</th><th>Tax Rate</th><th>Est. Tax (₹)</th><th>Net Return (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in tax_scenarios %}
+        <tr>
+          <td>{{ s.label }}</td>
+          <td>{{ s.duration }}</td>
+          <td>{{ s.tax_rate }}%</td>
+          <td>{{ '%.0f'|format(s.estimated_tax) }}</td>
+          <td class="{{ 'green' if s.net_return > 0 else 'red' }}">{{ '%.0f'|format(s.net_return) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Disclaimer -->
+    <div class="disclaimer">
+      ⚠️ <strong>Disclaimer:</strong> This report is generated by an AI-powered multi-agent system for informational purposes only.
+      It does not constitute financial advice. Past performance is not indicative of future results.
+      Always consult a SEBI-registered investment advisor before making investment decisions.
+      STCG/LTCG tax calculations are approximate and subject to current Indian tax regulations.
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>Generated by ALETHEIA v0.1.0 — India-First Multi-Agent Financial Intelligence</span>
+    <span>{{ generated_at }}</span>
+  </div>
+</body>
+</html>

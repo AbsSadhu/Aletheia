@@ -116,6 +116,15 @@ class SEBIComplianceLogger:
         expected_hash = self._hash(original_summary)
         return log_entry.get("reasoning_hash") == expected_hash
 
+    def verify_chain(self) -> dict:
+        """
+        Verify the compliance log's hash chain end-to-end: recomputes every
+        entry's hash from its stored fields and checks the prev_hash linkage,
+        catching tampering that bypasses the append-only DB triggers (e.g. a
+        raw file edit). See SQLiteStore.verify_compliance_chain().
+        """
+        return self._store.verify_compliance_chain()
+
     @staticmethod
     def _hash(text: str) -> str:
         return hashlib.sha256(text.encode("utf-8")).hexdigest()

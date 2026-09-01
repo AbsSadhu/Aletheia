@@ -62,7 +62,7 @@ class HypothesisRegistry:
             evidence_json = json.dumps([e.model_dump(mode="json") for e in hypo.evidence])
             conn.execute(
                 """
-                INSERT OR REPLACE INTO hypotheses 
+                INSERT OR REPLACE INTO hypotheses
                 (id, title, description, status, test_criteria, evidence, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,

@@ -1,6 +1,10 @@
 import typer
 from rich.console import Console
+from aletheia.cli.config import app as config_app
 from aletheia.cli.onboard import run_onboarding
+from aletheia.cli.paper_trades import app as paper_trades_app
+from aletheia.cli.benchmark import app as benchmark_app
+from aletheia.cli.compare import app as compare_app
 
 app = typer.Typer(
     name="aletheia",
@@ -9,6 +13,10 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
+app.add_typer(config_app)
+app.add_typer(paper_trades_app)
+app.add_typer(benchmark_app)
+app.add_typer(compare_app)
 
 
 @app.command()
@@ -134,7 +142,7 @@ def info():
     Display framework information and loaded extensions.
     """
     console.print("[bold cyan]Aletheia Framework v0.1.0[/bold cyan]")
-    console.print("Architecture: Terminal-First / Agentic")
+    console.print("Architecture: Terminal-First / Agentic / Multi-Agent")
     console.print("\nLoaded Extensions:")
     console.print(
         "- Providers: [green]ccxt[/green], [green]yfinance[/green], [green]static_seed[/green]"
@@ -142,6 +150,138 @@ def info():
     console.print(
         "- Agents: [blue]collector[/blue], [blue]oracle[/blue], [blue]sentinel[/blue], [blue]sage[/blue], [blue]scribe[/blue]"
     )
+    console.print(
+        "- Factors: [magenta]rsi[/magenta], [magenta]macd[/magenta], [magenta]bollinger[/magenta], [magenta]vwap[/magenta], [magenta]obv[/magenta], [magenta]ma_cross[/magenta]"
+    )
+    console.print(
+        "- Execution: [yellow]paper[/yellow], [yellow]live_gate[/yellow], [yellow]portfolio_constraints[/yellow]"
+    )
+
+
+@app.command(name="tui")
+def tui_cmd(
+    url: str = typer.Option(
+        None, "--url", help="Backend base URL (defaults to http://<settings.host>:<settings.port>)"
+    ),
+    api_key: str = typer.Option(
+        "",
+        "--api-key",
+        envvar="ALETHEIA_TUI_API_KEY",
+        help="X-API-Key to send if the backend has ALETHEIA_API_KEYS configured",
+    ),
+) -> None:
+    """
+    Launch the terminal dashboard: portfolios, live run streaming, paper
+    trades, and recent runs. Connects to an already-running backend
+    (start one first with `aletheia serve`, or use the desktop app).
+    """
+    from aletheia.cli.tui import run_tui
+
+    run_tui(url, api_key)
+
+
+@app.command(name="mcp")
+def mcp_cmd() -> None:
+    """
+    Start the Aletheia MCP server over stdio, exposing the same tool
+    registry the ReAct chat agent uses (market data, backtests, fundamentals,
+    news, portfolio analytics, etc.) to any MCP-compatible client (Claude
+    Desktop, Cursor). Point the client's MCP config at this command directly
+    (e.g. `.venv\\Scripts\\aletheia.cmd mcp`) rather than spawning it manually.
+    """
+    from aletheia.mcp_server import mcp
+
+    mcp.run()
+
+
+@app.command(name="serve")
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", "-H", help="Bind host"),
+    port: int = typer.Option(8899, "--port", "-p", help="Bind port"),
+    reload: bool = typer.Option(False, "--reload", "-r", help="Enable auto-reload (dev mode)"),
+):
+    """
+    Start the Aletheia FastAPI backend server.
+    Used by the desktop app as a sidecar process.
+    """
+    import uvicorn
+
+    console.print(f"[bold blue]Starting Aletheia API on http://{host}:{port}[/bold blue]")
+    uvicorn.run(
+        "aletheia.core.main:app",
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="info",
+    )
+
+
+@app.command(name="memory")
+def memory_cmd(
+    agent: str = typer.Argument(
+        "oracle", help="Agent name (oracle, sentinel, sage, collector, scribe)"
+    ),
+    critique: bool = typer.Option(
+        False, "--critique", "-c", help="Show self-critique instead of observations"
+    ),
+    ticker: str = typer.Option(None, "--ticker", "-t", help="Filter observations by ticker"),
+    limit: int = typer.Option(10, "--limit", "-n", help="Number of records to show"),
+):
+    """
+    View an agent's working memory observations and self-critiques.
+    """
+    from aletheia.memory.working_memory import WorkingMemory
+    from rich.table import Table
+    from rich import box
+
+    wm = WorkingMemory()
+
+    if critique:
+        critiques = wm.get_critiques(agent, limit=limit)
+        if not critiques:
+            console.print(f"[yellow]No critiques found for agent '{agent}'.[/yellow]")
+            return
+        for c in critiques:
+            console.print(
+                f"\n[bold cyan]{agent.upper()} Self-Critique — {c['timestamp'][:10]}[/bold cyan]"
+            )
+            console.print(c["critique"])
+        return
+
+    observations = wm.list_all_observations(agent_name=agent, ticker=ticker, limit=limit)
+    if not observations:
+        console.print(
+            f"[yellow]No observations found for agent '{agent}'{' on ' + ticker if ticker else ''}.[/yellow]"
+        )
+        return
+
+    table = Table(
+        title=f"[bold cyan]{agent.upper()} Memory[/bold cyan]",
+        box=box.ROUNDED,
+        header_style="bold magenta",
+    )
+    table.add_column("Ticker", style="bold white")
+    table.add_column("Confidence", justify="right")
+    table.add_column("Observation", max_width=70)
+    table.add_column("Run ID", style="dim", max_width=14)
+    table.add_column("Timestamp", style="dim")
+
+    for obs in observations:
+        conf = obs["confidence"]
+        conf_str = (
+            f"[green]{conf:.2f}[/green]"
+            if conf >= 0.7
+            else (f"[yellow]{conf:.2f}[/yellow]" if conf >= 0.5 else f"[red]{conf:.2f}[/red]")
+        )
+        table.add_row(
+            obs["ticker"],
+            conf_str,
+            obs["observation"][:200],
+            (obs["run_id"] or "–")[:12] + "…",
+            obs["timestamp"][:16],
+        )
+
+    console.print(table)
 
 
 db_app = typer.Typer(
