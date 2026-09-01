@@ -19,4 +19,3 @@ The Python backend is the authoritative implementation of ALETHEIA core logic:
 - Tauri does not replace the backend.
 - Desktop features integrate through typed contracts and local process management.
 - Rust additions must strengthen safety or UX without fragmenting core behavior.
-

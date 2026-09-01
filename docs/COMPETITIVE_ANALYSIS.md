@@ -35,7 +35,7 @@
 | Vector / semantic memory | ✅ | ✅ | ❌ | ❌ | ❌ Sprint 3.5 |
 | Paper trading / shadow account | ✅ | ⚠️ | ✅ | ❌ | ⚠️ Model only |
 | LLM multi-provider router | ✅ | ✅ | ✅ | ❌ | ✅ |
-| MCP native integration | ✅ 30+ tools | ❌ | ✅ Native | ❌ | ⚠️ FastMCP stub |
+| MCP native integration | ✅ 30+ tools | ❌ | ✅ Native | ❌ | ✅ 13 tools (`aletheia mcp`) |
 | Backtest (real data) | ✅ | ⚠️ | ✅ | ❌ | ✅ |
 | LangSmith / observability | ✅ | ⚠️ | ✅ | ❌ | ⚠️ Stub |
 | PDF report generation | ⚠️ | ✅ | ✅ | ❌ | ❌ Sprint 4A |

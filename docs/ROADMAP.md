@@ -246,10 +246,16 @@
 - [ ] Prometheus `/metrics` endpoint on FastAPI
 - [ ] Grafana dashboard template
 
-### 4D. Full MCP Server
-- [ ] Expose all 15 tools as proper MCP tools (not just FastMCP stub)
-- [ ] Support Claude Desktop, Cursor, and any MCP-compatible AI assistant
-- [ ] Tool discovery: `tools/list` → dynamic tool manifest
+### 4D. Full MCP Server ✅
+- [x] Expose all 13 registered tools as proper MCP tools via `aletheia mcp`
+  (fixed: `fastmcp` was never an installed/pinned dependency and the
+  dynamic `**kwargs` wrapper was rejected outright by FastMCP's schema
+  builder — each tool now advertises its real `execute()` signature)
+- [x] Support Claude Desktop, Cursor, and any MCP-compatible AI assistant —
+  point its config `command` at `aletheia mcp` (stdio transport)
+- [x] Tool discovery: `tools/list` verified end-to-end over a real stdio
+  JSON-RPC handshake (`initialize` → `notifications/initialized` →
+  `tools/list`), plus a live `market_data` tool call
 
 ---
 

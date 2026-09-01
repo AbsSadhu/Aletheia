@@ -21,13 +21,16 @@ We will acknowledge within 48 hours and coordinate a patched release.
 ## Implemented Security Controls
 
 ### Authentication & Rate Limiting
-- All API endpoints require `X-API-Key` header (configured via `ALETHEIA_API_KEY` env var)
+- API key auth is **opt-in**, controlled by the `ALETHEIA_API_KEYS` env var (a JSON list of accepted keys, e.g. `ALETHEIA_API_KEYS=["your-key-here"]`)
+  - If unset/empty (the local-dev default), the API is open on `127.0.0.1` and a startup warning is logged
+  - If set, every request under `/api/v1/*` (except `/api/v1/health*`, which stays reachable for Docker/k8s health probes) must send a matching `X-API-Key` header or receive `401 Unauthorized`
+  - Enforced via a single FastAPI dependency (`aletheia.core.api.security.verify_api_key`) applied at router-include level in `aletheia/core/main.py`
+  - **Anyone exposing Aletheia beyond loopback must set `ALETHEIA_API_KEYS`.**
 - Rate limiting via Rust token-bucket algorithm (PyO3 `RateLimiter`) — per-endpoint limits
-- FastAPI dependency injection enforces auth on every route
 
 ### Encryption at Rest
 - **SQLite**: Sensitive columns (`holdings_json`, `result_json`, `payload_json`) encrypted with Fernet AES-256
-  - Key derived from `ALETHEIA_ENCRYPTION_KEY` env var
+  - Key derived from `ALETHEIA_DB_ENCRYPTION_KEY` env var
   - See `aletheia/core/security/encryption.py`
 - **DuckDB**: File-level AES-256-GCM encryption via `encryption_key` setting
 
@@ -63,4 +66,3 @@ Key threat boundaries:
 - **LAN exposure**: Mitigated by loopback binding + API key + rate limiting
 - **Data-at-rest leakage**: Mitigated by Fernet + DuckDB encryption
 - **Injection attacks**: Mitigated by Pydantic validation + parameterized queries
-

@@ -17,4 +17,3 @@ ALETHEIA includes a Tauri shell as a first-class local delivery surface for:
 
 - The same React frontend can be hosted in browser or desktop contexts.
 - The desktop app owns local shell concerns, not domain logic.
-

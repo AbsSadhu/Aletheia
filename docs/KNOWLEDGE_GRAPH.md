@@ -145,7 +145,7 @@ graph TD
 - `ToolRegistry` — auto-discovery via `__subclasses__()`, 15 tools registered
 - `SwarmRuntime` — parallel worker coordinator (scaffold, not production-ready)
 - Swarm presets: `investment_team`, `quant_team`
-- MCP server via FastMCP (wraps all registered tools)
+- MCP server via FastMCP, run with `aletheia mcp` (wraps all 13 registered tools; verified over real stdio JSON-RPC — initialize handshake + `tools/list` + a live `market_data` call)
 
 ### Extensions
 - `BacktestRunner` — event-driven simulation wired to `HistoricalDataFeed` (yfinance → DuckDB)
@@ -183,7 +183,7 @@ graph TD
 | `GET /api/v1/runs/{id}/export` | ❌ Not started | Sprint 4A |
 | Tauri backend auto-launch (sidecar pattern) | ❌ Not wired | Sprint 4B |
 | Prometheus `/metrics` endpoint | ❌ Not started | Sprint 4C |
-| Full MCP server (not FastMCP stub) | ⚠️ FastMCP exists | Sprint 4C |
+| Full MCP server (`aletheia mcp`, stdio) | ✅ Done — 13 tools, verified via live stdio handshake | Sprint 4C |
 | NSE/BSE specific signals (FII/DII, circuit breakers) | ❌ Not started | Sprint 5 |
 | Domain fine-tuned local LLM (`aletheia-7b`) | ❌ Not started | Sprint 5 |
 | Multi-swarm specialist teams (crypto, macro) | ⚠️ Swarm scaffold only | Sprint 5 |
