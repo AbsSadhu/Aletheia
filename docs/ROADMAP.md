@@ -194,10 +194,12 @@ is a from-scratch subsystem, not a partial build.
   Note: this is polling, not a WebSocket thought-stream — true live
   per-token streaming for an in-progress run remains RunDetail's job (new
   runs auto-navigate there), which is the right split, not a shortcut.
-- [x] RunDetail: 5 of the pipeline's agents (Collector/Oracle/Sentinel/Sage/
-  Scribe) are rendered from real API + WebSocket status
-  (`frontend/src/pages/RunDetail.tsx`). **Gap**: Sentiment/Fundamental/
-  OptionsFlow agents run server-side but have no frontend tabs yet.
+- [x] RunDetail: all 8 pipeline agents (Collector/Oracle/Sentinel/Sage/Scribe
+  plus Sentiment/Fundamental/OptionsFlow) are rendered from real API status
+  (`frontend/src/pages/RunDetail.tsx`), the last 3 via a new "Extended
+  Signals" tab. Collector/Oracle/Sentinel/Sage/Scribe additionally get live
+  WebSocket updates; Sentiment/Fundamental/OptionsFlow render from the
+  final `RunResult` payload only (no incremental WS events for them yet).
 - [x] Portfolio page: real CRUD wired to `/api/v1/portfolios`
   (`frontend/src/pages/Portfolio.tsx`, `frontend/src/lib/api.ts:131-149`).
 - [ ] Backtest page: **missing** — `runBacktest()` already exists in
@@ -385,8 +387,9 @@ staged carefully (paper mode first), not treated as a quick wire-up.
   (`color-scheme: dark` fixed, no light theme or toggle), no glassmorphism
   effects confirmed.
 - [x] Agent reasoning visualization — real WebSocket-driven live status +
-  token streaming exist for the 5 wired agents (RunDetail); see Sprint 3B/3D
-  above for the gaps (missing 3 agent tabs, no latency capture).
+  token streaming exist for the 5 core agents, plus a static "Extended
+  Signals" tab for Sentiment/Fundamental/OptionsFlow (RunDetail); see
+  Sprint 3B/3D above for the remaining gap (no latency capture).
 - [x] Portfolio editor — real CRUD (see 3B), not drag-and-drop specifically.
 - [x] Equity curve chart component — Recharts (`recharts@3.8.1`), real,
   used in `ShadowTrader.tsx`/`PaperTrades.tsx`. **Not** used yet for the
