@@ -96,6 +96,39 @@ export interface ScribeOutput {
   notes: string[];
 }
 
+export interface SentimentOutput {
+  symbol: string;
+  sentiment_score: number; // -1.0 to 1.0
+  headline_count: number;
+  top_headlines: string[];
+  source_breakdown: Record<string, number>;
+  verdict: "STRONGLY_POSITIVE" | "POSITIVE" | "NEUTRAL" | "NEGATIVE" | "STRONGLY_NEGATIVE";
+  confidence: number;
+}
+
+export interface FundamentalOutput {
+  symbol: string;
+  pe_ratio: number | null;
+  eps_growth_pct: number | null;
+  revenue_growth_pct: number | null;
+  debt_to_equity: number | null;
+  promoter_holding_pct: number | null;
+  sector_pe: number | null;
+  valuation_verdict: "OVERVALUED" | "FAIR" | "UNDERVALUED";
+  valuation_commentary: string;
+  confidence: number;
+}
+
+export interface OptionsFlowOutput {
+  symbol: string;
+  put_call_ratio: number;
+  iv_rank: number; // 0-100
+  max_pain_level: number | null;
+  oi_concentration: "BULLISH_OI" | "BEARISH_OI" | "NEUTRAL";
+  signal_hint: string;
+  confidence: number;
+}
+
 export interface AgentEvent {
   run_id: string;
   agent: string;
@@ -111,6 +144,9 @@ export interface RunResult {
   sentinel_output: SentinelOutput | null;
   sage_output: SageOutput[];
   scribe_output: ScribeOutput | null;
+  sentiment_outputs: SentimentOutput[];
+  fundamental_outputs: FundamentalOutput[];
+  options_flow_outputs: OptionsFlowOutput[];
   insights: string[];
   confidence_score: number;
 }
