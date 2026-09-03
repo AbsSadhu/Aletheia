@@ -10,10 +10,15 @@ POST  /hypotheses/{id}/evidence
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from aletheia.core.config.settings import get_settings
+
+if TYPE_CHECKING:
+    from aletheia.extensions.hypotheses.registry import HypothesisRegistry
 
 router = APIRouter(prefix="/api/v1")
 
@@ -38,7 +43,7 @@ class LinkBacktestRequest(BaseModel):
     backtest_run_id: str
 
 
-def _get_hypothesis_registry():
+def _get_hypothesis_registry() -> HypothesisRegistry:
     settings = get_settings()
     from aletheia.extensions.hypotheses.registry import HypothesisRegistry
 

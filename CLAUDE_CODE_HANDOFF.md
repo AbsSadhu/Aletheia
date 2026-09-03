@@ -101,7 +101,7 @@ Welcome to Aletheia! This document serves as a single-pass onboarding blueprint 
 | **Live Market Feed** | Sprint 3A | `aletheia-stream` | 🔲 Planned | Confirmed absent — `aletheia_engine` has zero websocket deps; genuinely the biggest remaining backend gap. |
 | **PDF/Excel Report Exporter** | Sprint 4A | `reporting/exporter.py` | **✅ Done** | Jinja2 + WeasyPrint (HTML fallback if not installed) + openpyxl, wired to `GET /runs/{id}/export?format=pdf\|excel`. |
 | **Backtest Frontend Page** | Sprint 3B | `pages/Backtest.tsx` | **✅ Done** | Built 2026-09-04 — form, metrics, equity curve, orders table. |
-| **Hypotheses Frontend Page** | Sprint 3B | `pages/Hypotheses.tsx` | **✅ Done** | Built 2026-09-04 alongside three backend bug fixes (`backtest_run_id` persistence, `Evidence` field-name mismatch, missing `link-backtest` endpoint — see `docs/ROADMAP.md` §1D). Propose/list/transition/evidence/link-backtest all wired and live-tested against a running backend. |
+| **Hypotheses Frontend Page** | Sprint 3B | `pages/Hypotheses.tsx` | **✅ Done** | Built 2026-09-04 alongside three backend bug fixes (`backtest_run_id` persistence, `Evidence` field-name mismatch, missing `link-backtest` endpoint — see `docs/ROADMAP.md` §1D). All five endpoints were curl-tested end-to-end against a running backend to confirm the request/response shapes the page uses; the page itself is typecheck/build-verified but not yet exercised in a browser (Chrome extension unavailable this session). |
 
 ---
 
