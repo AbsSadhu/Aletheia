@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: "3.13"
 
     - name: Install dependencies
       run: |
@@ -39,12 +39,14 @@ jobs:
       run: |
         poetry run ruff format --check .
 
-    - name: Run Mypy (Type Check)
-      # TODO: currently ~260 pre-existing errors (mostly missing return-type
-      # annotations); flip to blocking once those are triaged/fixed.
-      continue-on-error: true
+    - name: Run Mypy (Type Check, gated against baseline)
+      # 232 pre-existing errors are snapshotted in mypy-baseline.txt (mostly
+      # missing return-type annotations) — this gate only fails on errors
+      # NOT already in that file, i.e. new type errors in new/changed code.
+      # Update the baseline (`poetry run mypy aletheia | poetry run
+      # mypy-baseline sync`) as pre-existing errors get fixed for real.
       run: |
-        poetry run mypy aletheia
+        poetry run mypy aletheia | poetry run mypy-baseline filter
 
     - name: Python Dependency Audit
       run: |
@@ -115,12 +117,10 @@ jobs:
     - name: Run Integration Tests
       run: |
         poetry run pytest tests/integration/ -v --timeout=60
-      continue-on-error: true
 
     - name: Run All Other Tests
       run: |
         poetry run pytest tests/ --ignore=tests/unit --ignore=tests/integration -v
-      continue-on-error: true
 
     - name: Upload Coverage Report
       uses: actions/upload-artifact@v4
