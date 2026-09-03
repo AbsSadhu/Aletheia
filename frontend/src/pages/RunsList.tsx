@@ -23,6 +23,8 @@ export default function RunsList() {
 
   useEffect(() => {
     void refresh();
+    const interval = setInterval(() => void refresh(), 15_000);
+    return () => clearInterval(interval);
   }, []);
 
   async function handleNewRun() {
