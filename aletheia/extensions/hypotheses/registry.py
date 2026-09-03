@@ -63,8 +63,8 @@ class HypothesisRegistry:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO hypotheses
-                (id, title, description, status, test_criteria, evidence, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (id, title, description, status, test_criteria, evidence, backtest_run_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     hypo.id,
@@ -73,6 +73,7 @@ class HypothesisRegistry:
                     hypo.status,
                     hypo.test_criteria,
                     evidence_json,
+                    hypo.backtest_run_id,
                     hypo.created_at.isoformat(),
                     hypo.updated_at.isoformat(),
                 ),
@@ -95,6 +96,7 @@ class HypothesisRegistry:
                     status=row["status"],
                     test_criteria=row["test_criteria"],
                     evidence=evidence_list,
+                    backtest_run_id=row["backtest_run_id"],
                     created_at=datetime.fromisoformat(row["created_at"]),
                     updated_at=datetime.fromisoformat(row["updated_at"]),
                 )
@@ -121,6 +123,7 @@ class HypothesisRegistry:
                         status=row["status"],
                         test_criteria=row["test_criteria"],
                         evidence=evidence_list,
+                        backtest_run_id=row["backtest_run_id"],
                         created_at=datetime.fromisoformat(row["created_at"]),
                         updated_at=datetime.fromisoformat(row["updated_at"]),
                     )
@@ -155,15 +158,11 @@ class HypothesisRegistry:
         if hypo is None:
             raise ValueError(f"Hypothesis '{hypo_id}' not found")
 
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                "UPDATE hypotheses SET backtest_run_id = ?, updated_at = ? WHERE id = ?",
-                (backtest_run_id, datetime.now(UTC).isoformat(), hypo_id),
-            )
-            conn.commit()
-
+        hypo.backtest_run_id = backtest_run_id
+        hypo.updated_at = datetime.now(UTC)
+        self.save(hypo)
         logger.info("Hypothesis %s linked to backtest %s", hypo_id, backtest_run_id)
-        return self.get(hypo_id)  # type: ignore[return-value]
+        return hypo
 
     def add_evidence(self, hypo_id: str, source: str, summary: str, supports: bool) -> Hypothesis:
         """Append a new evidence entry to a hypothesis."""
@@ -171,7 +170,9 @@ class HypothesisRegistry:
         if hypo is None:
             raise ValueError(f"Hypothesis '{hypo_id}' not found")
 
-        hypo.evidence.append(Evidence(source=source, summary=summary, supports=supports))
+        hypo.evidence.append(
+            Evidence(source=source, description=summary, supports_hypothesis=supports)
+        )
         hypo.updated_at = datetime.now(UTC)
         self.save(hypo)
         return hypo

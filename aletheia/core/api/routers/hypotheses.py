@@ -4,6 +4,7 @@ GET   /hypotheses
 POST  /hypotheses
 GET   /hypotheses/{id}
 PATCH /hypotheses/{id}/transition
+POST  /hypotheses/{id}/link-backtest
 POST  /hypotheses/{id}/evidence
 """
 
@@ -31,6 +32,10 @@ class AddEvidenceRequest(BaseModel):
     source: str
     summary: str
     supports: bool
+
+
+class LinkBacktestRequest(BaseModel):
+    backtest_run_id: str
 
 
 def _get_hypothesis_registry():
@@ -74,6 +79,16 @@ async def transition_hypothesis(hypo_id: str, request: TransitionRequest) -> dic
         hypo = reg.transition(hypo_id, request.new_status)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    return hypo.model_dump(mode="json")
+
+
+@router.post("/hypotheses/{hypo_id}/link-backtest")
+async def link_hypothesis_backtest(hypo_id: str, request: LinkBacktestRequest) -> dict:
+    reg = _get_hypothesis_registry()
+    try:
+        hypo = reg.link_to_backtest(hypo_id, request.backtest_run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     return hypo.model_dump(mode="json")
 
 

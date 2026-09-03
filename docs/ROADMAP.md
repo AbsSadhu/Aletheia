@@ -103,7 +103,16 @@
 
 #### 1D. Hypothesis Lifecycle ✅
 - [x] State machine: proposed → testing → validated → rejected
-- [x] `link_to_backtest()` — connect hypothesis to backtest run
+- [x] `link_to_backtest()` — connect hypothesis to backtest run, now exposed
+  via `POST /api/v1/hypotheses/{id}/link-backtest` (previously registry-only,
+  unreachable from the API). Fixed 2026-09-04 along with two other real
+  bugs found while researching the frontend page: `save()` omitted
+  `backtest_run_id` from its column list, so any later save (e.g. via
+  `transition()`) silently wiped the link back to NULL; and
+  `add_evidence()` constructed `Evidence` with kwargs (`summary`/`supports`)
+  that don't exist on the model (`description`/`supports_hypothesis` are the
+  real fields), so every call to `POST /hypotheses/{id}/evidence` raised a
+  pydantic `ValidationError`. See `tests/unit/test_hypothesis_registry.py`.
 - [x] CLI commands: `aletheia hypothesis propose/test/validate/reject`
 - [x] `GET/POST /api/v1/hypotheses` endpoint
 
