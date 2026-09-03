@@ -8,6 +8,8 @@ import {
   TrendingUp,
   FlaskConical,
   Ghost,
+  LineChart,
+  Lightbulb,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -16,6 +18,8 @@ const NAV_ITEMS = [
   { to: "/portfolio", icon: Briefcase, label: "Portfolio" },
   { to: "/paper-trades", icon: TrendingUp, label: "Paper Trades" },
   { to: "/shadow-trader", icon: Ghost, label: "Shadow Trader" },
+  { to: "/backtest", icon: LineChart, label: "Backtest" },
+  { to: "/hypotheses", icon: Lightbulb, label: "Hypotheses" },
   { to: "/factors", icon: FlaskConical, label: "Factor Explorer" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];

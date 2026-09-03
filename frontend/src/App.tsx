@@ -10,6 +10,8 @@ import SettingsPage from "./pages/Settings";
 import PaperTrades from "./pages/PaperTrades";
 import FactorExplorer from "./pages/FactorExplorer";
 import ShadowTrader from "./pages/ShadowTrader";
+import Backtest from "./pages/Backtest";
+import Hypotheses from "./pages/Hypotheses";
 import { fetchHealth } from "./lib/api";
 
 export default function App() {
@@ -41,6 +43,8 @@ export default function App() {
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/paper-trades" element={<PaperTrades />} />
           <Route path="/shadow-trader" element={<ShadowTrader />} />
+          <Route path="/backtest" element={<Backtest />} />
+          <Route path="/hypotheses" element={<Hypotheses />} />
           <Route path="/factors" element={<FactorExplorer />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>

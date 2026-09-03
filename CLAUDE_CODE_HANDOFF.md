@@ -100,8 +100,8 @@ Welcome to Aletheia! This document serves as a single-pass onboarding blueprint 
 | **Shadow Account (Paper Trading)** | Sprint 3C | `extensions/shadow_account/` | **✅ Done** | `EntryExitScanner` auto-generates trades from Oracle signals; SQLite persistence, equity curve, `ShadowTrader.tsx` frontend page all real. |
 | **Live Market Feed** | Sprint 3A | `aletheia-stream` | 🔲 Planned | Confirmed absent — `aletheia_engine` has zero websocket deps; genuinely the biggest remaining backend gap. |
 | **PDF/Excel Report Exporter** | Sprint 4A | `reporting/exporter.py` | **✅ Done** | Jinja2 + WeasyPrint (HTML fallback if not installed) + openpyxl, wired to `GET /runs/{id}/export?format=pdf\|excel`. |
-| **Backtest Frontend Page** | Sprint 3B | — | 🔲 Missing | Backend (`POST /api/v1/backtest`) and the API client function (`runBacktest()`) are real; no page calls it. Zero backend work needed to close this. |
-| **Hypotheses Frontend Page** | Sprint 3B | — | 🔲 Missing | Backend (`hypotheses.py` router + `HypothesisRegistry`) is fully real and correct as of 2026-09-04 (fixed a `backtest_run_id` persistence bug, an `Evidence` field-name mismatch, and added a missing `link-backtest` endpoint — see `docs/ROADMAP.md` §1D); no frontend page exists at all yet. |
+| **Backtest Frontend Page** | Sprint 3B | `pages/Backtest.tsx` | **✅ Done** | Built 2026-09-04 — form, metrics, equity curve, orders table. |
+| **Hypotheses Frontend Page** | Sprint 3B | `pages/Hypotheses.tsx` | **✅ Done** | Built 2026-09-04 alongside three backend bug fixes (`backtest_run_id` persistence, `Evidence` field-name mismatch, missing `link-backtest` endpoint — see `docs/ROADMAP.md` §1D). Propose/list/transition/evidence/link-backtest all wired and live-tested against a running backend. |
 
 ---
 
@@ -282,13 +282,16 @@ Aletheia/
 - **To modify compute calculations**: Edit [aletheia_rust/src/lib.rs](file:///c:/Aletheia/aletheia_rust/src/lib.rs) and re-run `maturin develop` inside your virtual environment.
 - **Next High Priority Items** (reconciled against actual code 2026-09-03 —
   see `docs/ROADMAP.md` for full detail on each):
-  1. Build the Backtest and Hypotheses frontend pages — both backends are
-     fully real and unused; this is the cheapest high-value work available.
-  2. Implement `aletheia-stream` in the Rust sidecar for WebSocket
+  1. Implement `aletheia-stream` in the Rust sidecar for WebSocket
      Binance/NSE live pricing — confirmed completely unbuilt, the biggest
      single remaining backend gap.
-  3. Implement native Tauri desktop notifications and deep links
+  2. Implement native Tauri desktop notifications and deep links
      (`aletheia://run/{id}`) — sidecar auto-launch and system tray are
      already done, these two are what's left in Sprint 4B.
+  3. Hypothesis auto-validation (backtest auto-runs on propose, auto-advance
+     on a Sharpe threshold) — the registry and Hypotheses page are both now
+     real; `transition()` is still only ever called manually.
 
-  (pyo3 `0.22` → `0.29` is done as of 2026-09-04 — no longer on this list.)
+  (pyo3 `0.22` → `0.29` is done as of 2026-09-04, and the Backtest and
+  Hypotheses frontend pages are done as of 2026-09-04 — neither is on this
+  list anymore.)

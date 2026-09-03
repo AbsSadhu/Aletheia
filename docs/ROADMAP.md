@@ -211,11 +211,16 @@ is a from-scratch subsystem, not a partial build.
   final `RunResult` payload only (no incremental WS events for them yet).
 - [x] Portfolio page: real CRUD wired to `/api/v1/portfolios`
   (`frontend/src/pages/Portfolio.tsx`, `frontend/src/lib/api.ts:131-149`).
-- [ ] Backtest page: **missing** — `runBacktest()` already exists in
-  `frontend/src/lib/api.ts:338` and the backend endpoint is real, but no
-  page/component calls it. Zero-backend-work item.
-- [ ] Hypotheses page: **missing** — backend (`hypotheses.py` router +
-  `extensions/hypotheses/registry.py`) is fully real; no frontend at all.
+- [x] Backtest page: built 2026-09-04 (`frontend/src/pages/Backtest.tsx`) —
+  form for symbols/date range/strategy/capital, metrics cards, equity-curve
+  chart (Recharts, same pattern as `ShadowTrader.tsx`), orders table.
+  `runBacktest()` (`frontend/src/lib/api.ts`) is now properly typed against
+  `BacktestResult` instead of returning `any`.
+- [x] Hypotheses page: built 2026-09-04 (`frontend/src/pages/Hypotheses.tsx`)
+  — propose form, list with status filter, detail panel with status
+  transitions, evidence log + add-evidence form, and backtest linking via
+  the new `link-backtest` endpoint (see §1D above for the backend bugs
+  fixed alongside this).
 - [x] RunsList: fixed 2026-09-04 — now polls every 15s
   (`frontend/src/pages/RunsList.tsx`), same pattern as Dashboard above.
 
