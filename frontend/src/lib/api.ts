@@ -1,4 +1,11 @@
-import type { AgentEvent, HealthData, PortfolioData, RunResult, RunSummary } from "./types";
+import type {
+  AgentEvent,
+  BacktestResult,
+  HealthData,
+  PortfolioData,
+  RunResult,
+  RunSummary,
+} from "./types";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8899";
@@ -341,8 +348,85 @@ export async function runBacktest(config: {
   end_date: string;
   strategy?: string;
   initial_capital?: number;
-}): Promise<any> {
-  return apiPost("/api/v1/backtest", config);
+}): Promise<BacktestResult> {
+  return apiPost<BacktestResult>("/api/v1/backtest", config);
+}
+
+// ---------------------------------------------------------------------------
+// Hypotheses
+// ---------------------------------------------------------------------------
+
+export interface Evidence {
+  source: string;
+  description: string;
+  date_added: string;
+  supports_hypothesis: boolean;
+}
+
+export interface Hypothesis {
+  id: string;
+  title: string;
+  description: string;
+  status: "proposed" | "testing" | "validated" | "rejected";
+  test_criteria: string;
+  evidence: Evidence[];
+  backtest_run_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listHypotheses(status?: string): Promise<{ hypotheses: Hypothesis[] }> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  return apiGet<{ hypotheses: Hypothesis[] }>(`/api/v1/hypotheses${qs}`);
+}
+
+export async function getHypothesis(id: string): Promise<Hypothesis> {
+  return apiGet<Hypothesis>(`/api/v1/hypotheses/${encodeURIComponent(id)}`);
+}
+
+export async function proposeHypothesis(
+  title: string,
+  description: string,
+  test_criteria: string,
+): Promise<Hypothesis> {
+  return apiPost<Hypothesis>("/api/v1/hypotheses", { title, description, test_criteria });
+}
+
+export async function transitionHypothesis(id: string, new_status: string): Promise<Hypothesis> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/hypotheses/${encodeURIComponent(id)}/transition`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ new_status }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to transition hypothesis: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function addHypothesisEvidence(
+  id: string,
+  source: string,
+  summary: string,
+  supports: boolean,
+): Promise<Hypothesis> {
+  return apiPost<Hypothesis>(`/api/v1/hypotheses/${encodeURIComponent(id)}/evidence`, {
+    source,
+    summary,
+    supports,
+  });
+}
+
+export async function linkHypothesisToBacktest(
+  id: string,
+  backtest_run_id: string,
+): Promise<Hypothesis> {
+  return apiPost<Hypothesis>(`/api/v1/hypotheses/${encodeURIComponent(id)}/link-backtest`, {
+    backtest_run_id,
+  });
 }
 
 // ---------------------------------------------------------------------------

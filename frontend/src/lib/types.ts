@@ -151,6 +151,42 @@ export interface RunResult {
   confidence_score: number;
 }
 
+export interface BacktestOrder {
+  id: string;
+  symbol: string;
+  order_type: string;
+  action: string;
+  quantity: number;
+  price: number | null;
+  status: string;
+  created_at: string;
+  filled_at: string | null;
+  filled_price: number | null;
+}
+
+export interface BacktestEquityPoint {
+  step: number;
+  value: number;
+}
+
+export interface BacktestResult {
+  strategy_name: string;
+  start_date: string;
+  end_date: string;
+  initial_capital: number;
+  final_capital: number;
+  total_return: number;
+  metrics: {
+    sharpe_ratio: number;
+    max_drawdown: number;
+    win_rate: number;
+    profit_factor: number;
+    total_trades: number;
+  };
+  orders: BacktestOrder[];
+  equity_curve: BacktestEquityPoint[];
+}
+
 export interface Holding {
   symbol: string;
   quantity: number;
