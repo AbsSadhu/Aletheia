@@ -298,7 +298,13 @@ class MarketDataEngine:
                 WHERE symbol = ? AND exchange = ? AND timeframe = ? AND ts >= ? AND ts < ?
                 ORDER BY ts ASC
                 """,
-                (symbol.upper(), exchange, timeframe, start_dt.replace(tzinfo=None), end_dt.replace(tzinfo=None)),
+                (
+                    symbol.upper(),
+                    exchange,
+                    timeframe,
+                    start_dt.replace(tzinfo=None),
+                    end_dt.replace(tzinfo=None),
+                ),
             ).fetchall()
         return [
             Candle(

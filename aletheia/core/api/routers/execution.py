@@ -1,13 +1,13 @@
 """Paper-trading execution and live-gate state endpoints.
 
-  POST /execution/paper-order
-  GET  /execution/paper-trades
-  GET  /execution/positions
-  GET  /execution/state
-  POST /execution/mode
-  POST /execution/pause
-  POST /execution/resume
-  POST /execution/paper-trades/{trade_id}/settle
+POST /execution/paper-order
+GET  /execution/paper-trades
+GET  /execution/positions
+GET  /execution/state
+POST /execution/mode
+POST /execution/pause
+POST /execution/resume
+POST /execution/paper-trades/{trade_id}/settle
 """
 
 from __future__ import annotations
@@ -45,9 +45,7 @@ async def list_paper_trades(limit: int = 50) -> dict:
 @router.get("/execution/positions")
 async def list_paper_positions() -> dict:
     trader = get_paper_trader()
-    return {
-        "positions": [position.model_dump(mode="json") for position in trader.list_positions()]
-    }
+    return {"positions": [position.model_dump(mode="json") for position in trader.list_positions()]}
 
 
 @router.get("/execution/state")

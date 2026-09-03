@@ -29,6 +29,7 @@ console = Console()
 
 def _get_paper_trader():
     from aletheia.core.api.dependencies import get_paper_trader
+
     return get_paper_trader()
 
 
@@ -61,10 +62,14 @@ def show_trades(
     table.add_column("Timestamp", style="dim")
 
     for trade in trades:
-        side_style = "[bold green]BUY[/bold green]" if trade.side == "BUY" else "[bold red]SELL[/bold red]"
+        side_style = (
+            "[bold green]BUY[/bold green]" if trade.side == "BUY" else "[bold red]SELL[/bold red]"
+        )
         pnl = trade.simulated_pnl
-        pnl_style = f"[green]+{pnl:.2f}[/green]" if pnl > 0 else (
-            f"[red]{pnl:.2f}[/red]" if pnl < 0 else f"[dim]{pnl:.2f}[/dim]"
+        pnl_style = (
+            f"[green]+{pnl:.2f}[/green]"
+            if pnl > 0
+            else (f"[red]{pnl:.2f}[/red]" if pnl < 0 else f"[dim]{pnl:.2f}[/dim]")
         )
         actual = getattr(trade, "actual_close", None)
         actual_str = f"{actual:.2f}" if actual is not None else "[dim]–[/dim]"
@@ -108,8 +113,10 @@ def show_positions():
 
     for pos in positions:
         rpnl = pos.realized_pnl
-        rpnl_str = f"[green]+{rpnl:.2f}[/green]" if rpnl > 0 else (
-            f"[red]{rpnl:.2f}[/red]" if rpnl < 0 else f"{rpnl:.2f}"
+        rpnl_str = (
+            f"[green]+{rpnl:.2f}[/green]"
+            if rpnl > 0
+            else (f"[red]{rpnl:.2f}[/red]" if rpnl < 0 else f"{rpnl:.2f}")
         )
         table.add_row(
             pos.symbol,
@@ -127,7 +134,9 @@ def show_positions():
 @app.command(name="settle")
 def settle_trades(
     trade_date: Optional[str] = typer.Option(
-        None, "--date", "-d",
+        None,
+        "--date",
+        "-d",
         help="Date to settle trades (YYYY-MM-DD). Defaults to yesterday.",
     ),
 ):
@@ -151,8 +160,10 @@ def settle_trades(
     date_str = settle_date.isoformat()
 
     to_settle = [
-        t for t in trades
-        if t.timestamp.date() <= settle_date and t.side == "BUY"
+        t
+        for t in trades
+        if t.timestamp.date() <= settle_date
+        and t.side == "BUY"
         and getattr(t, "actual_close", None) is None
     ]
 
@@ -165,9 +176,7 @@ def settle_trades(
     settled = 0
     for trade in to_settle:
         try:
-            actual_close = asyncio.run(
-                _fetch_close_price(trader, trade.symbol, trade.exchange)
-            )
+            actual_close = asyncio.run(_fetch_close_price(trader, trade.symbol, trade.exchange))
             if actual_close is not None:
                 asyncio.run(trader.settle_trade(trade.trade_id, actual_close))
                 pnl = (actual_close - trade.simulated_fill_price) * trade.simulated_qty
@@ -205,7 +214,9 @@ def summary():
     console.print("\n[bold cyan]📊 Paper Trading Summary[/bold cyan]")
     console.print(f"  Total trades:     {len(trades)}")
     console.print(f"  Closed trades:    {len(sell_trades)}")
-    pnl_colored = f"[green]+₹{total_pnl:.2f}[/green]" if total_pnl >= 0 else f"[red]₹{total_pnl:.2f}[/red]"
+    pnl_colored = (
+        f"[green]+₹{total_pnl:.2f}[/green]" if total_pnl >= 0 else f"[red]₹{total_pnl:.2f}[/red]"
+    )
     console.print(f"  Total P&L:        {pnl_colored}")
     console.print(f"  Win rate:         {win_rate:.1f}% ({wins}W / {losses}L)")
     console.print(f"  Profit factor:    {pf:.2f}")
@@ -215,6 +226,7 @@ def summary():
 
 async def _fetch_close_price(trader, symbol: str, exchange: str) -> float | None:
     from aletheia.core.marketdata.models import MarketDataRequest
+
     try:
         quote = await trader.market_data.get_quote(
             MarketDataRequest(symbol=symbol, exchange=exchange)

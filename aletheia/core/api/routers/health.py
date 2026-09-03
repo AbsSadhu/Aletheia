@@ -1,9 +1,9 @@
 """Health and metrics endpoints.
 
-  GET /health
-  GET /health/ready
-  GET /health/details
-  GET /metrics
+GET /health
+GET /health/ready
+GET /health/details
+GET /metrics
 """
 
 from __future__ import annotations

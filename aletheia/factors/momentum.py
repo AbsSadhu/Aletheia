@@ -114,7 +114,11 @@ class MomentumScoreFactor(Factor):
 
     def compute(self, ohlcv: pd.DataFrame) -> FactorOutput:
         closes = ohlcv["close"].astype(float)
-        roc = (closes.iloc[-1] - closes.iloc[-self.lookback_periods]) / closes.iloc[-self.lookback_periods] * 100
+        roc = (
+            (closes.iloc[-1] - closes.iloc[-self.lookback_periods])
+            / closes.iloc[-self.lookback_periods]
+            * 100
+        )
         norm = self._normalize(roc, -20, 20)
         signal = self._signal_from_normalized(norm)
         conf = min(0.85, 0.4 + abs(roc) / 20 * 0.45)

@@ -1,6 +1,6 @@
 """Extended portfolio risk metrics endpoint.
 
-  GET /risk/metrics
+GET /risk/metrics
 """
 
 from __future__ import annotations

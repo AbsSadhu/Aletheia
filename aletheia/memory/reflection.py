@@ -126,14 +126,22 @@ class ReflectionEngine:
         """Fallback critique generation when LLM is unavailable."""
         total = len(observations)
         correct = sum(
-            1 for obs in observations
-            if self._is_directionally_correct(obs.get("observation", ""), outcomes.get(obs.get("ticker", ""), 0.0))
+            1
+            for obs in observations
+            if self._is_directionally_correct(
+                obs.get("observation", ""), outcomes.get(obs.get("ticker", ""), 0.0)
+            )
         )
         accuracy = correct / total if total > 0 else 0.0
         avg_conf = sum(o.get("confidence", 0.5) for o in observations) / total if total > 0 else 0.5
 
-        bias = "overconfident" if avg_conf > 0.75 and accuracy < 0.5 else \
-               "underconfident" if avg_conf < 0.4 and accuracy > 0.6 else "calibrated"
+        bias = (
+            "overconfident"
+            if avg_conf > 0.75 and accuracy < 0.5
+            else "underconfident"
+            if avg_conf < 0.4 and accuracy > 0.6
+            else "calibrated"
+        )
 
         return (
             f"Self-critique for {agent_name.upper()} (last {total} observations):\n"
@@ -147,7 +155,9 @@ class ReflectionEngine:
         """Heuristic: observation contains BUY/bullish and return was positive, or SELL/bearish and negative."""
         obs_lower = observation.lower()
         is_bullish = any(w in obs_lower for w in ("buy", "bullish", "long", "increase", "upside"))
-        is_bearish = any(w in obs_lower for w in ("sell", "bearish", "short", "decrease", "downside"))
+        is_bearish = any(
+            w in obs_lower for w in ("sell", "bearish", "short", "decrease", "downside")
+        )
         if is_bullish and return_pct > 0:
             return True
         if is_bearish and return_pct < 0:

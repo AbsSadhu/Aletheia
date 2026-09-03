@@ -1,9 +1,9 @@
 """Semantic/episodic memory search and per-agent working-memory endpoints.
 
-  GET /memory/search
-  GET /memory/vector-search
-  GET /memory/{agent_name}
-  GET /memory/{agent_name}/critique
+GET /memory/search
+GET /memory/vector-search
+GET /memory/{agent_name}
+GET /memory/{agent_name}/critique
 """
 
 from __future__ import annotations
@@ -53,6 +53,7 @@ async def get_agent_memory(
 ) -> dict:
     """Retrieve working memory observations for a given agent."""
     from aletheia.memory.working_memory import WorkingMemory
+
     wm = WorkingMemory()
     observations = wm.list_all_observations(
         agent_name=agent_name,
@@ -66,6 +67,7 @@ async def get_agent_memory(
 async def get_agent_critique(agent_name: str) -> dict:
     """Retrieve latest self-critique for a given agent."""
     from aletheia.memory.working_memory import WorkingMemory
+
     wm = WorkingMemory()
     critique = wm.get_latest_critique(agent_name)
     critiques = wm.get_critiques(agent_name, limit=5)

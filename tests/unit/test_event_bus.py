@@ -1,9 +1,9 @@
 """
 Unit tests for the Aletheia EventBus.
 """
+
 from __future__ import annotations
 
-import asyncio
 import pytest
 
 from aletheia.core.events.bus import EventBus, Event, Topics, reset_event_bus, get_event_bus
@@ -43,9 +43,14 @@ class TestEventBusBasics:
     async def test_multiple_subscribers_all_called(self):
         counts: list[int] = [0, 0, 0]
 
-        async def h1(e): counts[0] += 1
-        async def h2(e): counts[1] += 1
-        async def h3(e): counts[2] += 1
+        async def h1(e):
+            counts[0] += 1
+
+        async def h2(e):
+            counts[1] += 1
+
+        async def h3(e):
+            counts[2] += 1
 
         bus = EventBus()
         bus.subscribe("shared", h1)
@@ -59,8 +64,11 @@ class TestEventBusBasics:
     async def test_error_in_subscriber_does_not_block_others(self):
         results: list[str] = []
 
-        async def bad(e): raise ValueError("intentional failure")
-        async def good(e): results.append("ok")
+        async def bad(e):
+            raise ValueError("intentional failure")
+
+        async def good(e):
+            results.append("ok")
 
         bus = EventBus()
         bus.subscribe("topic", bad)
@@ -93,8 +101,11 @@ class TestWildcardSubscriptions:
     async def test_exact_and_wildcard_both_trigger(self):
         counts = {"exact": 0, "wild": 0}
 
-        async def exact_h(e): counts["exact"] += 1
-        async def wild_h(e): counts["wild"] += 1
+        async def exact_h(e):
+            counts["exact"] += 1
+
+        async def wild_h(e):
+            counts["wild"] += 1
 
         bus = EventBus()
         bus.subscribe(Topics.ORACLE_SIGNAL, exact_h)
@@ -109,7 +120,8 @@ class TestUnsubscribe:
     async def test_unsubscribe_stops_delivery(self):
         calls: list[int] = []
 
-        async def handler(e): calls.append(1)
+        async def handler(e):
+            calls.append(1)
 
         bus = EventBus()
         bus.subscribe("topic", handler)

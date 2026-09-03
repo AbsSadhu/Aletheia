@@ -10,6 +10,7 @@ Tests the full paper trade API surface:
 6. Memory search via vector-search endpoint
 7. Risk metrics (no completed runs = graceful None)
 """
+
 from __future__ import annotations
 
 import pytest

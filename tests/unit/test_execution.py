@@ -45,7 +45,9 @@ def test_paper_trader_buy_and_sell(tmp_path: Path) -> None:
         assert len(trader.list_positions()) == 1
 
         sell = await trader.submit_order(
-            OrderRequest(symbol="RELIANCE", exchange="NSE", side="SELL", quantity=4, limit_price=110)
+            OrderRequest(
+                symbol="RELIANCE", exchange="NSE", side="SELL", quantity=4, limit_price=110
+            )
         )
         assert sell.simulated_pnl == 40.0
         positions = trader.list_positions()

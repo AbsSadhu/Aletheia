@@ -70,12 +70,7 @@ class FactorRegistry:
 
     def _register_from_module(self, mod: Any) -> None:
         for _, cls in inspect.getmembers(mod, inspect.isclass):
-            if (
-                issubclass(cls, Factor)
-                and cls is not Factor
-                and hasattr(cls, "name")
-                and cls.name
-            ):
+            if issubclass(cls, Factor) and cls is not Factor and hasattr(cls, "name") and cls.name:
                 try:
                     instance = cls()
                     self._factors[cls.name] = instance
@@ -137,7 +132,9 @@ class FactorRegistry:
         for output in results.values():
             if output.value != output.value:  # NaN check
                 continue
-            direction = 1.0 if output.signal == "BUY" else (-1.0 if output.signal == "SELL" else 0.0)
+            direction = (
+                1.0 if output.signal == "BUY" else (-1.0 if output.signal == "SELL" else 0.0)
+            )
             weight = output.confidence
             score_sum += direction * weight
             weight_sum += weight

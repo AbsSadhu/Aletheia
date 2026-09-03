@@ -15,7 +15,9 @@ class VWAPDeviationFactor(Factor):
     category = "volume"
     lookback_periods = 20
     expected_sign = "negative"
-    description = "Deviation of current price from VWAP — mean reversion signal via volume-weighted price"
+    description = (
+        "Deviation of current price from VWAP — mean reversion signal via volume-weighted price"
+    )
 
     def compute(self, ohlcv: pd.DataFrame) -> FactorOutput:
         closes = ohlcv["close"].astype(float)
@@ -23,8 +25,9 @@ class VWAPDeviationFactor(Factor):
 
         # Rolling VWAP over lookback_periods
         typical_price = (ohlcv["high"].astype(float) + ohlcv["low"].astype(float) + closes) / 3
-        vwap = (typical_price * volumes).rolling(self.lookback_periods).sum() / \
-               volumes.rolling(self.lookback_periods).sum()
+        vwap = (typical_price * volumes).rolling(self.lookback_periods).sum() / volumes.rolling(
+            self.lookback_periods
+        ).sum()
 
         last_close = float(closes.iloc[-1])
         last_vwap = float(vwap.iloc[-1])
@@ -121,7 +124,7 @@ class OBVTrendFactor(Factor):
         obv = (direction * volumes).cumsum()
 
         # Slope of OBV over lookback
-        obv_tail = obv.iloc[-self.lookback_periods:]
+        obv_tail = obv.iloc[-self.lookback_periods :]
         if len(obv_tail) < 2:
             slope = 0.0
         else:

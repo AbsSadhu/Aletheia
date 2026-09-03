@@ -4,11 +4,9 @@ Dedicated unit tests for the ICScorer.
 These tests exercise Spearman IC computation, persistence, history retrieval,
 and factor status classification. They require scipy (pip install scipy).
 """
+
 from __future__ import annotations
 
-import math
-import tempfile
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -19,6 +17,7 @@ import pytest
 def scorer(tmp_path):
     """Return a fresh ICScorer backed by a temp SQLite db."""
     from aletheia.factors.ic_scorer import ICScorer
+
     return ICScorer(db_path=tmp_path / "test_ic.db")
 
 
@@ -52,7 +51,7 @@ def random_data():
 
 class TestICComputation:
     def test_perfect_correlation_ic_positive(self, scorer, perfect_data):
-        scipy = pytest.importorskip("scipy")  # skip gracefully if not installed
+        pytest.importorskip("scipy")  # skip gracefully if not installed
         values, returns = perfect_data
         result = scorer.compute_ic("test_factor", values, returns)
         assert result.ic > 0.9, f"Expected IC close to 1, got {result.ic}"

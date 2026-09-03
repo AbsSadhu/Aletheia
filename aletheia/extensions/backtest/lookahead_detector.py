@@ -105,10 +105,12 @@ class LookAheadGuard:
             assert_no_lookahead(df, self.decision_timestamp, timestamp_col)
             return True
         except LookAheadViolation as exc:
-            self.violations.append({
-                "message": str(exc),
-                "decision_ts": str(self.decision_timestamp),
-            })
+            self.violations.append(
+                {
+                    "message": str(exc),
+                    "decision_ts": str(self.decision_timestamp),
+                }
+            )
             if raise_on_violation:
                 raise
             return False

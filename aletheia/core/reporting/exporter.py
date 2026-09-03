@@ -34,6 +34,7 @@ def _flatten_run_data(run: dict[str, Any]) -> dict[str, Any]:
     result = run.get("result_json") or run.get("result") or {}
     if isinstance(result, str):
         import json
+
         try:
             result = json.loads(result)
         except Exception:
@@ -46,9 +47,7 @@ def _flatten_run_data(run: dict[str, Any]) -> dict[str, Any]:
     portfolio_name = portfolio.get("name", "Unknown Portfolio")
 
     # Calculate portfolio value
-    portfolio_value = sum(
-        (h.get("quantity", 0) * h.get("average_price", 0)) for h in holdings
-    )
+    portfolio_value = sum((h.get("quantity", 0) * h.get("average_price", 0)) for h in holdings)
 
     # Extract recommendations
     recommendations = result.get("recommendations") or []
@@ -60,12 +59,14 @@ def _flatten_run_data(run: dict[str, Any]) -> dict[str, Any]:
     risk_raw = result.get("risk_metrics") or {}
     risk = None
     if risk_raw:
+
         class _Risk:
             def __init__(self, d: dict):
                 self.var_95 = float(d.get("var_95", 0))
                 self.sharpe = float(d.get("sharpe", 0))
                 self.max_drawdown = float(d.get("max_drawdown", 0))
                 self.win_rate = float(d.get("win_rate", 0.5))
+
         risk = _Risk(risk_raw)
 
     # Tax scenarios
@@ -114,6 +115,7 @@ def export_pdf(run: dict[str, Any]) -> bytes:
     html_str = render_html(run)
     try:
         from weasyprint import HTML  # type: ignore[import-untyped]
+
         pdf_bytes: bytes = HTML(string=html_str).write_pdf()
         return pdf_bytes
     except ImportError:
@@ -169,7 +171,7 @@ def export_excel(run: dict[str, Any]) -> bytes:
         ("Portfolio", ctx["portfolio_name"]),
         ("Portfolio Value (₹)", ctx["portfolio_value"]),
         ("Holdings", str(ctx["num_holdings"])),
-        ("Confidence", f"{ctx['confidence']*100:.0f}%"),
+        ("Confidence", f"{ctx['confidence'] * 100:.0f}%"),
         ("Verdict", ctx["overall_verdict"]),
     ]
     ws_summary.append([])  # blank row
@@ -190,13 +192,20 @@ def export_excel(run: dict[str, Any]) -> bytes:
     ws_h = wb.create_sheet("Holdings")
     title_row(ws_h, "Portfolio Holdings", 1, 6)
     ws_h.append([])
-    header_row(ws_h, ["Symbol", "Exchange", "Quantity", "Avg Price (₹)", "Value (₹)", "Asset Type"], 3)
+    header_row(
+        ws_h, ["Symbol", "Exchange", "Quantity", "Avg Price (₹)", "Value (₹)", "Asset Type"], 3
+    )
     for h in ctx["holdings"]:
-        ws_h.append([
-            h.get("symbol"), h.get("exchange"), h.get("quantity"),
-            h.get("average_price"), h.get("quantity", 0) * h.get("average_price", 0),
-            h.get("asset_type"),
-        ])
+        ws_h.append(
+            [
+                h.get("symbol"),
+                h.get("exchange"),
+                h.get("quantity"),
+                h.get("average_price"),
+                h.get("quantity", 0) * h.get("average_price", 0),
+                h.get("asset_type"),
+            ]
+        )
     for col in range(1, 7):
         ws_h.column_dimensions[get_column_letter(col)].width = 18
 
@@ -206,11 +215,15 @@ def export_excel(run: dict[str, Any]) -> bytes:
     ws_r.append([])
     header_row(ws_r, ["Symbol", "Action", "Target Price", "Confidence", "Reasoning"], 3)
     for rec in ctx["recommendations"]:
-        ws_r.append([
-            rec.get("symbol"), rec.get("action"),
-            rec.get("target_price"), f"{rec.get('confidence', 0)*100:.0f}%",
-            (rec.get("reasoning") or "")[:500],
-        ])
+        ws_r.append(
+            [
+                rec.get("symbol"),
+                rec.get("action"),
+                rec.get("target_price"),
+                f"{rec.get('confidence', 0) * 100:.0f}%",
+                (rec.get("reasoning") or "")[:500],
+            ]
+        )
     ws_r.column_dimensions["E"].width = 60
 
     # --- Sheet 4: Tax Scenarios ---
@@ -219,10 +232,15 @@ def export_excel(run: dict[str, Any]) -> bytes:
     ws_t.append([])
     header_row(ws_t, ["Scenario", "Duration", "Tax Rate (%)", "Est. Tax (₹)", "Net Return (₹)"], 3)
     for s in ctx.get("tax_scenarios") or []:
-        ws_t.append([
-            s.get("label"), s.get("duration"), s.get("tax_rate"),
-            s.get("estimated_tax"), s.get("net_return"),
-        ])
+        ws_t.append(
+            [
+                s.get("label"),
+                s.get("duration"),
+                s.get("tax_rate"),
+                s.get("estimated_tax"),
+                s.get("net_return"),
+            ]
+        )
 
     buf = io.BytesIO()
     wb.save(buf)

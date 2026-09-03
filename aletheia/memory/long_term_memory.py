@@ -114,7 +114,8 @@ class LongTermMemory:
             worst = sorted_by_conf[-1]["observation"] if len(sorted_by_conf) > 1 else ""
 
             with self._conn() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO l2_weekly_rollups
                         (agent_name, ticker, week_start, best_call, worst_call,
                          avg_confidence, call_count, created_at)
@@ -125,11 +126,18 @@ class LongTermMemory:
                         worst_call=excluded.worst_call,
                         avg_confidence=excluded.avg_confidence,
                         call_count=excluded.call_count
-                """, (
-                    agent_name, ticker, week_start[:10], best, worst,
-                    sum(confidences) / len(confidences) if confidences else 0.5,
-                    len(obs_list), now,
-                ))
+                """,
+                    (
+                        agent_name,
+                        ticker,
+                        week_start[:10],
+                        best,
+                        worst,
+                        sum(confidences) / len(confidences) if confidences else 0.5,
+                        len(obs_list),
+                        now,
+                    ),
+                )
             promoted += 1
             logger.debug("Promoted %s/%s L1→L2 (%d obs)", agent_name, ticker, len(obs_list))
 
@@ -154,11 +162,14 @@ class LongTermMemory:
             avg_conf = sum(r["avg_confidence"] for r in rollups) / len(rollups)
             total_calls = sum(r["call_count"] for r in rollups)
             best_calls = [r["best_call"] for r in rollups if r["best_call"]]
-            pattern = f"Monthly summary ({len(rollups)} weeks, {total_calls} calls). Top signals: " + \
-                      " | ".join(best_calls[:3])
+            pattern = (
+                f"Monthly summary ({len(rollups)} weeks, {total_calls} calls). Top signals: "
+                + " | ".join(best_calls[:3])
+            )
 
             with self._conn() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT INTO l3_monthly_summaries
                         (agent_name, ticker, month, pattern_summary, avg_confidence, call_count, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -167,7 +178,9 @@ class LongTermMemory:
                         pattern_summary=excluded.pattern_summary,
                         avg_confidence=excluded.avg_confidence,
                         call_count=excluded.call_count
-                """, (agent_name, ticker, month, pattern, avg_conf, total_calls, now))
+                """,
+                    (agent_name, ticker, month, pattern, avg_conf, total_calls, now),
+                )
             promoted += 1
 
         return promoted
@@ -222,7 +235,9 @@ class LongTermMemory:
         if l3:
             parts.append("MONTHLY PATTERNS (L3):")
             for r in l3:
-                parts.append(f"  {r['month']}: {r['pattern_summary'][:150] if r['pattern_summary'] else 'N/A'}")
+                parts.append(
+                    f"  {r['month']}: {r['pattern_summary'][:150] if r['pattern_summary'] else 'N/A'}"
+                )
 
         return "\n".join(parts) if parts else ""
 

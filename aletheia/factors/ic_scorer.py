@@ -15,8 +15,10 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+
 try:
     from scipy import stats as _scipy_stats
+
     _HAS_SCIPY = True
 except ImportError:
     _scipy_stats = None  # type: ignore
@@ -122,7 +124,11 @@ class ICScorer:
             logger.warning("Not enough observations for IC calculation: %d", len(aligned))
             result = ICResult(
                 factor_name=factor_name,
-                ic=0.0, ic_std=0.0, icir=0.0, t_stat=0.0, p_value=1.0,
+                ic=0.0,
+                ic_std=0.0,
+                icir=0.0,
+                t_stat=0.0,
+                p_value=1.0,
                 n_observations=len(aligned),
                 computed_at=datetime.now(UTC),
                 status="dead",
@@ -157,11 +163,12 @@ class ICScorer:
         # More robust than ttest_1samp([ic]) which gives NaN for n=1
         n_windows = len(aligned)
         if ic_std > 0 and n_windows > 1:
-            t_stat = ic * (n_windows ** 0.5) / ic_std
+            t_stat = ic * (n_windows**0.5) / ic_std
         else:
             t_stat = 0.0
         # Sanitize NaN/Inf that could arise from edge cases
         import math as _math
+
         if _math.isnan(t_stat) or _math.isinf(t_stat):
             t_stat = 0.0
         if _math.isnan(float(p_val)) or _math.isinf(float(p_val)):
@@ -191,15 +198,24 @@ class ICScorer:
 
     def _store(self, result: ICResult) -> None:
         with self._conn() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO factor_ic
                     (factor_name, ic, ic_std, icir, t_stat, p_value, n_obs, status, computed_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                result.factor_name, result.ic, result.ic_std, result.icir,
-                result.t_stat, result.p_value, result.n_observations,
-                result.status, result.computed_at.isoformat(),
-            ))
+            """,
+                (
+                    result.factor_name,
+                    result.ic,
+                    result.ic_std,
+                    result.icir,
+                    result.t_stat,
+                    result.p_value,
+                    result.n_observations,
+                    result.status,
+                    result.computed_at.isoformat(),
+                ),
+            )
 
     def get_latest_score(self, factor_name: str) -> ICResult | None:
         with self._conn() as conn:
