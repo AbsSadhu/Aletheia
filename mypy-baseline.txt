@@ -255,6 +255,7 @@ aletheia/core/api/routers/hypotheses.py:0: error: Returning Any from function de
 aletheia/core/api/routers/hypotheses.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
 aletheia/core/api/routers/hypotheses.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
 aletheia/core/api/routers/hypotheses.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
+aletheia/core/api/routers/hypotheses.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
 aletheia/core/api/routers/chat.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/core/api/routers/backtest.py:0: error: Argument "duckdb_path" to "HistoricalDataFeed" has incompatible type "Path"; expected "str"  [arg-type]
 aletheia/core/marketdata/engine.py:0: error: Function is missing a return type annotation  [no-untyped-def]
