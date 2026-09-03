@@ -53,8 +53,10 @@ fastmcp = ">=4.0.0"
 pytest = ">=8.3.2"
 pytest-asyncio = ">=0.23.8"
 pytest-cov = ">=5.0.0"
+pytest-timeout = ">=2.3.1"
 ruff = ">=0.6.4"
 mypy = ">=1.11.1"
+mypy-baseline = ">=0.7.0"
 pip-audit = "^2.7.3"
 pre-commit = "^3.8.0"
 detect-secrets = "^1.5.0"
@@ -71,7 +73,27 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.mypy]
-python_version = "3.11"
+# 3.13 to match the actual dev/CI interpreter — numpy's shipped stubs use
+# PEP 695 `type` statements (3.12+ syntax) that mypy can't parse when
+# targeting 3.11, even though the project's own runtime requirement
+# (pyproject [tool.poetry.dependencies]) stays >=3.11.
+python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+# Third-party deps with no maintained type stubs (upstream or on PyPI as a
+# types-* package) — ignoring missing imports for these, not hiding real
+# errors in our own code.
+[[tool.mypy.overrides]]
+module = [
+    "ccxt",
+    "duckduckgo_search",
+    "kiteconnect",
+    "openpyxl.*",
+    "pandas",
+    "praw",
+    "scipy",
+    "yfinance",
+]
+ignore_missing_imports = true
