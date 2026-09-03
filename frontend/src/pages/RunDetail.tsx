@@ -15,6 +15,9 @@ import {
   CheckCircle2,
   Download,
   FileSpreadsheet,
+  Newspaper,
+  Building2,
+  Activity,
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8899";
@@ -36,7 +39,7 @@ import TopBar from "../components/TopBar";
 import { getRun, getRunEvents, getWebSocketUrl } from "../lib/api";
 import type { RunResult, AgentEvent } from "../lib/types";
 
-const TABS = ["Overview", "Oracle Signals", "Risk", "Tax Scenarios", "Recommendations", "Live Timeline"] as const;
+const TABS = ["Overview", "Oracle Signals", "Risk", "Tax Scenarios", "Extended Signals", "Recommendations", "Live Timeline"] as const;
 type Tab = (typeof TABS)[number];
 
 const AGENT_STEPS = [
@@ -176,6 +179,9 @@ export default function RunDetail() {
   const sentinel = run.sentinel_output;
   const oracleOutputs = run.oracle_output ?? [];
   const sageOutputs = run.sage_output ?? [];
+  const sentimentOutputs = run.sentiment_outputs ?? [];
+  const fundamentalOutputs = run.fundamental_outputs ?? [];
+  const optionsFlowOutputs = run.options_flow_outputs ?? [];
   const insights = run.insights ?? [];
   const collectorOutput = run.collector_output ?? [];
   const recs = scribe?.recommendations ?? [];
@@ -624,6 +630,172 @@ export default function RunDetail() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Extended Signals Tab */}
+        {tab === "Extended Signals" && (
+          <div>
+            {sentimentOutputs.length === 0 && fundamentalOutputs.length === 0 && optionsFlowOutputs.length === 0 && (
+              <div className="card" style={{ textAlign: "center", padding: "var(--space-8)" }}>
+                <div className="empty-state-title">No extended signals for this run</div>
+                <div className="empty-state-text">
+                  Sentiment, fundamentals, and options-flow analysis are optional agents and may not run for every portfolio.
+                </div>
+              </div>
+            )}
+
+            {sentimentOutputs.length > 0 && (
+              <div style={{ marginBottom: "var(--space-5)" }}>
+                <div className="card-subtitle" style={{ marginBottom: "var(--space-3)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Newspaper size={14} /> Sentiment
+                </div>
+                <div className="grid-auto">
+                  {sentimentOutputs.map((s) => (
+                    <div className="card" key={s.symbol}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "var(--text-lg)" }}>
+                          {s.symbol}
+                        </span>
+                        <span
+                          className={`badge ${
+                            s.verdict === "STRONGLY_POSITIVE" || s.verdict === "POSITIVE"
+                              ? "badge-buy"
+                              : s.verdict === "STRONGLY_NEGATIVE" || s.verdict === "NEGATIVE"
+                                ? "badge-reduce"
+                                : "badge-hold"
+                          }`}
+                        >
+                          {s.verdict.replace("_", " ")}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", gap: "var(--space-4)", marginBottom: "var(--space-3)" }}>
+                        <div>
+                          <div className="stat-label">Sentiment Score</div>
+                          <div className={`stat-change ${s.sentiment_score > 0 ? "positive" : s.sentiment_score < 0 ? "negative" : "neutral"}`}>
+                            {s.sentiment_score > 0 ? "+" : ""}{s.sentiment_score.toFixed(2)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="stat-label">Headlines</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{s.headline_count}</div>
+                        </div>
+                      </div>
+                      {s.top_headlines.length > 0 && (
+                        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
+                          {s.top_headlines.slice(0, 3).map((h, i) => (
+                            <span key={i}>• {h}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {fundamentalOutputs.length > 0 && (
+              <div style={{ marginBottom: "var(--space-5)" }}>
+                <div className="card-subtitle" style={{ marginBottom: "var(--space-3)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Building2 size={14} /> Fundamentals
+                </div>
+                <div className="grid-auto">
+                  {fundamentalOutputs.map((f) => (
+                    <div className="card" key={f.symbol}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "var(--text-lg)" }}>
+                          {f.symbol}
+                        </span>
+                        <span
+                          className={`badge ${
+                            f.valuation_verdict === "UNDERVALUED"
+                              ? "badge-buy"
+                              : f.valuation_verdict === "OVERVALUED"
+                                ? "badge-reduce"
+                                : "badge-hold"
+                          }`}
+                        >
+                          {f.valuation_verdict}
+                        </span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)", marginBottom: "var(--space-3)" }}>
+                        <div>
+                          <div className="stat-label">P/E Ratio</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{f.pe_ratio?.toFixed(1) ?? "—"}</div>
+                        </div>
+                        <div>
+                          <div className="stat-label">Sector P/E</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{f.sector_pe?.toFixed(1) ?? "—"}</div>
+                        </div>
+                        <div>
+                          <div className="stat-label">EPS Growth</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{f.eps_growth_pct != null ? `${f.eps_growth_pct.toFixed(1)}%` : "—"}</div>
+                        </div>
+                        <div>
+                          <div className="stat-label">Revenue Growth</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{f.revenue_growth_pct != null ? `${f.revenue_growth_pct.toFixed(1)}%` : "—"}</div>
+                        </div>
+                        <div>
+                          <div className="stat-label">Debt/Equity</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{f.debt_to_equity?.toFixed(2) ?? "—"}</div>
+                        </div>
+                        <div>
+                          <div className="stat-label">Promoter Holding</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{f.promoter_holding_pct != null ? `${f.promoter_holding_pct.toFixed(1)}%` : "—"}</div>
+                        </div>
+                      </div>
+                      {f.valuation_commentary && (
+                        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{f.valuation_commentary}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {optionsFlowOutputs.length > 0 && (
+              <div>
+                <div className="card-subtitle" style={{ marginBottom: "var(--space-3)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Activity size={14} /> Options Flow
+                </div>
+                <div className="grid-auto">
+                  {optionsFlowOutputs.map((o) => (
+                    <div className="card" key={o.symbol}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "var(--text-lg)" }}>
+                          {o.symbol}
+                        </span>
+                        <span
+                          className={`badge ${
+                            o.oi_concentration === "BULLISH_OI" ? "badge-buy" : o.oi_concentration === "BEARISH_OI" ? "badge-reduce" : "badge-hold"
+                          }`}
+                        >
+                          {o.oi_concentration.replace("_", " ")}
+                        </span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)", marginBottom: "var(--space-3)" }}>
+                        <div>
+                          <div className="stat-label">Put/Call Ratio</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{o.put_call_ratio.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <div className="stat-label">IV Rank</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{o.iv_rank.toFixed(0)}</div>
+                        </div>
+                        <div>
+                          <div className="stat-label">Max Pain</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{o.max_pain_level?.toLocaleString("en-IN") ?? "—"}</div>
+                        </div>
+                        <div>
+                          <div className="stat-label">Signal Hint</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)" }}>{o.signal_hint}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
