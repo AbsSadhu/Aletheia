@@ -61,10 +61,12 @@ language should pass all of the relevant ones, not just the Python suite.
 | Frontend | `npm run test` inside `frontend/` |
 | Frontend build/typecheck | `npm run build` inside `frontend/` |
 
-All of the above run in CI (`.github/workflows/ci.yml`) on every PR, except
-`tests/integration` and the Rust dependency audits, which are currently
-non-blocking (`continue-on-error`) — see the comments in that file for why,
-and don't rely on them being green as a merge gate yet.
+All of the above run in CI (`.github/workflows/ci.yml`) on every PR and are
+blocking merge gates — including `tests/integration` and the Rust dependency
+audits (`aletheia_rust`, `aletheia_engine`), which used to be
+`continue-on-error` but no longer are. Unit-test coverage is also gated
+(`--cov-fail-under=35`, see the comment in `ci.yml` for the honest-floor
+rationale) — don't drop coverage below that on a PR.
 
 ## Before opening a PR
 
@@ -75,11 +77,15 @@ and don't rely on them being green as a merge gate yet.
   rather than disabling the hook). The `don't commit to branch` hook will
   always report "Failed" when you run it standalone like this on `main` —
   that's expected, it only actually blocks a real `git commit` on `main`.
-- `.venv\Scripts\python.exe -m mypy aletheia` is informative but **not**
-  currently a merge gate — there's a real pre-existing backlog (~260 errors,
-  mostly missing return-type annotations) being worked down gradually. New
-  code should still be typed; don't feel obligated to fix unrelated
-  pre-existing errors in files you're just passing through.
+- `.venv\Scripts\python.exe -m mypy aletheia` **is** a merge gate, but only
+  against a baseline: `mypy-baseline.txt` snapshots ~232 pre-existing errors
+  (mostly missing return-type annotations), and CI only fails on errors *not*
+  already in that file — i.e. new type errors in new/changed code. Run
+  `poetry run mypy aletheia | poetry run mypy-baseline filter` locally to see
+  what CI sees. New code should still be typed; don't feel obligated to fix
+  unrelated pre-existing errors in files you're just passing through, but if
+  you do fix some for real, re-sync the baseline
+  (`poetry run mypy aletheia | poetry run mypy-baseline sync`) in the same PR.
 - If you touched anything under `aletheia/core/api/` or `aletheia/core/api/routers/`,
   sanity-check the route list didn't change unexpectedly: hit `/docs` on a
   running backend and eyeball the endpoint list, or diff `app.openapi()`'s
