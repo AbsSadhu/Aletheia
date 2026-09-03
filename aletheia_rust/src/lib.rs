@@ -55,13 +55,13 @@ impl Xorshift128Plus {
 // ============================================================
 
 #[pyfunction]
-fn assess_portfolio_risk_rust(
-    py: Python<'_>,
-    portfolio: Bound<'_, PyAny>,
-    quotes_by_symbol: Bound<'_, PyDict>,
-) -> PyResult<PyObject> {
+fn assess_portfolio_risk_rust<'py>(
+    py: Python<'py>,
+    portfolio: Bound<'py, PyAny>,
+    quotes_by_symbol: Bound<'py, PyDict>,
+) -> PyResult<Bound<'py, PyAny>> {
     let holdings_py = portfolio.getattr("holdings")?;
-    let holdings: Bound<'_, PyList> = holdings_py.downcast_into()?;
+    let holdings: Bound<'_, PyList> = holdings_py.cast_into::<PyList>()?;
 
     let mut values = HashMap::new();
     let mut holdings_data = Vec::new();
@@ -124,14 +124,14 @@ fn assess_portfolio_risk_rust(
         confidence = 0.2;
     }
 
-    let result = PyDict::new_bound(py);
+    let result = PyDict::new(py);
     result.set_item("portfolio_var_95", (portfolio_var_95 * 100.0).round() / 100.0)?;
     result.set_item("concentration_risk", concentration_risk)?;
     result.set_item("max_single_position_pct", (max_weight * 10000.0).round() / 100.0)?;
     result.set_item("market_regime", regime)?;
     result.set_item("confidence", confidence)?;
     result.set_item("alerts", alerts)?;
-    Ok(result.into())
+    Ok(result.into_any())
 }
 
 // ============================================================
@@ -149,17 +149,17 @@ fn tax_drag(profile: &str) -> f64 {
 }
 
 #[pyfunction]
-fn build_tax_summary_rust(py: Python<'_>, tax_profile_str: String, pre_tax_profit: f64) -> PyResult<PyObject> {
+fn build_tax_summary_rust<'py>(py: Python<'py>, tax_profile_str: String, pre_tax_profit: f64) -> PyResult<Bound<'py, PyAny>> {
     let drag = tax_drag(&tax_profile_str);
     let tax_amt = pre_tax_profit.max(0.0) * drag;
     let post_tax = pre_tax_profit - tax_amt;
-    let r = PyDict::new_bound(py);
+    let r = PyDict::new(py);
     r.set_item("tax_profile", tax_profile_str)?;
     r.set_item("pre_tax_profit", (pre_tax_profit * 100.0).round() / 100.0)?;
     r.set_item("tax_drag_pct", (drag * 10000.0).round() / 100.0)?;
     r.set_item("estimated_tax_amount", (tax_amt * 100.0).round() / 100.0)?;
     r.set_item("post_tax_profit", (post_tax * 100.0).round() / 100.0)?;
-    Ok(r.into())
+    Ok(r.into_any())
 }
 
 // ============================================================
@@ -167,12 +167,12 @@ fn build_tax_summary_rust(py: Python<'_>, tax_profile_str: String, pre_tax_profi
 // ============================================================
 
 #[pyfunction]
-fn build_scenario_rust(
-    py: Python<'_>,
-    holding: Bound<'_, PyAny>,
-    quote: Bound<'_, PyAny>,
+fn build_scenario_rust<'py>(
+    py: Python<'py>,
+    holding: Bound<'py, PyAny>,
+    quote: Bound<'py, PyAny>,
     conviction: f64,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let symbol: String = holding.getattr("symbol")?.extract::<String>()?.to_uppercase();
     let quantity: f64 = holding.getattr("quantity")?.extract::<f64>()?;
     let average_price: f64 = holding.getattr("average_price")?.extract::<f64>()?;
@@ -198,25 +198,25 @@ fn build_scenario_rust(
         format!("Projected pre-tax return is {:.2}% based on mark-to-market drift and conviction.", projected_return_pct),
         format!("Estimated tax drag for {} is {:.2}%.", tax_profile_str, drag * 100.0),
     ];
-    let tax_summary = PyDict::new_bound(py);
+    let tax_summary = PyDict::new(py);
     tax_summary.set_item("tax_profile", &tax_profile_str)?;
     tax_summary.set_item("pre_tax_profit", (pre_tax_profit * 100.0).round() / 100.0)?;
     tax_summary.set_item("tax_drag_pct", (drag * 10000.0).round() / 100.0)?;
     tax_summary.set_item("estimated_tax_amount", (tax_amt * 100.0).round() / 100.0)?;
     tax_summary.set_item("post_tax_profit", (post_tax * 100.0).round() / 100.0)?;
-    let scenario = PyDict::new_bound(py);
+    let scenario = PyDict::new(py);
     scenario.set_item("scenario_name", "base_tax_aware_projection")?;
     scenario.set_item("projected_return_pct", (projected_return_pct * 100.0).round() / 100.0)?;
     scenario.set_item("projected_post_tax_return_pct", (post_tax_return_pct * 100.0).round() / 100.0)?;
     scenario.set_item("projected_sharpe", (sharpe * 100.0).round() / 100.0)?;
     scenario.set_item("tax_summary", tax_summary)?;
-    let result = PyDict::new_bound(py);
+    let result = PyDict::new(py);
     result.set_item("symbol", symbol)?;
     result.set_item("scenario", scenario)?;
     let raw_conf = (0.45 + conviction * 0.4).min(0.9).max(0.2);
     result.set_item("confidence", (raw_conf * 100.0).round() / 100.0)?;
     result.set_item("rationale", rationale)?;
-    Ok(result.into())
+    Ok(result.into_any())
 }
 
 // ============================================================
@@ -224,17 +224,17 @@ fn build_scenario_rust(
 // ============================================================
 
 #[pyfunction]
-fn options_pricing_rust(
-    py: Python<'_>,
+fn options_pricing_rust<'py>(
+    py: Python<'py>,
     s: f64, k: f64, t: f64, r: f64, v: f64, is_call: bool,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     if t <= 0.0 || v <= 0.0 {
         let price = if is_call { (s - k).max(0.0) } else { (k - s).max(0.0) };
-        let r = PyDict::new_bound(py);
+        let r = PyDict::new(py);
         r.set_item("price", price)?;
         r.set_item("delta", if price > 0.0 { if is_call { 1.0 } else { -1.0 } } else { 0.0 })?;
         r.set_item("gamma", 0.0)?; r.set_item("theta", 0.0)?; r.set_item("vega", 0.0)?;
-        return Ok(r.into());
+        return Ok(r.into_any());
     }
     let d1 = ((s / k).ln() + (r + v * v / 2.0) * t) / (v * t.sqrt());
     let d2 = d1 - v * t.sqrt();
@@ -254,10 +254,10 @@ fn options_pricing_rust(
     };
     let gamma = npdf_d1 / (s * v * t.sqrt());
     let vega = s * t.sqrt() * npdf_d1;
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("price", price)?; res.set_item("delta", delta)?;
     res.set_item("gamma", gamma)?; res.set_item("theta", theta)?; res.set_item("vega", vega)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -265,13 +265,13 @@ fn options_pricing_rust(
 // ============================================================
 
 #[pyfunction]
-fn monte_carlo_var_rust(
-    py: Python<'_>,
+fn monte_carlo_var_rust<'py>(
+    py: Python<'py>,
     portfolio_value: f64,
     daily_vol: f64,
     simulations: usize,
     confidence_level: f64,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let mut rng = Xorshift128Plus::new(0xDEAD_BEEF_CAFE_1337);
     let mut losses: Vec<f64> = Vec::with_capacity(simulations);
 
@@ -284,11 +284,11 @@ fn monte_carlo_var_rust(
     let idx = ((1.0 - confidence_level) * simulations as f64) as usize;
     let var = if idx < losses.len() { losses[idx] } else { losses[losses.len() - 1] };
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("var", var)?;
     res.set_item("simulations", simulations)?;
     res.set_item("confidence_level", confidence_level)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -297,14 +297,14 @@ fn monte_carlo_var_rust(
 // ============================================================
 
 #[pyfunction]
-fn monte_carlo_portfolio_paths_rust(
-    py: Python<'_>,
+fn monte_carlo_portfolio_paths_rust<'py>(
+    py: Python<'py>,
     initial_value: f64,
     daily_vol: f64,
     daily_drift: f64,
     n_paths: usize,
     n_days: usize,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let mut rng = Xorshift128Plus::new(0xABCD_1234_EF56_7890);
 
     // Generate all paths
@@ -341,7 +341,7 @@ fn monte_carlo_portfolio_paths_rust(
     let final_values: Vec<f64> = paths.iter().map(|p| p[n_days]).collect();
     let mean_final = final_values.iter().sum::<f64>() / n_paths as f64;
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     for (label, series) in &pct_series {
         res.set_item(*label, series)?;
     }
@@ -349,7 +349,7 @@ fn monte_carlo_portfolio_paths_rust(
     res.set_item("n_days", n_days)?;
     res.set_item("initial_value", initial_value)?;
     res.set_item("mean_final", (mean_final * 100.0).round() / 100.0)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -357,11 +357,11 @@ fn monte_carlo_portfolio_paths_rust(
 // ============================================================
 
 #[pyfunction]
-fn calculate_technical_indicators_rust(
-    py: Python<'_>,
+fn calculate_technical_indicators_rust<'py>(
+    py: Python<'py>,
     closes: Vec<f64>,
     window: usize,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let n = closes.len();
     let mut sma: Vec<Option<f64>> = Vec::with_capacity(n);
     let mut ema: Vec<Option<f64>> = Vec::with_capacity(n);
@@ -406,11 +406,11 @@ fn calculate_technical_indicators_rust(
         }
     }
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("sma", sma)?;
     res.set_item("ema", ema)?;
     res.set_item("rsi", rsi)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -419,13 +419,13 @@ fn calculate_technical_indicators_rust(
 // ============================================================
 
 #[pyfunction]
-fn calculate_macd_rust(
-    py: Python<'_>,
+fn calculate_macd_rust<'py>(
+    py: Python<'py>,
     closes: Vec<f64>,
     fast: usize,
     slow: usize,
     signal: usize,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let ema_vec = |data: &[f64], period: usize| -> Vec<f64> {
         let m = 2.0 / (period as f64 + 1.0);
         let mut e = Vec::with_capacity(data.len());
@@ -443,11 +443,11 @@ fn calculate_macd_rust(
     let signal_line = ema_vec(&macd_line, signal);
     let histogram: Vec<f64> = macd_line.iter().zip(signal_line.iter()).map(|(m, s)| m - s).collect();
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("macd_line", macd_line)?;
     res.set_item("signal_line", signal_line)?;
     res.set_item("histogram", histogram)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -455,12 +455,12 @@ fn calculate_macd_rust(
 // ============================================================
 
 #[pyfunction]
-fn calculate_bollinger_bands_rust(
-    py: Python<'_>,
+fn calculate_bollinger_bands_rust<'py>(
+    py: Python<'py>,
     closes: Vec<f64>,
     window: usize,
     num_std: f64,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let n = closes.len();
     let mut upper = vec![None::<f64>; n];
     let mut middle = vec![None::<f64>; n];
@@ -482,13 +482,13 @@ fn calculate_bollinger_bands_rust(
         pct_b[i] = Some(if u != l { (closes[i] - l) / (u - l) } else { 0.5 });
     }
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("upper", upper)?;
     res.set_item("middle", middle)?;
     res.set_item("lower", lower)?;
     res.set_item("bandwidth", bandwidth)?;
     res.set_item("pct_b", pct_b)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -496,13 +496,13 @@ fn calculate_bollinger_bands_rust(
 // ============================================================
 
 #[pyfunction]
-fn calculate_atr_rust(
-    py: Python<'_>,
+fn calculate_atr_rust<'py>(
+    py: Python<'py>,
     highs: Vec<f64>,
     lows: Vec<f64>,
     closes: Vec<f64>,
     window: usize,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let n = closes.len();
     if n < 2 { return Err(pyo3::exceptions::PyValueError::new_err("Need at least 2 data points")); }
 
@@ -527,10 +527,10 @@ fn calculate_atr_rust(
         }
     }
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("tr", tr)?;
     res.set_item("atr", atr)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -538,13 +538,13 @@ fn calculate_atr_rust(
 // ============================================================
 
 #[pyfunction]
-fn calculate_vwap_rust(
-    py: Python<'_>,
+fn calculate_vwap_rust<'py>(
+    py: Python<'py>,
     highs: Vec<f64>,
     lows: Vec<f64>,
     closes: Vec<f64>,
     volumes: Vec<f64>,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let n = closes.len();
     let mut vwap = Vec::with_capacity(n);
     let mut cum_vol = 0.0;
@@ -557,9 +557,9 @@ fn calculate_vwap_rust(
         vwap.push(if cum_vol > 0.0 { cum_tp_vol / cum_vol } else { typical_price });
     }
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("vwap", vwap)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -567,11 +567,11 @@ fn calculate_vwap_rust(
 // ============================================================
 
 #[pyfunction]
-fn calculate_obv_rust(
-    py: Python<'_>,
+fn calculate_obv_rust<'py>(
+    py: Python<'py>,
     closes: Vec<f64>,
     volumes: Vec<f64>,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let n = closes.len();
     let mut obv = Vec::with_capacity(n);
     let mut current_obv: f64 = 0.0;
@@ -581,9 +581,9 @@ fn calculate_obv_rust(
         else if closes[i] < closes[i - 1] { current_obv -= volumes[i]; }
         obv.push(current_obv);
     }
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("obv", obv)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -591,14 +591,14 @@ fn calculate_obv_rust(
 // ============================================================
 
 #[pyfunction]
-fn calculate_stochastic_rust(
-    py: Python<'_>,
+fn calculate_stochastic_rust<'py>(
+    py: Python<'py>,
     highs: Vec<f64>,
     lows: Vec<f64>,
     closes: Vec<f64>,
     k_period: usize,
     d_period: usize,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let n = closes.len();
     let mut k_raw = vec![None::<f64>; n];
     let mut d_values = vec![None::<f64>; n];
@@ -620,10 +620,10 @@ fn calculate_stochastic_rust(
         }
     }
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("pct_k", k_raw)?;
     res.set_item("pct_d", d_values)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -632,7 +632,7 @@ fn calculate_stochastic_rust(
 // ============================================================
 
 #[pyfunction]
-fn correlation_matrix_rust(py: Python<'_>, returns_matrix: Vec<Vec<f64>>) -> PyResult<PyObject> {
+fn correlation_matrix_rust<'py>(py: Python<'py>, returns_matrix: Vec<Vec<f64>>) -> PyResult<Bound<'py, PyAny>> {
     let n = returns_matrix.len();
     if n == 0 { return Err(pyo3::exceptions::PyValueError::new_err("Empty returns matrix")); }
 
@@ -661,10 +661,10 @@ fn correlation_matrix_rust(py: Python<'_>, returns_matrix: Vec<Vec<f64>>) -> PyR
         }
     }
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("matrix", matrix)?;
     res.set_item("n_assets", n)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -672,12 +672,12 @@ fn correlation_matrix_rust(py: Python<'_>, returns_matrix: Vec<Vec<f64>>) -> PyR
 // ============================================================
 
 #[pyfunction]
-fn rolling_correlation_rust(
-    py: Python<'_>,
+fn rolling_correlation_rust<'py>(
+    py: Python<'py>,
     series_a: Vec<f64>,
     series_b: Vec<f64>,
     window: usize,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let n = series_a.len().min(series_b.len());
     let mut corr = vec![None::<f64>; n];
 
@@ -692,9 +692,9 @@ fn rolling_correlation_rust(
         corr[i] = Some(if sa * sb > 0.0 { cov / (sa * sb) } else { 0.0 });
     }
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("rolling_corr", corr)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -744,7 +744,7 @@ fn calculate_calmar_rust(returns: Vec<f64>, periods_per_year: f64) -> f64 {
 }
 
 #[pyfunction]
-fn calculate_max_drawdown_rust(py: Python<'_>, equity_curve: Vec<f64>) -> PyResult<PyObject> {
+fn calculate_max_drawdown_rust<'py>(py: Python<'py>, equity_curve: Vec<f64>) -> PyResult<Bound<'py, PyAny>> {
     if equity_curve.is_empty() {
         return Err(pyo3::exceptions::PyValueError::new_err("Empty equity curve"));
     }
@@ -771,7 +771,7 @@ fn calculate_max_drawdown_rust(py: Python<'_>, equity_curve: Vec<f64>) -> PyResu
     let drawdown_duration = trough_idx - dd_start;
     let recovery_period = recovery_idx.map(|r| r - trough_idx);
 
-    let res = PyDict::new_bound(py);
+    let res = PyDict::new(py);
     res.set_item("max_drawdown", max_dd)?;
     res.set_item("max_drawdown_pct", (max_dd * 10000.0).round() / 100.0)?;
     res.set_item("drawdown_start_idx", dd_start)?;
@@ -779,7 +779,7 @@ fn calculate_max_drawdown_rust(py: Python<'_>, equity_curve: Vec<f64>) -> PyResu
     res.set_item("drawdown_duration", drawdown_duration)?;
     res.set_item("recovery_period", recovery_period)?;
     res.set_item("underwater", underwater)?;
-    Ok(res.into())
+    Ok(res.into_any())
 }
 
 // ============================================================
@@ -966,15 +966,15 @@ fn brier_score_rust(predictions: Vec<f64>, outcomes: Vec<f64>) -> PyResult<f64> 
 /// Detect market regime from a return series using a simplified 2- or 3-state HMM.
 /// Returns a dict: {"current_regime": "low_vol_bull", "regime_sequence": [...], "regime_labels": [...]}
 #[pyfunction]
-fn regime_detection_rust(py: Python<'_>, returns: Vec<f64>, n_regimes: u8) -> PyResult<PyObject> {
+fn regime_detection_rust<'py>(py: Python<'py>, returns: Vec<f64>, n_regimes: u8) -> PyResult<Bound<'py, PyAny>> {
     let n = returns.len();
     let k = n_regimes.clamp(2, 3) as usize;
     if n < k + 1 {
-        let d = PyDict::new_bound(py);
+        let d = PyDict::new(py);
         d.set_item("current_regime", "insufficient_data")?;
         d.set_item("regime_sequence", Vec::<usize>::new())?;
         d.set_item("regime_labels", Vec::<&str>::new())?;
-        return Ok(d.into());
+        return Ok(d.into_any());
     }
 
     // Compute mean and std of returns for initialisation
@@ -1050,13 +1050,13 @@ fn regime_detection_rust(py: Python<'_>, returns: Vec<f64>, n_regimes: u8) -> Py
     let current_label = regimes[current_idx].2;
     let labels: Vec<&str> = regimes.iter().map(|(_, _, l)| *l).collect();
 
-    let d = PyDict::new_bound(py);
+    let d = PyDict::new(py);
     d.set_item("current_regime", current_label)?;
     d.set_item("current_regime_index", current_idx)?;
     d.set_item("regime_sequence", sequence)?;
     d.set_item("regime_labels", labels)?;
     d.set_item("n_regimes", k)?;
-    Ok(d.into())
+    Ok(d.into_any())
 }
 
 // ============================================================
@@ -1067,13 +1067,13 @@ fn regime_detection_rust(py: Python<'_>, returns: Vec<f64>, n_regimes: u8) -> Py
 /// All inputs are excess returns (already risk-free adjusted) or raw returns.
 /// Returns: {"alpha", "beta", "smb_loading", "hml_loading", "r_squared"}
 #[pyfunction]
-fn fama_french_rust(
-    py: Python<'_>,
+fn fama_french_rust<'py>(
+    py: Python<'py>,
     returns: Vec<f64>,
     market_returns: Vec<f64>,
     smb: Vec<f64>,
     hml: Vec<f64>,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     let n = returns.len();
     if n < 5 || market_returns.len() != n || smb.len() != n || hml.len() != n {
         return Err(pyo3::exceptions::PyValueError::new_err(
@@ -1144,13 +1144,13 @@ fn fama_french_rust(
     let ss_tot: f64 = returns.iter().map(|y| (y - y_mean).powi(2)).sum();
     let r_squared = if ss_tot > 1e-12 { 1.0 - ss_res / ss_tot } else { 0.0 };
 
-    let d = PyDict::new_bound(py);
+    let d = PyDict::new(py);
     d.set_item("alpha", (alpha * 1e6).round() / 1e6)?;
     d.set_item("beta", (beta * 1e6).round() / 1e6)?;
     d.set_item("smb_loading", (smb_load * 1e6).round() / 1e6)?;
     d.set_item("hml_loading", (hml_load * 1e6).round() / 1e6)?;
     d.set_item("r_squared", (r_squared * 1e6).round() / 1e6)?;
-    Ok(d.into())
+    Ok(d.into_any())
 }
 
 // ============================================================
@@ -1162,15 +1162,15 @@ fn fama_french_rust(
 /// calls_iv / puts_iv: implied volatility at each strike
 /// iv_52w_high / iv_52w_low: ATM IV extremes over last 52 weeks
 #[pyfunction]
-fn options_flow_metrics_rust(
-    py: Python<'_>,
+fn options_flow_metrics_rust<'py>(
+    py: Python<'py>,
     calls_oi: Vec<f64>,
     puts_oi: Vec<f64>,
     calls_iv: Vec<f64>,
     puts_iv: Vec<f64>,
     iv_52w_high: f64,
     iv_52w_low: f64,
-) -> PyResult<PyObject> {
+) -> PyResult<Bound<'py, PyAny>> {
     if calls_oi.is_empty() || puts_oi.is_empty() {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "OI vectors must be non-empty",
@@ -1227,7 +1227,7 @@ fn options_flow_metrics_rust(
         "NEUTRAL"
     };
 
-    let d = PyDict::new_bound(py);
+    let d = PyDict::new(py);
     d.set_item("put_call_ratio", (pcr * 1000.0).round() / 1000.0)?;
     d.set_item("iv_rank", (iv_rank * 100.0).round() / 100.0)?;
     d.set_item("iv_skew", (iv_skew * 1000.0).round() / 1000.0)?;
@@ -1236,7 +1236,7 @@ fn options_flow_metrics_rust(
     d.set_item("iv_signal", iv_signal)?;
     d.set_item("total_calls_oi", total_calls_oi)?;
     d.set_item("total_puts_oi", total_puts_oi)?;
-    Ok(d.into())
+    Ok(d.into_any())
 }
 
 // ============================================================

@@ -192,7 +192,7 @@ CREATE TABLE market_quotes (
 1. **Windows File Locks**: Windows Defender may lock `.rcgu.o` and `.rmeta` build files inside Rust target directories. Workaround: Exclude the project target folder from antivirus scans.
 2. **PyO3 Stale Installations**: When using `maturin develop`, python processes may lock PyO3 libraries. Terminate python prior to maturin upgrades.
 3. **Mypy Baseline Debt**: `mypy-baseline.txt` snapshots ~232 pre-existing errors (mostly missing return-type annotations, concentrated in `core/compute/client.py`, `cli/main.py`, `core/tools/remember_tool.py`). CI only fails on *new* errors not in that file — see `CONTRIBUTING.md` for how to re-sync it as errors get fixed for real.
-4. **pyo3 0.22**: `aletheia_rust/Cargo.toml` still pins `pyo3 = "0.22"`, which has one live advisory (`RUSTSEC-2026-0177`, currently ignored in CI with documented reasoning — the vulnerable API isn't called here). Upgrade to `0.29`+ is scoped small (single source file, `lib.rs`) but has breaking API changes; not yet done.
+4. ~~**pyo3 0.22**~~ — Done. Upgraded to `pyo3 = "0.29"` (was pinned to `0.22`, which had one live advisory, `RUSTSEC-2026-0177`). Breaking changes handled: `PyDict::new_bound()` → `PyDict::new()`, `.downcast_into()` → `.cast_into()`, and 18 `#[pyfunction]`s returning `PyResult<PyObject>` changed to `PyResult<Bound<'py, PyAny>>` (the old signature became ambiguous under 0.29's new `IntoPyObject` trait resolution). `RUSTSEC-2026-0177` is no longer in CI's ignore list — it's fixed for real now, not silenced.
 
 ---
 
@@ -287,8 +287,8 @@ Aletheia/
   2. Implement `aletheia-stream` in the Rust sidecar for WebSocket
      Binance/NSE live pricing — confirmed completely unbuilt, the biggest
      single remaining backend gap.
-  3. Upgrade `pyo3` `0.22` → `0.29`+ in `aletheia_rust` — closes the one live
-     ignored security advisory; small in scope (one file) but breaking.
-  4. Implement native Tauri desktop notifications and deep links
+  3. Implement native Tauri desktop notifications and deep links
      (`aletheia://run/{id}`) — sidecar auto-launch and system tray are
      already done, these two are what's left in Sprint 4B.
+
+  (pyo3 `0.22` → `0.29` is done as of 2026-09-04 — no longer on this list.)
