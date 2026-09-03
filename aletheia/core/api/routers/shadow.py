@@ -1,10 +1,10 @@
 """Shadow account (signal-driven virtual trading sandbox) endpoints.
 
-  GET  /shadow/positions
-  GET  /shadow/orders
-  POST /shadow/orders
-  GET  /shadow/performance
-  POST /shadow/scan
+GET  /shadow/positions
+GET  /shadow/orders
+POST /shadow/orders
+GET  /shadow/performance
+POST /shadow/scan
 """
 
 from __future__ import annotations
@@ -12,7 +12,11 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from aletheia.core.api.dependencies import get_entry_exit_scanner, get_run_service, get_shadow_account
+from aletheia.core.api.dependencies import (
+    get_entry_exit_scanner,
+    get_run_service,
+    get_shadow_account,
+)
 
 router = APIRouter(prefix="/api/v1")
 
@@ -39,7 +43,9 @@ async def shadow_orders(limit: int = 100) -> dict:
 @router.post("/shadow/orders")
 async def submit_shadow_order(order: ShadowOrderRequest) -> dict:
     account = get_shadow_account()
-    trade = await account.execute_virtual_order(order.symbol, order.exchange, order.action, order.quantity)
+    trade = await account.execute_virtual_order(
+        order.symbol, order.exchange, order.action, order.quantity
+    )
     return {"trade": trade.model_dump(mode="json")}
 
 

@@ -1,6 +1,6 @@
 """Event-driven backtest endpoint.
 
-  POST /backtest
+POST /backtest
 """
 
 from __future__ import annotations

@@ -13,7 +13,9 @@ class PaperTrader:
         self.storage = storage
         self.market_data = market_data
 
-    async def submit_order(self, order: OrderRequest, run_id: str | None = None) -> PaperTradeResult:
+    async def submit_order(
+        self, order: OrderRequest, run_id: str | None = None
+    ) -> PaperTradeResult:
         quote = await self.market_data.get_quote(
             MarketDataRequest(symbol=order.symbol, exchange=order.exchange)
         )
@@ -97,10 +99,9 @@ class PaperTrader:
             cutoff_dt = datetime.now(UTC)
         trades = self.storage.list_trades(limit=1000)
         return [
-            t for t in trades
-            if t.side == "BUY"
-            and t.status == "filled"
-            and t.timestamp <= cutoff_dt
+            t
+            for t in trades
+            if t.side == "BUY" and t.status == "filled" and t.timestamp <= cutoff_dt
         ]
 
     def list_trades(self, limit: int = 50) -> list[PaperTradeResult]:

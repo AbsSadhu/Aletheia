@@ -1,10 +1,10 @@
 """Portfolio CRUD and Zerodha holdings sync.
 
-  GET    /portfolios
-  GET    /portfolios/{name}
-  POST   /portfolios
-  DELETE /portfolios/{name}
-  POST   /portfolios/{name}/sync-zerodha
+GET    /portfolios
+GET    /portfolios/{name}
+POST   /portfolios
+DELETE /portfolios/{name}
+POST   /portfolios/{name}/sync-zerodha
 """
 
 from __future__ import annotations
@@ -25,9 +25,30 @@ router = APIRouter(prefix="/api/v1")
 # live Kite API call fails — kept as a single constant so the two call sites
 # below can't drift out of sync (they used to be copy-pasted separately).
 _MOCK_ZERODHA_HOLDINGS = [
-    {"symbol": "ICICIBANK", "quantity": 10, "average_price": 950.0, "asset_type": "equity", "exchange": "NSE", "tax_profile": "equity"},
-    {"symbol": "SBI", "quantity": 15, "average_price": 610.0, "asset_type": "equity", "exchange": "NSE", "tax_profile": "equity"},
-    {"symbol": "BHARTIARTL", "quantity": 8, "average_price": 870.0, "asset_type": "equity", "exchange": "NSE", "tax_profile": "equity"},
+    {
+        "symbol": "ICICIBANK",
+        "quantity": 10,
+        "average_price": 950.0,
+        "asset_type": "equity",
+        "exchange": "NSE",
+        "tax_profile": "equity",
+    },
+    {
+        "symbol": "SBI",
+        "quantity": 15,
+        "average_price": 610.0,
+        "asset_type": "equity",
+        "exchange": "NSE",
+        "tax_profile": "equity",
+    },
+    {
+        "symbol": "BHARTIARTL",
+        "quantity": 8,
+        "average_price": 870.0,
+        "asset_type": "equity",
+        "exchange": "NSE",
+        "tax_profile": "equity",
+    },
 ]
 
 
@@ -83,7 +104,9 @@ async def sync_zerodha_holdings(name: str) -> dict:
     holdings_to_add: list[dict] = []
 
     # If credentials are mock or missing, fall back to mock data sync so user can see it work!
-    is_mock = not api_key or "mock" in api_key.lower() or not api_secret or "mock" in api_secret.lower()
+    is_mock = (
+        not api_key or "mock" in api_key.lower() or not api_secret or "mock" in api_secret.lower()
+    )
 
     if is_mock:
         logger.info("Zerodha credentials missing or mock. Falling back to mock sync.")
@@ -94,14 +117,16 @@ async def sync_zerodha_holdings(name: str) -> dict:
             connector = ZerodhaKiteConnector(api_key=api_key, access_token=api_secret)
             positions = await connector.get_positions()
             for pos in positions:
-                holdings_to_add.append({
-                    "symbol": pos["symbol"],
-                    "quantity": pos["quantity"],
-                    "average_price": pos["average_price"],
-                    "asset_type": "equity",
-                    "exchange": pos["exchange"],
-                    "tax_profile": "equity"
-                })
+                holdings_to_add.append(
+                    {
+                        "symbol": pos["symbol"],
+                        "quantity": pos["quantity"],
+                        "average_price": pos["average_price"],
+                        "asset_type": "equity",
+                        "exchange": pos["exchange"],
+                        "tax_profile": "equity",
+                    }
+                )
         except Exception as e:
             logger.warning("Zerodha Kite API connection failed: %s. Falling back to mock sync.", e)
             holdings_to_add = list(_MOCK_ZERODHA_HOLDINGS)
@@ -114,7 +139,9 @@ async def sync_zerodha_holdings(name: str) -> dict:
         if sym in current_holdings:
             exist = current_holdings[sym]
             new_qty = exist.quantity + new_h.quantity
-            new_price = (exist.quantity * exist.average_price + new_h.quantity * new_h.average_price) / new_qty
+            new_price = (
+                exist.quantity * exist.average_price + new_h.quantity * new_h.average_price
+            ) / new_qty
             exist.quantity = new_qty
             exist.average_price = round(new_price, 2)
         else:
@@ -125,5 +152,5 @@ async def sync_zerodha_holdings(name: str) -> dict:
         "status": "success",
         "synced": len(holdings_to_add),
         "is_mock": is_mock,
-        "portfolio": portfolio.model_dump(mode="json")
+        "portfolio": portfolio.model_dump(mode="json"),
     }

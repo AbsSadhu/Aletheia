@@ -7,6 +7,7 @@ Commands:
     aletheia benchmark list
     aletheia benchmark scenarios
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -25,6 +26,7 @@ console = Console()
 
 def _get_harness():
     from aletheia.extensions.backtest.benchmark import BenchmarkHarness
+
     return BenchmarkHarness()
 
 
@@ -52,7 +54,9 @@ def benchmark_run(
 
     result = asyncio.run(harness.run_scenario(cfg, label))
 
-    console.print(f"\n[bold green]✓ Benchmark complete in {result.runtime_seconds:.1f}s[/bold green]")
+    console.print(
+        f"\n[bold green]✓ Benchmark complete in {result.runtime_seconds:.1f}s[/bold green]"
+    )
 
     # Print key metrics
     metrics = result.metrics
@@ -97,8 +101,11 @@ def benchmark_compare(
         delta = vals["delta"]
         if delta is not None:
             d_str = (
-                f"[green]+{delta:.4f}[/green]" if delta > 0 else
-                f"[red]{delta:.4f}[/red]" if delta < 0 else "±0"
+                f"[green]+{delta:.4f}[/green]"
+                if delta > 0
+                else f"[red]{delta:.4f}[/red]"
+                if delta < 0
+                else "±0"
             )
         else:
             d_str = "—"
@@ -132,6 +139,7 @@ def benchmark_list():
 def list_scenarios():
     """List all available built-in benchmark scenarios."""
     from aletheia.extensions.backtest.benchmark import BUILTIN_SCENARIOS
+
     table = Table(title="Built-in Benchmark Scenarios", box=box.SIMPLE)
     table.add_column("Name", style="bold white")
     table.add_column("Symbols")

@@ -59,8 +59,14 @@ class MACrossFactor(Factor):
             signal=signal,
             confidence=round(conf, 3),
             description=f"SMA{self.fast_period}={last_fast:.2f} vs SMA{self.slow_period}={last_slow:.2f} "
-                        f"(spread={spread_pct:+.2f}%)"
-                        + (" [GOLDEN CROSS]" if just_crossed_up else " [DEATH CROSS]" if just_crossed_down else ""),
+            f"(spread={spread_pct:+.2f}%)"
+            + (
+                " [GOLDEN CROSS]"
+                if just_crossed_up
+                else " [DEATH CROSS]"
+                if just_crossed_down
+                else ""
+            ),
         )
 
 
@@ -75,8 +81,12 @@ class PivotSupportFactor(Factor):
         # Use previous bar for pivot calculation
         if len(ohlcv) < 2:
             return FactorOutput(
-                name=self.name, category=self.category,
-                value=0.0, normalized=0.5, signal="HOLD", confidence=0.0,
+                name=self.name,
+                category=self.category,
+                value=0.0,
+                normalized=0.5,
+                signal="HOLD",
+                confidence=0.0,
                 description="Insufficient data for pivot calculation",
             )
 

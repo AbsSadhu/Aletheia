@@ -1,6 +1,6 @@
 """Streaming ReAct chat endpoint.
 
-  POST /chat/stream
+POST /chat/stream
 """
 
 from __future__ import annotations

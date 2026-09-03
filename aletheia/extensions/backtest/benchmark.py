@@ -6,6 +6,7 @@ Usage:
     aletheia benchmark run --scenario nse_starter_2024 --label after_memory_v1
     aletheia benchmark compare before_memory_v1 after_memory_v1
 """
+
 from __future__ import annotations
 
 import time

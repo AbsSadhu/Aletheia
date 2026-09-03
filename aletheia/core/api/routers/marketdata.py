@@ -1,8 +1,8 @@
 """Market data quote/history/replay endpoints.
 
-  GET /market-data/quote
-  GET /market-data/history
-  GET /market-data/replay
+GET /market-data/quote
+GET /market-data/history
+GET /market-data/replay
 """
 
 from __future__ import annotations

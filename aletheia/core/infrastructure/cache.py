@@ -54,9 +54,7 @@ class TTLCache(Generic[K, V]):
         with self._lock:
             now = monotonic()
             return {
-                key: entry.value
-                for key, entry in self._store.items()
-                if entry.expires_at > now
+                key: entry.value for key, entry in self._store.items() if entry.expires_at > now
             }
 
     def _prune_locked(self) -> None:

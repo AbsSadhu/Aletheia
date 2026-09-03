@@ -9,6 +9,7 @@ Side-by-side comparison of two analysis runs, including:
   - Scribe narrative summary
   - Final paper trade outcome (if settled)
 """
+
 from __future__ import annotations
 
 import typer
@@ -28,6 +29,7 @@ console = Console()
 
 def _get_service():
     from aletheia.core.api.dependencies import get_run_service
+
     return get_run_service()
 
 
@@ -74,7 +76,9 @@ def _build_run_panel(run_id: str, service, label: str) -> Panel:
         lines.append("\n[bold green]Scribe[/bold green]")
         agreement = getattr(scribe, "agreement_level", None)
         overall_conf = getattr(scribe, "overall_confidence", None)
-        lines.append(f"  Agreement: {agreement or '—'}  Overall conf: {f'{overall_conf:.1%}' if overall_conf else '—'}")
+        lines.append(
+            f"  Agreement: {agreement or '—'}  Overall conf: {f'{overall_conf:.1%}' if overall_conf else '—'}"
+        )
         recs = getattr(scribe, "recommendations", []) or []
         for rec in recs[:3]:
             action = getattr(rec, "action", "")
@@ -147,8 +151,13 @@ def compare_runs(
             "Overall Confidence",
             f"{ca:.1%}" if ca is not None else "—",
             f"{cb:.1%}" if cb is not None else "—",
-            (f"[green]+{(cb-ca):.1%}[/green]" if cb and ca and cb > ca
-             else f"[red]{(cb-ca):.1%}[/red]" if cb and ca and cb < ca else "—"),
+            (
+                f"[green]+{(cb - ca):.1%}[/green]"
+                if cb and ca and cb > ca
+                else f"[red]{(cb - ca):.1%}[/red]"
+                if cb and ca and cb < ca
+                else "—"
+            ),
         )
         table.add_row(
             "Risk Score",

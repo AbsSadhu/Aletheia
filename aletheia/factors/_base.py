@@ -15,12 +15,12 @@ from pydantic import BaseModel, Field
 
 class FactorOutput(BaseModel):
     """Standardized output from any factor computation."""
+
     name: str
     category: str
     value: float = Field(..., description="Raw factor value (e.g. RSI=65.2)")
     normalized: float = Field(
-        0.5, ge=0.0, le=1.0,
-        description="Normalized 0–1 value (0=extreme sell, 1=extreme buy)"
+        0.5, ge=0.0, le=1.0, description="Normalized 0–1 value (0=extreme sell, 1=extreme buy)"
     )
     signal: Literal["BUY", "HOLD", "SELL"] = "HOLD"
     confidence: float = Field(0.5, ge=0.0, le=1.0)
@@ -29,6 +29,7 @@ class FactorOutput(BaseModel):
 
 class Factor(ABC):
     """Abstract base class for all alpha factors."""
+
     name: str
     category: str
     lookback_periods: int
@@ -85,7 +86,9 @@ class Factor(ABC):
         return max(0.0, min(1.0, (value - low) / (high - low)))
 
     @staticmethod
-    def _signal_from_normalized(norm: float, buy_thresh: float = 0.65, sell_thresh: float = 0.35) -> Literal["BUY", "HOLD", "SELL"]:
+    def _signal_from_normalized(
+        norm: float, buy_thresh: float = 0.65, sell_thresh: float = 0.35
+    ) -> Literal["BUY", "HOLD", "SELL"]:
         if norm >= buy_thresh:
             return "BUY"
         if norm <= sell_thresh:

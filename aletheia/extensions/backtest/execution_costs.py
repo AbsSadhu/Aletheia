@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 class ExecutionCosts(BaseModel):
     """Realistic execution cost model for a specific asset class."""
+
     asset_class: str = "equity_nse"
     slippage_bps: float = Field(3.0, ge=0.0, description="Slippage in basis points")
     bid_ask_spread_bps: float = Field(1.0, ge=0.0, description="Half-spread in basis points")

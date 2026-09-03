@@ -4,7 +4,12 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from aletheia.core.execution.models import ExecutionMode, ExecutionState, PaperPosition, PaperTradeResult
+from aletheia.core.execution.models import (
+    ExecutionMode,
+    ExecutionState,
+    PaperPosition,
+    PaperTradeResult,
+)
 
 
 class ExecutionStorage:
@@ -145,7 +150,9 @@ class ExecutionStorage:
 
     def list_positions(self) -> list[PaperPosition]:
         with self._connect() as conn:
-            rows = conn.execute("SELECT * FROM paper_positions ORDER BY symbol, exchange").fetchall()
+            rows = conn.execute(
+                "SELECT * FROM paper_positions ORDER BY symbol, exchange"
+            ).fetchall()
         return [
             PaperPosition(
                 symbol=row["symbol"],
@@ -229,4 +236,3 @@ class ExecutionStorage:
                 ),
             )
             conn.commit()
-

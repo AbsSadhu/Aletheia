@@ -13,6 +13,7 @@ Constraints enforced:
 
 Returns a PortfolioManagerDecision, which is FINAL.
 """
+
 from __future__ import annotations
 
 from typing import Literal
@@ -22,22 +23,29 @@ from pydantic import BaseModel, Field
 
 class PortfolioConstraints(BaseModel):
     """User-configurable hard constraints. Enforced deterministically."""
-    max_position_size_pct: float = Field(default=10.0, ge=0.1, le=100.0,
-        description="Max % of portfolio in any single position")
-    max_sector_concentration_pct: float = Field(default=25.0, ge=1.0, le=100.0,
-        description="Max % of portfolio in any single sector")
-    max_portfolio_var: float = Field(default=0.05, ge=0.001,
-        description="Max VaR at 95% confidence level")
-    max_leverage: float = Field(default=1.0, ge=0.1,
-        description="Max gross leverage (1.0 = no leverage)")
-    min_cash_reserve_pct: float = Field(default=5.0, ge=0.0,
-        description="Min cash buffer as % of portfolio")
+
+    max_position_size_pct: float = Field(
+        default=10.0, ge=0.1, le=100.0, description="Max % of portfolio in any single position"
+    )
+    max_sector_concentration_pct: float = Field(
+        default=25.0, ge=1.0, le=100.0, description="Max % of portfolio in any single sector"
+    )
+    max_portfolio_var: float = Field(
+        default=0.05, ge=0.001, description="Max VaR at 95% confidence level"
+    )
+    max_leverage: float = Field(
+        default=1.0, ge=0.1, description="Max gross leverage (1.0 = no leverage)"
+    )
+    min_cash_reserve_pct: float = Field(
+        default=5.0, ge=0.0, description="Min cash buffer as % of portfolio"
+    )
 
 
 class PortfolioManagerDecision(BaseModel):
     """Final execution gate — cannot be overridden by LLM agents."""
+
     decision: Literal["EXECUTE", "SKIP", "REDUCE"]
-    approved_qty: float | None = None     # adjusted if REDUCE
+    approved_qty: float | None = None  # adjusted if REDUCE
     override_reason: str | None = None
     violations: list[str] = Field(default_factory=list)
     original_qty: float | None = None
@@ -57,13 +65,13 @@ class PortfolioManagerConstraintChecker:
         self,
         *,
         symbol: str,
-        action: str,               # "BUY" | "SELL" | "HOLD"
+        action: str,  # "BUY" | "SELL" | "HOLD"
         quantity: float,
         price: float,
         portfolio_value: float,
         current_position_value: float = 0.0,
         sector: str = "unknown",
-        sector_exposure: float = 0.0,   # current sector exposure as fraction of portfolio
+        sector_exposure: float = 0.0,  # current sector exposure as fraction of portfolio
         portfolio_var_95: float = 0.0,
         current_leverage: float = 1.0,
         current_cash: float = 0.0,
@@ -95,7 +103,9 @@ class PortfolioManagerConstraintChecker:
 
         # 2. Sector concentration check
         if portfolio_value > 0:
-            new_sector_pct = ((sector_exposure * portfolio_value + proposed_value) / portfolio_value) * 100
+            new_sector_pct = (
+                (sector_exposure * portfolio_value + proposed_value) / portfolio_value
+            ) * 100
             if new_sector_pct > self.constraints.max_sector_concentration_pct:
                 violations.append(
                     f"Sector '{sector}' concentration {new_sector_pct:.1f}% > max {self.constraints.max_sector_concentration_pct:.1f}%"

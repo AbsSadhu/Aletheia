@@ -1,10 +1,10 @@
 """Hypothesis-tracking endpoints.
 
-  GET   /hypotheses
-  POST  /hypotheses
-  GET   /hypotheses/{id}
-  PATCH /hypotheses/{id}/transition
-  POST  /hypotheses/{id}/evidence
+GET   /hypotheses
+POST  /hypotheses
+GET   /hypotheses/{id}
+PATCH /hypotheses/{id}/transition
+POST  /hypotheses/{id}/evidence
 """
 
 from __future__ import annotations

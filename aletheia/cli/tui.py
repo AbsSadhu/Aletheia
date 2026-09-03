@@ -81,7 +81,9 @@ class BackendClient:
         import httpx
 
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{self.base_url}{path}", headers=self._headers(), params=params)
+            resp = await client.get(
+                f"{self.base_url}{path}", headers=self._headers(), params=params
+            )
             resp.raise_for_status()
             return resp.json()
 
@@ -90,7 +92,10 @@ class BackendClient:
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                f"{self.base_url}{path}", headers=self._headers(), params=params, json=json_body or {}
+                f"{self.base_url}{path}",
+                headers=self._headers(),
+                params=params,
+                json=json_body or {},
             )
             resp.raise_for_status()
             return resp.json()
@@ -136,8 +141,11 @@ class PortfolioTab(VerticalScroll):
             for p in portfolios:
                 for h in p.get("holdings", []):
                     table.add_row(
-                        p["name"], h["symbol"], str(h["quantity"]),
-                        f"{h['average_price']:.2f}", h.get("exchange", "-"),
+                        p["name"],
+                        h["symbol"],
+                        str(h["quantity"]),
+                        f"{h['average_price']:.2f}",
+                        h.get("exchange", "-"),
                     )
             status.update(f"{len(portfolios)} portfolio(s) loaded.")
         except Exception as exc:
@@ -171,7 +179,9 @@ class RunTab(VerticalScroll):
         log.write(f"[bold cyan]Submitting run:[/bold cyan] {prompt}")
 
         try:
-            result = await app.client.post("/api/v1/runs", json_body={"prompt": prompt}, background=True)
+            result = await app.client.post(
+                "/api/v1/runs", json_body={"prompt": prompt}, background=True
+            )
         except Exception as exc:
             log.write(f"[red]Failed to submit run: {exc}[/red]")
             return
@@ -243,8 +253,11 @@ class PaperTradesTab(VerticalScroll):
             trades = await app.client.get("/api/v1/execution/paper-trades", limit=30)
             for t in trades.get("trades", []):
                 trades_table.add_row(
-                    t["symbol"], t["side"], f"{t['simulated_qty']:.0f}",
-                    f"{t['simulated_fill_price']:.2f}", f"{t['simulated_pnl']:.2f}",
+                    t["symbol"],
+                    t["side"],
+                    f"{t['simulated_qty']:.0f}",
+                    f"{t['simulated_fill_price']:.2f}",
+                    f"{t['simulated_pnl']:.2f}",
                     t.get("status", "filled"),
                 )
         except Exception as exc:
@@ -254,8 +267,11 @@ class PaperTradesTab(VerticalScroll):
             positions = await app.client.get("/api/v1/execution/positions")
             for p in positions.get("positions", []):
                 positions_table.add_row(
-                    p["symbol"], p["exchange"], f"{p['quantity']:.2f}",
-                    f"{p['average_price']:.2f}", f"{p['realized_pnl']:.2f}",
+                    p["symbol"],
+                    p["exchange"],
+                    f"{p['quantity']:.2f}",
+                    f"{p['average_price']:.2f}",
+                    f"{p['realized_pnl']:.2f}",
                 )
         except Exception as exc:
             positions_table.add_row(f"[red]error: {exc}[/red]", "-", "-", "-", "-")
@@ -280,7 +296,10 @@ class RecentRunsTab(VerticalScroll):
             data = await app.client.get("/api/v1/runs", limit=20)
             for r in data.get("runs", []):
                 table.add_row(
-                    r["run_id"][:12] + "...", r["status"], r["prompt"][:50], r["created_at"][:19],
+                    r["run_id"][:12] + "...",
+                    r["status"],
+                    r["prompt"][:50],
+                    r["created_at"][:19],
                     key=r["run_id"],
                 )
         except Exception as exc:

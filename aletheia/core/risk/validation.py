@@ -28,8 +28,8 @@ class MonteCarloResult:
 @dataclass
 class WalkForwardResult:
     n_folds: int
-    is_sharpe: float        # in-sample Sharpe
-    oos_sharpe: float       # out-of-sample Sharpe
+    is_sharpe: float  # in-sample Sharpe
+    oos_sharpe: float  # out-of-sample Sharpe
     degradation_pct: float  # how much OOS degrades vs IS
     overfit_warning: bool
     fold_results: list[dict[str, float]] = field(default_factory=list)
@@ -63,8 +63,12 @@ def run_monte_carlo(
     if n < 30:
         return MonteCarloResult(
             n_simulations=0,
-            median_sharpe=0.0, sharpe_ci_low=0.0, sharpe_ci_high=0.0,
-            median_max_drawdown=0.0, drawdown_ci_low=0.0, drawdown_ci_high=0.0,
+            median_sharpe=0.0,
+            sharpe_ci_low=0.0,
+            sharpe_ci_high=0.0,
+            median_max_drawdown=0.0,
+            drawdown_ci_low=0.0,
+            drawdown_ci_high=0.0,
             unstable=True,
             comment="Insufficient data for Monte Carlo (need ≥30 periods)",
         )
@@ -77,10 +81,9 @@ def run_monte_carlo(
         # Block bootstrap
         n_blocks = n // block_size + 1
         start_indices = rng.integers(0, max(1, n - block_size), size=n_blocks)
-        sim_returns = pd.concat([
-            clean.iloc[start: start + block_size]
-            for start in start_indices
-        ]).iloc[:n]
+        sim_returns = pd.concat(
+            [clean.iloc[start : start + block_size] for start in start_indices]
+        ).iloc[:n]
         sim_returns.index = range(len(sim_returns))
 
         sharpes.append(compute_sharpe(sim_returns))
@@ -126,8 +129,11 @@ def run_walk_forward(
 
     if fold_size < 10:
         return WalkForwardResult(
-            n_folds=0, is_sharpe=0.0, oos_sharpe=0.0,
-            degradation_pct=0.0, overfit_warning=True,
+            n_folds=0,
+            is_sharpe=0.0,
+            oos_sharpe=0.0,
+            degradation_pct=0.0,
+            overfit_warning=True,
             comment="Insufficient data for walk-forward",
         )
 

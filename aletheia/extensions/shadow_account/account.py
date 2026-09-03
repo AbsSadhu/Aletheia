@@ -56,8 +56,16 @@ class ShadowAccount:
         if action not in {"buy", "sell"}:
             raise ValueError(f"Unsupported action: {action}")
 
-        quote = await self.market_data.get_quote(MarketDataRequest(symbol=symbol, exchange=exchange))
-        trade = TradeEntry(id=str(uuid4()), symbol=symbol.upper(), action=action, quantity=quantity, price=quote.close)
+        quote = await self.market_data.get_quote(
+            MarketDataRequest(symbol=symbol, exchange=exchange)
+        )
+        trade = TradeEntry(
+            id=str(uuid4()),
+            symbol=symbol.upper(),
+            action=action,
+            quantity=quantity,
+            price=quote.close,
+        )
         self.storage.log_trade(trade)
         await self._snapshot()
         return trade
@@ -77,20 +85,25 @@ class ShadowAccount:
                 prev_avg = running_avg.get(trade.symbol, 0.0)
                 new_qty = prev_qty + trade.quantity
                 running_avg[trade.symbol] = (
-                    (prev_qty * prev_avg + trade.quantity * trade.price) / new_qty if new_qty else 0.0
+                    (prev_qty * prev_avg + trade.quantity * trade.price) / new_qty
+                    if new_qty
+                    else 0.0
                 )
                 running_qty[trade.symbol] = new_qty
             else:
                 cash += trade.quantity * trade.price
                 avg = running_avg.get(trade.symbol, trade.price)
-                realized_pnl_by_symbol[trade.symbol] = realized_pnl_by_symbol.get(
-                    trade.symbol, 0.0
-                ) + (trade.price - avg) * trade.quantity
+                realized_pnl_by_symbol[trade.symbol] = (
+                    realized_pnl_by_symbol.get(trade.symbol, 0.0)
+                    + (trade.price - avg) * trade.quantity
+                )
                 running_qty[trade.symbol] = running_qty.get(trade.symbol, 0.0) - trade.quantity
 
         for symbol, pos in positions.items():
             try:
-                quote = await self.market_data.get_quote(MarketDataRequest(symbol=symbol, exchange="NSE"))
+                quote = await self.market_data.get_quote(
+                    MarketDataRequest(symbol=symbol, exchange="NSE")
+                )
                 pos.current_price = quote.close
             except Exception:
                 pos.current_price = pos.average_price

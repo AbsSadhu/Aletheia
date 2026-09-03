@@ -1,7 +1,7 @@
 """System configuration endpoints (backed by ConfigManager, see also Settings).
 
-  GET  /config
-  POST /config
+GET  /config
+POST /config
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/v1")
 async def get_config() -> dict:
     """Retrieve the current system configuration with masked secrets."""
     from aletheia.config.config_manager import ConfigManager
+
     config = ConfigManager().load()
     return config.masked_dict()
 
