@@ -8,10 +8,10 @@ Welcome to Aletheia! This document serves as a single-pass onboarding blueprint 
 
 - **Project Name**: Aletheia
 - **Purpose**: A local-first, multi-agent financial intelligence and recommendation engine for the Indian stock (NSE/BSE) and cryptocurrency markets.
-- **Current Sprint**: **Sprint 3: Real Intelligence** (Active Development of Live Feed & Shadow Account; Frontend APIs fully wired).
-- **Current Status**: **161/161 tests passing (100% green)**, Ruff linting/formatting **100% green**.
+- **Current Sprint**: **Sprint 3: Real Intelligence** — Shadow Account (paper trading) is done, including a frontend page; the live market feed (`aletheia-stream`) is the one genuinely unbuilt piece. Frontend is **not** fully wired to the backend yet — the Backtest and Hypotheses pages have real backends but zero frontend (see `docs/ROADMAP.md` §3B for the reconciled breakdown).
+- **Current Status**: 219 tests collected across all suites; CI (`.github/workflows/ci.yml`) is green end-to-end as of this update — lint, format, mypy (baseline-gated), Python/frontend/Rust dependency audits, and all three Python test steps are real blocking gates, not `continue-on-error`.
 - **Repository**: [github.com/AbsSadhu/Aletheia](https://github.com/AbsSadhu/Aletheia)
-- **Last Updated**: 2026-07-02
+- **Last Updated**: 2026-09-03
 
 ---
 
@@ -19,7 +19,7 @@ Welcome to Aletheia! This document serves as a single-pass onboarding blueprint 
 
 - [x] **CLI Tool**: Typer-based interface located in [aletheia/cli/main.py](file:///c:/Aletheia/aletheia/cli/main.py). Fully working. Allows project setup, executing agent runs, viewing paper trades, running backtests, and comparing results.
 - [x] **Python SDK**: Internal modules under [aletheia/core/](file:///c:/Aletheia/aletheia/core/) serve as the SDK. Easily imported (e.g. `from aletheia.core.compute.client import ComputeClient`).
-- [🟡] **Desktop App**: Tauri 2 wrapper located in [desktop/](file:///c:/Aletheia/desktop/). Builds and embeds Vite static output. OS sidecar auto-launch for Python/Rust processes is in planning/scaffolded state.
+- [🟡] **Desktop App**: Tauri 2 wrapper located in [desktop/](file:///c:/Aletheia/desktop/). Builds and embeds Vite static output. Sidecar auto-launch for both the Python FastAPI backend and the Rust `aletheia-engine` sidecar is real (`spawn_api()`/`spawn_engine()`, `desktop/src-tauri/src/main.rs`), with health-gated window reveal and a working system tray. What's still missing: real Tauri `bundle.externalBin` sidecar bundling for distribution (currently spawns dev-tree binaries directly), deep links, and native OS notifications.
 - [x] **Docker Container**: [Dockerfile](file:///c:/Aletheia/Dockerfile) and [docker-compose.yml](file:///c:/Aletheia/docker-compose.yml) are fully operational for containerized deployments.
 
 ---
@@ -87,7 +87,7 @@ Welcome to Aletheia! This document serves as a single-pass onboarding blueprint 
 | **5-Agent Pipeline** | Phase 1/2 | `graph_flow.py`, `services.py` | **✅ Done** | Resilient node fallback, timeout & skipped nodes implemented. |
 | **SQLite + DuckDB Storage** | Phase 1 | `duckdb_store.py`, `sqlite_store.py` | **✅ Done** | SQLite for transactions, DuckDB for analytical quotes. |
 | **FastAPI Backend** | Phase 1 | `routes.py`, `main.py` | **✅ Done** | Full REST surface + WebSockets for thought streaming. |
-| **Tauri Desktop Shell** | Phase 1 | `desktop/` | **✅ Done** | Frontend static embedding works. Launcher sidecar planned. |
+| **Tauri Desktop Shell** | Phase 1 | `desktop/` | **✅ Done** | Frontend static embedding works. Python + Rust sidecar auto-launch and system tray are real; distribution-grade `externalBin` bundling is not. |
 | **CLI & Setup Wizard** | Phase 1/4 | `cli/main.py`, `cli/config.py` | **✅ Done** | Wizard guides settings & API keys validation. |
 | **Agent Role Contracts** | Phase 2.5 | `models.py` | **✅ Done** | Pydantic contracts validated at type & runtime. |
 | **Debate & PM Node** | Phase 2.5 | `graph_flow.py` | **✅ Done** | Re-prompts Oracle/Sentinel; PM enforces size/exposure caps. |
@@ -97,8 +97,11 @@ Welcome to Aletheia! This document serves as a single-pass onboarding blueprint 
 | **Fama-French Model** | Sprint 2.5 | `lib.rs`, `main.rs` | **✅ Done** | 3-factor regression model executed in Rust. |
 | **Interactive Paper Trading**| Sprint 3C | `paper_trader.py`, `storage.py` | **✅ Done** | Fully integrated in UI with manual close/settle action. |
 | **Zerodha Portfolio Sync** | Sprint 2D | `zerodha.py`, `routes.py` | **✅ Done** | Syncs Indian equity holdings with mock fallback. |
-| **Live Market Feed** | Sprint 3A | `aletheia-stream` | 🔲 Planned | WebSocket streaming (Binance/NSE) is planned next. |
-| **PDF Report Exporter** | Sprint 4 | `report_generate.py` | 🔲 Planned | Document output generation via Jinja2 & WeasyPrint. |
+| **Shadow Account (Paper Trading)** | Sprint 3C | `extensions/shadow_account/` | **✅ Done** | `EntryExitScanner` auto-generates trades from Oracle signals; SQLite persistence, equity curve, `ShadowTrader.tsx` frontend page all real. |
+| **Live Market Feed** | Sprint 3A | `aletheia-stream` | 🔲 Planned | Confirmed absent — `aletheia_engine` has zero websocket deps; genuinely the biggest remaining backend gap. |
+| **PDF/Excel Report Exporter** | Sprint 4A | `reporting/exporter.py` | **✅ Done** | Jinja2 + WeasyPrint (HTML fallback if not installed) + openpyxl, wired to `GET /runs/{id}/export?format=pdf\|excel`. |
+| **Backtest Frontend Page** | Sprint 3B | — | 🔲 Missing | Backend (`POST /api/v1/backtest`) and the API client function (`runBacktest()`) are real; no page calls it. Zero backend work needed to close this. |
+| **Hypotheses Frontend Page** | Sprint 3B | — | 🔲 Missing | Backend (`hypotheses.py` router + `HypothesisRegistry`) is fully real; no frontend page exists at all. |
 
 ---
 
@@ -188,7 +191,8 @@ CREATE TABLE market_quotes (
 
 1. **Windows File Locks**: Windows Defender may lock `.rcgu.o` and `.rmeta` build files inside Rust target directories. Workaround: Exclude the project target folder from antivirus scans.
 2. **PyO3 Stale Installations**: When using `maturin develop`, python processes may lock PyO3 libraries. Terminate python prior to maturin upgrades.
-3. **Mypy Type Annotation Warnings**: Running mypy lists `no-untyped-def` warnings across CLI and compliance modules, but this does not affect execution.
+3. **Mypy Baseline Debt**: `mypy-baseline.txt` snapshots ~232 pre-existing errors (mostly missing return-type annotations, concentrated in `core/compute/client.py`, `cli/main.py`, `core/tools/remember_tool.py`). CI only fails on *new* errors not in that file — see `CONTRIBUTING.md` for how to re-sync it as errors get fixed for real.
+4. **pyo3 0.22**: `aletheia_rust/Cargo.toml` still pins `pyo3 = "0.22"`, which has one live advisory (`RUSTSEC-2026-0177`, currently ignored in CI with documented reasoning — the vulnerable API isn't called here). Upgrade to `0.29`+ is scoped small (single source file, `lib.rs`) but has breaking API changes; not yet done.
 
 ---
 
@@ -276,7 +280,15 @@ Aletheia/
 
 - **To write new agents**: Ensure they inherit from the correct contract model in [aletheia/core/models.py](file:///c:/Aletheia/aletheia/core/models.py) to prevent class definition contract validation errors.
 - **To modify compute calculations**: Edit [aletheia_rust/src/lib.rs](file:///c:/Aletheia/aletheia_rust/src/lib.rs) and re-run `maturin develop` inside your virtual environment.
-- **Next High Priority Items**:
-  1. Implement `aletheia-stream` in the Rust sidecar for WebSocket Binance/NSE live pricing.
-  2. Implement native Tauri desktop notifications when a run completes.
-  3. Set up the Jinja2 + WeasyPrint PDF report exporter.
+- **Next High Priority Items** (reconciled against actual code 2026-09-03 —
+  see `docs/ROADMAP.md` for full detail on each):
+  1. Build the Backtest and Hypotheses frontend pages — both backends are
+     fully real and unused; this is the cheapest high-value work available.
+  2. Implement `aletheia-stream` in the Rust sidecar for WebSocket
+     Binance/NSE live pricing — confirmed completely unbuilt, the biggest
+     single remaining backend gap.
+  3. Upgrade `pyo3` `0.22` → `0.29`+ in `aletheia_rust` — closes the one live
+     ignored security advisory; small in scope (one file) but breaking.
+  4. Implement native Tauri desktop notifications and deep links
+     (`aletheia://run/{id}`) — sidecar auto-launch and system tray are
+     already done, these two are what's left in Sprint 4B.

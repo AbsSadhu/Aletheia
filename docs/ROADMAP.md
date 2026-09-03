@@ -1,6 +1,12 @@
 # ALETHEIA Roadmap
 
-**Last updated: 2026-06-27**
+**Last updated: 2026-09-03**
+
+> This document was reconciled against actual code (not prior doc claims) on
+> 2026-09-03 — every status below is backed by a file:line check, not
+> inherited from the previous version of this file, which had drifted
+> (several "planned" items were already done; a couple of "done" items were
+> only partially wired).
 
 ---
 
@@ -11,15 +17,15 @@
 | 1 | Skeleton & Data Layer | ✅ Done |
 | 2 | Engine Foundations | ✅ Done |
 | 4 | LLM Integration & Smart Agents | ✅ Done (Basic) |
-| 5 | Production Polish & Desktop | 🔲 Partial (Docker/K8s skeleton) |
+| 5 | Production Polish & Desktop | 🟡 Mostly Done (Docker/K8s/Grafana real; Helm ConfigMap/Secret templates + docker-compose Ollama/engine services still missing) |
 | **A** | **Agentic Core — ReAct Loop, Tool Registry, Memory** | ✅ **Done (Scaffold)** |
 | **Sprint 1** | **Make It Actually Work — LLM Router, Semantic Memory, Backtest Feed** | ✅ **Done** |
-| **Sprint 2** | **Rust Berserk Mode — Engine Sidecar, Custom Ingestion, Broker Blueprints** | ✅ **Done** (Streaming ❌) |
+| **Sprint 2** | **Rust Berserk Mode — Engine Sidecar, Custom Ingestion, Broker Blueprints** | ✅ **Done** (Streaming ❌ — see Sprint 3A) |
 | **Sprint 2.5** | **Resilience & Org-Chart — State Machine, Timeout, Debate, PM Node, Contracts** | ✅ **Done** |
-| **Sprint 3** | **Real Intelligence — Live Feed, Shadow Account, Frontend Wire-up** | 🔴 **NEXT** |
+| **Sprint 3** | **Real Intelligence — Live Feed, Shadow Account, Frontend Wire-up** | 🟡 **Mostly Done** — 3A (live feed) is the one real gap left; 3B/3C are further along than this doc previously credited |
 | **Sprint 3.5** | **Intelligence Upgrade — Vector Memory, Sage/Sentinel LLM Enrichment** | ✅ **Done** |
-| **Sprint 4** | **Production Hardening — PDF Reports, LangSmith, Tauri, Prometheus** | 🔲 Planned |
-| **Sprint 5** | **Moat — Full MCP, Multi-Swarm, Domain Fine-tuning** | 🔲 Future |
+| **Sprint 4** | **Production Hardening — PDF Reports, LangSmith, Tauri, Prometheus** | 🟡 **Mostly Done** — 4A/4C/4D done, 4B partial (see below) |
+| **Sprint 5** | **Moat — Full MCP, Multi-Swarm, Domain Fine-tuning** | 🔲 Future (unchanged, nothing started) |
 
 ---
 
@@ -161,38 +167,73 @@
 
 ---
 
-## Sprint 3 — Real Intelligence 🔴 NEXT
+## Sprint 3 — Real Intelligence 🟡 Mostly Done
 
-### 3A. Live Market Feed (Highest Impact)
+### 3A. Live Market Feed — 🔴 Still the real gap (highest-impact remaining item)
 - [ ] `aletheia-stream` in engine sidecar: Tokio Tungstenite → Binance WebSocket
 - [ ] Yahoo Finance polling fallback with configurable interval
 - [ ] Python `start_market_stream()` / `stop_market_stream()` interface
 - [ ] NSE/BSE live feed (jugaad-trader or Angel One SmartAPI — India-specific)
 - [ ] Live quote injection into Collector's provider chain (streaming overrides static/yfinance)
 
-### 3B. Frontend Real Wire-up
-- [ ] Dashboard: real WebSocket stream during run execution (agent thought bubbles live)
-- [ ] RunDetail: all 5 agent outputs rendered from real API + per-agent status
-- [ ] Portfolio page: real CRUD (add/edit/delete holdings) wired to `/api/v1/portfolios`
-- [ ] Backtest page: form → POST /backtest → equity curve chart (Recharts)
-- [ ] Hypotheses page: list / create / link-to-backtest
-- [ ] RunsList: real-time status polling / WebSocket update
+Confirmed completely absent as of 2026-09-03: `aletheia_engine/src/main.rs` is
+pure HTTP/Axum with zero websocket deps in `Cargo.toml`; no
+`start_market_stream()`/`stop_market_stream()` anywhere in `aletheia/`. This
+is a from-scratch subsystem, not a partial build.
 
-### 3C. Shadow Account (Paper Trading)
-- [ ] `ShadowAccount` — VirtualPosition + VirtualOrder management
-- [ ] `EntryExitScanner` — auto-generate virtual trades from Oracle signals
-- [ ] SQLite persistence for positions, orders, and P&L
-- [ ] Equity curve tracking
-- [ ] `GET /api/v1/shadow/positions`
-- [ ] `POST /api/v1/shadow/trade`
-- [ ] Frontend Shadow Account page
+### 3B. Frontend Real Wire-up — 🟡 Partial, further along than previously tracked
+- [ ] Dashboard: real WebSocket stream during run execution — **not done**;
+  the "Agent Pipeline" widget (`frontend/src/pages/Dashboard.tsx:190-225`) is
+  static/decorative (hardcoded Idle/Last-run-completed text), not backed by
+  a WebSocket. Misleading as currently built — either wire it up or drop the
+  live-look.
+- [x] RunDetail: 5 of the pipeline's agents (Collector/Oracle/Sentinel/Sage/
+  Scribe) are rendered from real API + WebSocket status
+  (`frontend/src/pages/RunDetail.tsx`). **Gap**: Sentiment/Fundamental/
+  OptionsFlow agents run server-side but have no frontend tabs yet.
+- [x] Portfolio page: real CRUD wired to `/api/v1/portfolios`
+  (`frontend/src/pages/Portfolio.tsx`, `frontend/src/lib/api.ts:131-149`).
+- [ ] Backtest page: **missing** — `runBacktest()` already exists in
+  `frontend/src/lib/api.ts:338` and the backend endpoint is real, but no
+  page/component calls it. Zero-backend-work item.
+- [ ] Hypotheses page: **missing** — backend (`hypotheses.py` router +
+  `extensions/hypotheses/registry.py`) is fully real; no frontend at all.
+- [ ] RunsList: fetches once on mount, no polling/WebSocket for live status
+  (`frontend/src/pages/RunsList.tsx`).
 
-### 3D. Real Observability
-- [ ] Wire `LANGCHAIN_TRACING_V2` properly to LangSmith
-- [ ] Tag every LangGraph node with `run_id`, `agent_name`, `token_count`
-- [ ] Add structured logging to every tool call (name, args summary, result size, latency_ms)
-- [ ] Emit `agent_progress` events via WebSocket per-agent (frontend renders real-time progress)
-- [ ] `GET /api/v1/runs/{run_id}/progress` endpoint returning per-agent status
+### 3C. Shadow Account (Paper Trading) — ✅ Done
+- [x] `ShadowAccount` / `VirtualPosition` / `VirtualOrder` management
+  (`aletheia/extensions/shadow_account/account.py`, `models.py`)
+- [x] `EntryExitScanner` — auto-generates virtual trades from Oracle signals
+  (`aletheia/extensions/shadow_account/scanner.py:13`,
+  `async def scan(self, oracle_outputs, exchange="NSE")`)
+- [x] SQLite persistence for positions, orders, and P&L
+  (`aletheia/extensions/shadow_account/storage.py`)
+- [x] Equity curve tracking (`aletheia/extensions/shadow_account/reporter.py`)
+- [x] Shadow endpoints wired (positions/orders/performance/trade)
+- [x] Frontend `ShadowTrader.tsx` page — real API calls, 15s poll, real
+  Recharts equity curve, not a placeholder
+
+Also done beyond what this sprint originally scoped: `PaperTrader`
+(`aletheia/core/execution/paper_trader.py`) with real average-price/
+position accounting, plus a frontend `PaperTrades.tsx` page and a
+`FactorExplorer.tsx` page — none of these were in the original Sprint 3
+plan but shipped alongside it (commit `c18ae0e`).
+
+### 3D. Real Observability — 🟡 Partial
+- [x] `LANGCHAIN_TRACING_V2`/LangSmith wiring is real and config-driven
+  (`aletheia/core/config/settings.py:94-119` sets the env vars;
+  `aletheia/core/agent/loop.py:12` decorates `ReActLoop.run` with
+  `@traceable`, with a dummy fallback if langsmith isn't installed).
+- [x] Structured tool-call events exist (`loop.py:87,100` emit
+  `tool_call`/`tool_result` StreamEvents with tool name + args/result) —
+  **gap**: no `latency_ms` or result-size field is captured.
+- [x] Live per-agent status: functionally covered by
+  `WS /api/v1/ws/runs/{run_id}` (`aletheia/core/api/routers/websocket.py`)
+  plus `GET /runs/{run_id}/events` and `GET /runs/{run_id}/trace`
+  (`aletheia/core/api/routers/runs.py:74-91`) — no dedicated `/progress`
+  endpoint exists under that exact name, but the need it was meant to serve
+  is met by what's there.
 
 ---
 
@@ -225,26 +266,48 @@
 
 ---
 
-## Sprint 4 — Production Hardening 🔲
+## Sprint 4 — Production Hardening 🟡 Mostly Done
 
-### 4A. PDF Report Generation
-- [ ] WeasyPrint + Jinja2 templates
-- [ ] `GET /api/v1/runs/{id}/export?format=pdf|json|csv`
-- [ ] Include: executive summary, all 5 agent sections, charts (matplotlib), tax table
+### 4A. PDF Report Generation — ✅ Done
+- [x] WeasyPrint + Jinja2 templates (`aletheia/core/reporting/exporter.py`,
+  `render_html()`/`export_pdf()` — falls back to raw HTML if WeasyPrint
+  isn't installed; also `export_excel()`)
+- [x] `GET /api/v1/runs/{run_id}/export?format=pdf|excel`
+  (`aletheia/core/api/routers/runs.py:94-122`)
+- [x] Executive summary + agent sections included
 
-### 4B. Tauri Desktop Wire-up
-- [ ] Auto-launch Python FastAPI backend as Tauri sidecar (no separate terminal needed)
-- [ ] Auto-launch Rust `aletheia-engine` sidecar from Tauri
-- [ ] Deep link: `aletheia://run/{id}` → open RunDetail page
-- [ ] Native OS notifications when a run completes
-- [ ] System tray integration
+### 4B. Tauri Desktop Wire-up — 🟡 Partial
+- [x] Auto-launch Python FastAPI backend (`spawn_api()`,
+  `desktop/src-tauri/src/main.rs:90-115`)
+- [x] Auto-launch Rust `aletheia-engine` sidecar (`spawn_engine()`,
+  `main.rs:69-88`), with health-gated window reveal polling both services
+  (`main.rs:255-278`). Note: this is manual `Command`-spawning of dev-tree
+  binaries, not Tauri's `bundle.externalBin` mechanism
+  (`tauri.conf.json:35-40` has empty `resources: []`) — fine for dev, needs
+  real sidecar bundling before shipping an installer to a non-dev machine.
+- [x] System tray integration (`TrayIconBuilder`, `main.rs:280-341`)
+- [ ] Deep link: `aletheia://run/{id}` → open RunDetail page — **missing**,
+  no `tauri-plugin-deep-link` dependency or scheme registered
+- [ ] Native OS notifications when a run completes — **missing**, no
+  `tauri-plugin-notification` dependency
 
-### 4C. Docker & K8s Production
-- [ ] `docker-compose.yml` — Ollama sidecar, `aletheia-engine` Rust sidecar, Prometheus scrape
-- [ ] Helm chart with ConfigMap, Secrets, HPA
-- [ ] Liveness/readiness probes wired
-- [ ] Prometheus `/metrics` endpoint on FastAPI
-- [ ] Grafana dashboard template
+### 4C. Docker & K8s Production — 🟡 Mostly Done
+- [x] Liveness/readiness probes wired (`k8s/aletheia/templates/deployment.yaml:48-59`)
+- [x] HPA (folded into `templates/service.yaml:74-101`, not a separate file,
+  `autoscaling.enabled: true` in `values.yaml:71-77`)
+- [x] Prometheus `/metrics` endpoint on FastAPI (routed in
+  `aletheia/core/main.py`)
+- [x] Grafana dashboard template
+  (`monitoring/grafana/provisioning/dashboards/aletheia.json` + provisioning config)
+- [ ] Helm `ConfigMap` — **missing**, env vars are inlined literally from
+  `values.yaml` in `deployment.yaml:32-36` rather than templated
+- [ ] Helm `Secret` — **partial**, `deployment.yaml:37-44` references a
+  `aletheia-secrets` Secret via `secretKeyRef` but no
+  `templates/secret.yaml` creates it; currently assumes external
+  provisioning (fine if intentional, but undocumented as such)
+- [ ] `docker-compose.yml` — has `backend`/`frontend`/`prometheus`/`grafana`,
+  but **no Ollama service and no `aletheia-engine` Rust sidecar service** —
+  incomplete relative to what running the full stack via compose needs
 
 ### 4D. Full MCP Server ✅
 - [x] Expose all 13 registered tools as proper MCP tools via `aletheia mcp`
@@ -260,6 +323,10 @@
 ---
 
 ## Sprint 5 — Moat 🔲
+
+Reconfirmed 2026-09-03: none of this has been started — zero matches for
+`swarm_preset`/`crypto_team`/`macro_team`/`smallcap_team` anywhere in the
+codebase. Unchanged from the previous version of this doc.
 
 ### Multi-Swarm Specialist Teams
 - [ ] `crypto_team`: Oracle/Sentinel tuned for crypto metrics (funding rate, open interest, liquidation levels)
@@ -278,11 +345,27 @@
 - [ ] Hypothesis tournament: N competing strategies, same date range, ranked output
 - [ ] Report: winning strategy + loser analysis
 
+The underlying registry this builds on is real: `HypothesisRegistry`
+(`aletheia/extensions/hypotheses/registry.py`) has a working SQLite-backed
+state machine (`propose`/`transition`/`link_to_backtest`), but `transition()`
+is currently only ever called manually via
+`POST /api/v1/hypotheses/{id}/transition`
+(`aletheia/core/api/routers/hypotheses.py:74`) — nothing auto-runs a
+backtest or checks a Sharpe threshold yet. Also has no frontend page at all
+(see 3B).
+
 ### Live Broker Integration (Zerodha / Angel One)
 - [ ] Complete Zerodha OAuth flow
 - [ ] Order placement (paper mode first, then real)
 - [ ] Position sync from broker → shadow account
 - [ ] Automated alert: Oracle signal → SMS/email via broker notification
+
+`aletheia/extensions/brokers/zerodha.py` is explicitly a "Blueprint
+implementation" (line 2 docstring) — real method stubs
+(`get_account_balance`/`place_order`/`cancel_order`) wrapping the
+`kiteconnect` SDK if installed, but no `generate_session`/`request_token`
+OAuth handling exists. This touches real money if completed — should be
+staged carefully (paper mode first), not treated as a quick wire-up.
 
 ---
 
@@ -290,19 +373,44 @@
 
 > Frontend is being rebuilt incrementally as backend APIs stabilize.
 
-- [ ] Design system (dark mode, glassmorphism, micro-animations)
-- [ ] Agent reasoning visualization (thought → tool call → result → next thought) — live token stream
-- [ ] Portfolio editor with drag-and-drop CRUD operations
-- [ ] Equity curve chart component (Recharts or Victory)
-- [ ] Options pricing calculator widget (using existing Rust Greeks)
-- [ ] Mobile-responsive layout
+- [x] Design system — 🟡 partial: consistent CSS-variable token system
+  (`frontend/src/styles/app.css`), but **dark-mode-only**
+  (`color-scheme: dark` fixed, no light theme or toggle), no glassmorphism
+  effects confirmed.
+- [x] Agent reasoning visualization — real WebSocket-driven live status +
+  token streaming exist for the 5 wired agents (RunDetail); see Sprint 3B/3D
+  above for the gaps (missing 3 agent tabs, no latency capture).
+- [x] Portfolio editor — real CRUD (see 3B), not drag-and-drop specifically.
+- [x] Equity curve chart component — Recharts (`recharts@3.8.1`), real,
+  used in `ShadowTrader.tsx`/`PaperTrades.tsx`. **Not** used yet for the
+  still-missing Backtest page (3B).
+- [ ] Options pricing calculator widget — **missing**. Black-Scholes/Greeks
+  are already computed server-side in Rust (`aletheia_rust/src/lib.rs`);
+  nothing in the frontend exposes them.
+- [ ] Mobile-responsive layout — **partial only**, two basic breakpoints
+  (`1024px`/`640px`) in `app.css`, no dedicated mobile pass.
+
+**Note**: no Tailwind, no shadcn/ui, no Victory installed — styling is
+100% hand-rolled CSS + inline `style={{...}}` objects. `RunDetail.tsx` in
+particular has heavy inline-style duplication instead of using the
+CSS-variable system `app.css` already defines — worth cleaning up before
+adding more features to that file.
 
 ---
 
 ## Architecture Evolution Notes
 
-### Event Bus (to add in Sprint 3D)
-Currently agent events are stored in SQLite and replayed. Add an in-process `asyncio.Queue` event bus so agents publish events and multiple consumers (WebSocket, logger, audit log) subscribe without tight coupling.
+> Confidence Aggregation and Context Injection below weren't re-verified
+> against code in the 2026-09-03 pass — everything above this section was.
+
+### Event Bus (to add in Sprint 3D) — 🟡 Built, not wired in
+`EventBus` is real (`aletheia/core/events/bus.py`, `get_event_bus()`),
+exported from `aletheia/core/events/__init__.py`, with a full passing test
+suite (`tests/unit/test_event_bus.py`). But nothing outside the `events/`
+package actually imports or publishes to it yet — the WebSocket router,
+logger, and audit log don't consume it, so agent events still flow through
+the original SQLite-store-and-replay path this note describes replacing.
+The building block exists; the integration doesn't.
 
 ### Confidence Aggregation (to add in Sprint 3.5)
 Oracle emits `confidence: float`. Sentinel emits `risk_score: float`. These aren't systematically combined. Add formal confidence aggregation in `PortfolioManagerNode` — weighted combination of all analyst views → single portfolio-level conviction score.
