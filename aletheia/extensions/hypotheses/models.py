@@ -17,6 +17,7 @@ class Hypothesis(BaseModel):
     status: str = "proposed"  # proposed, testing, validated, rejected
     test_criteria: str
     evidence: List[Evidence] = Field(default_factory=list)
+    backtest_run_id: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

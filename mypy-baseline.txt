@@ -142,8 +142,6 @@ aletheia/extensions/shadow_account/storage.py:0: note: Use "-> None" if function
 aletheia/extensions/shadow_account/storage.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/extensions/shadow_account/storage.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/extensions/hypotheses/registry.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/extensions/hypotheses/registry.py:0: error: Unexpected keyword argument "summary" for "Evidence"  [call-arg]
-aletheia/extensions/hypotheses/registry.py:0: error: Unexpected keyword argument "supports" for "Evidence"  [call-arg]
 aletheia/extensions/backtest/runner.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/extensions/backtest/runner.py:0: error: Incompatible default for parameter "price" (default has type "None", parameter has type "float")  [assignment]
 aletheia/extensions/backtest/runner.py:0: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True

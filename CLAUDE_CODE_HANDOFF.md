@@ -101,7 +101,7 @@ Welcome to Aletheia! This document serves as a single-pass onboarding blueprint 
 | **Live Market Feed** | Sprint 3A | `aletheia-stream` | 🔲 Planned | Confirmed absent — `aletheia_engine` has zero websocket deps; genuinely the biggest remaining backend gap. |
 | **PDF/Excel Report Exporter** | Sprint 4A | `reporting/exporter.py` | **✅ Done** | Jinja2 + WeasyPrint (HTML fallback if not installed) + openpyxl, wired to `GET /runs/{id}/export?format=pdf\|excel`. |
 | **Backtest Frontend Page** | Sprint 3B | — | 🔲 Missing | Backend (`POST /api/v1/backtest`) and the API client function (`runBacktest()`) are real; no page calls it. Zero backend work needed to close this. |
-| **Hypotheses Frontend Page** | Sprint 3B | — | 🔲 Missing | Backend (`hypotheses.py` router + `HypothesisRegistry`) is fully real; no frontend page exists at all. |
+| **Hypotheses Frontend Page** | Sprint 3B | — | 🔲 Missing | Backend (`hypotheses.py` router + `HypothesisRegistry`) is fully real and correct as of 2026-09-04 (fixed a `backtest_run_id` persistence bug, an `Evidence` field-name mismatch, and added a missing `link-backtest` endpoint — see `docs/ROADMAP.md` §1D); no frontend page exists at all yet. |
 
 ---
 
