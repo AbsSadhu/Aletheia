@@ -29,6 +29,36 @@ const AGENT_META = [
 
 const PIE_COLORS = ["#3b82f6", "#a855f7", "#22c55e", "#f59e0b", "#14b8a6", "#ef4444"];
 
+function agentPipelineState(key: string, run: RunResult | null): { label: string; active: boolean } {
+  if (!run) return { label: "Idle", active: false };
+
+  const hasOutput = (() => {
+    switch (key) {
+      case "collector":
+        return run.collector_output.length > 0;
+      case "oracle":
+        return run.oracle_output.length > 0;
+      case "sentinel":
+        return run.sentinel_output !== null;
+      case "sage":
+        return run.sage_output.length > 0;
+      case "scribe":
+        return run.scribe_output !== null;
+      default:
+        return false;
+    }
+  })();
+
+  if (hasOutput) return { label: "Last run: completed", active: true };
+
+  const status = run.summary.status;
+  if (status === "running" || status === "pending") return { label: "Last run: in progress", active: true };
+  if (status === "failed") return { label: "Last run: failed", active: false };
+  // Overall run completed but this agent produced no output - e.g. Sage
+  // skipped for a portfolio with no tax jurisdiction set.
+  return { label: "Last run: skipped", active: false };
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [health, setHealth] = useState<HealthData | null>(null);
@@ -76,6 +106,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     void refresh();
+    const interval = setInterval(() => void refresh(), 15_000);
+    return () => clearInterval(interval);
   }, []);
 
   const handlePortSelect = (name: string) => {
@@ -190,37 +222,42 @@ export default function Dashboard() {
           <div className="card">
             <div className="card-header">
               <div className="card-title">Agent Pipeline</div>
-              <span className="badge badge-completed" style={{ visibility: latestRun ? "visible" : "hidden" }}>
-                Active
-              </span>
+              {latestRun && (
+                <span className={`badge badge-${latestRun.summary.status}`}>
+                  {latestRun.summary.status}
+                </span>
+              )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              {AGENT_META.map((agent) => (
-                <div
-                  key={agent.key}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-3)",
-                    padding: "var(--space-2) var(--space-3)",
-                    borderRadius: "var(--radius-md)",
-                    background: "var(--bg-elevated)",
-                  }}
-                >
-                  <div className={`agent-icon ${agent.className}`}>
-                    <agent.icon size={16} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>
-                      {agent.label}
+              {AGENT_META.map((agent) => {
+                const { label, active } = agentPipelineState(agent.key, latestRun);
+                return (
+                  <div
+                    key={agent.key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--space-3)",
+                      padding: "var(--space-2) var(--space-3)",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--bg-elevated)",
+                    }}
+                  >
+                    <div className={`agent-icon ${agent.className}`}>
+                      <agent.icon size={16} />
                     </div>
-                    <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                      {latestRun ? "Last run: completed" : "Idle"}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>
+                        {agent.label}
+                      </div>
+                      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                        {label}
+                      </div>
                     </div>
+                    <div className="status-dot" style={{ opacity: active ? 1 : 0.3 }} />
                   </div>
-                  <div className="status-dot" style={{ opacity: latestRun ? 1 : 0.3 }} />
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

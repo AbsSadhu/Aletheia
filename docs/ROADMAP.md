@@ -1,6 +1,6 @@
 # ALETHEIA Roadmap
 
-**Last updated: 2026-09-03**
+**Last updated: 2026-09-04**
 
 > This document was reconciled against actual code (not prior doc claims) on
 > 2026-09-03 — every status below is backed by a file:line check, not
@@ -182,11 +182,18 @@ pure HTTP/Axum with zero websocket deps in `Cargo.toml`; no
 is a from-scratch subsystem, not a partial build.
 
 ### 3B. Frontend Real Wire-up — 🟡 Partial, further along than previously tracked
-- [ ] Dashboard: real WebSocket stream during run execution — **not done**;
-  the "Agent Pipeline" widget (`frontend/src/pages/Dashboard.tsx:190-225`) is
-  static/decorative (hardcoded Idle/Last-run-completed text), not backed by
-  a WebSocket. Misleading as currently built — either wire it up or drop the
-  live-look.
+- [x] Dashboard: the "Agent Pipeline" widget (`frontend/src/pages/Dashboard.tsx`)
+  used to hardcode "Last run: completed" for every agent whenever *any*
+  latest run existed, regardless of whether that agent actually produced
+  output — misleading. Fixed 2026-09-04: `agentPipelineState()` now checks
+  each agent's actual output field (`collector_output`/`oracle_output`/
+  `sentinel_output`/`sage_output`/`scribe_output`) and the run's real
+  `summary.status`, so it correctly shows completed / in-progress / failed
+  / skipped per agent, plus the page now polls every 15s (matching the
+  `PaperTrades.tsx`/`ShadowTrader.tsx` pattern) instead of loading once.
+  Note: this is polling, not a WebSocket thought-stream — true live
+  per-token streaming for an in-progress run remains RunDetail's job (new
+  runs auto-navigate there), which is the right split, not a shortcut.
 - [x] RunDetail: 5 of the pipeline's agents (Collector/Oracle/Sentinel/Sage/
   Scribe) are rendered from real API + WebSocket status
   (`frontend/src/pages/RunDetail.tsx`). **Gap**: Sentiment/Fundamental/
@@ -198,8 +205,8 @@ is a from-scratch subsystem, not a partial build.
   page/component calls it. Zero-backend-work item.
 - [ ] Hypotheses page: **missing** — backend (`hypotheses.py` router +
   `extensions/hypotheses/registry.py`) is fully real; no frontend at all.
-- [ ] RunsList: fetches once on mount, no polling/WebSocket for live status
-  (`frontend/src/pages/RunsList.tsx`).
+- [x] RunsList: fixed 2026-09-04 — now polls every 15s
+  (`frontend/src/pages/RunsList.tsx`), same pattern as Dashboard above.
 
 ### 3C. Shadow Account (Paper Trading) — ✅ Done
 - [x] `ShadowAccount` / `VirtualPosition` / `VirtualOrder` management
