@@ -96,7 +96,71 @@ def test_run_trace_endpoint() -> None:
     assert trace_data["run_id"] == run_id
     assert isinstance(trace_data["trace"], list)
     assert len(trace_data["trace"]) > 0
-
     agents_seen = {event["agent"] for event in trace_data["trace"]}
     assert "collector" in agents_seen
     assert "oracle" in agents_seen
+
+
+def test_export_endpoint_labels_pdf_export_honestly() -> None:
+    """`/export?format=pdf` must not label a response `application/pdf`
+    unless it's an actual PDF — weasyprint's native libraries are commonly
+    missing (as they are in this test environment), and the fallback is
+    plain HTML."""
+    client = TestClient(app)
+    create_response = client.post(
+        "/api/v1/runs",
+        json={
+            "prompt": "Analyze a starter portfolio for export",
+            "portfolio": {
+                "name": "DemoExport",
+                "holdings": [
+                    {
+                        "symbol": "RELIANCE",
+                        "quantity": 5,
+                        "average_price": 2500,
+                        "asset_type": "equity",
+                        "exchange": "NSE",
+                        "tax_profile": "equity",
+                    }
+                ],
+            },
+        },
+    )
+    run_id = create_response.json()["summary"]["run_id"]
+
+    export_response = client.get(f"/api/v1/runs/{run_id}/export?format=pdf")
+    assert export_response.status_code == 200
+    content_type = export_response.headers["content-type"]
+    if content_type.startswith("application/pdf"):
+        assert export_response.content.startswith(b"%PDF")
+    else:
+        assert content_type.startswith("text/html")
+        assert b"<html" in export_response.content.lower()
+
+
+def test_export_endpoint_excel_format() -> None:
+    client = TestClient(app)
+    create_response = client.post(
+        "/api/v1/runs",
+        json={
+            "prompt": "Analyze a starter portfolio for excel export",
+            "portfolio": {
+                "name": "DemoExcel",
+                "holdings": [
+                    {
+                        "symbol": "RELIANCE",
+                        "quantity": 5,
+                        "average_price": 2500,
+                        "asset_type": "equity",
+                        "exchange": "NSE",
+                        "tax_profile": "equity",
+                    }
+                ],
+            },
+        },
+    )
+    run_id = create_response.json()["summary"]["run_id"]
+
+    export_response = client.get(f"/api/v1/runs/{run_id}/export?format=excel")
+    assert export_response.status_code == 200
+    assert export_response.content[:2] == b"PK"
