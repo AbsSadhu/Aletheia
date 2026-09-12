@@ -180,3 +180,42 @@ class HypothesisRegistry:
     def list_by_status(self, status: str) -> List[Hypothesis]:
         """Return hypotheses filtered by status."""
         return self.list_all(status=status)
+
+    def evaluate_against_backtest(
+        self, hypo_id: str, sharpe_ratio: float, threshold: float
+    ) -> Hypothesis:
+        """Auto-transition a hypothesis based on a linked backtest's Sharpe
+        ratio: validated if it clears `threshold`, rejected otherwise.
+
+        Only acts on hypotheses currently 'proposed' or 'testing' — one
+        already 'validated' or 'rejected' isn't silently flipped by a later
+        re-link, since that would erase whatever reasoning produced the
+        earlier state. A 'proposed' hypothesis is first moved to 'testing'
+        (linking a backtest to it is, definitionally, starting the test).
+        """
+        hypo = self.get(hypo_id)
+        if hypo is None:
+            raise ValueError(f"Hypothesis '{hypo_id}' not found")
+
+        if hypo.status not in ("proposed", "testing"):
+            logger.info(
+                "Hypothesis %s is '%s' — not auto-evaluating (only proposed/testing are)",
+                hypo_id,
+                hypo.status,
+            )
+            return hypo
+
+        if hypo.status == "proposed":
+            hypo = self.transition(hypo_id, "testing")
+
+        passed = sharpe_ratio >= threshold
+        self.add_evidence(
+            hypo_id,
+            source="auto_backtest_validation",
+            summary=(
+                f"Linked backtest Sharpe ratio {sharpe_ratio:.2f} "
+                f"{'meets' if passed else 'is below'} the {threshold:.2f} threshold."
+            ),
+            supports=passed,
+        )
+        return self.transition(hypo_id, "validated" if passed else "rejected")
