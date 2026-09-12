@@ -104,7 +104,6 @@ class FundamentalAgent:
         # NSE quote-equity response structure
         metadata = data.get("metadata", {})
         info = data.get("securityInfo", {})
-        data.get("priceInfo", {})
 
         # P/E ratio
         pe_raw = metadata.get("pdSymbolPe") or info.get("applicableMargin")
@@ -165,6 +164,11 @@ class FundamentalAgent:
                 result["revenue_growth_pct"] = float(info["revenueGrowth"]) * 100
             if info.get("debtToEquity"):
                 result["debt_to_equity"] = float(info["debtToEquity"])
+            if info.get("heldPercentInsiders"):
+                # yfinance's "insiders" is officers/directors, not NSE's legal "promoter"
+                # category — an approximation used only when the NSE shareholding-pattern
+                # endpoint (the actual promoter figure) is unreachable.
+                result["promoter_holding_pct"] = float(info["heldPercentInsiders"]) * 100
             return result
         except Exception as exc:
             logger.debug("yfinance fundamentals failed: %s", exc)
