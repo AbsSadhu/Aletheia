@@ -101,7 +101,9 @@ class BacktestRunner:
 
         self.equity_curve.append(total_value)
 
-    def generate_report(self, strategy_name: str, start_date: str, end_date: str) -> BacktestResult:
+    def generate_report(
+        self, strategy_name: str, start_date: str, end_date: str, run_id: str | None = None
+    ) -> BacktestResult:
         total_return = (self.equity_curve[-1] - self.initial_capital) / self.initial_capital
 
         metrics = {
@@ -115,6 +117,7 @@ class BacktestRunner:
         equity_data = [{"step": i, "value": val} for i, val in enumerate(self.equity_curve)]
 
         return BacktestResult(
+            run_id=run_id or str(uuid.uuid4()),
             strategy_name=strategy_name,
             start_date=start_date,
             end_date=end_date,

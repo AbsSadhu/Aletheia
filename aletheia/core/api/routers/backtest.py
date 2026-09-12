@@ -23,7 +23,7 @@ class BacktestRequest(BaseModel):
     symbols: list[str] = Field(..., min_length=1)
     start_date: str  # YYYY-MM-DD
     end_date: str  # YYYY-MM-DD
-    strategy: str = "oracle_signals"
+    strategy: str = "sma_crossover"
     initial_capital: float = 100_000.0
 
 
@@ -35,6 +35,12 @@ async def run_backtest(request: BacktestRequest) -> dict:
     """
     from aletheia.extensions.backtest.data_feed import HistoricalDataFeed
     from aletheia.extensions.backtest.runner import BacktestRunner
+    from aletheia.extensions.backtest.strategies import get_strategy
+
+    try:
+        strategy = get_strategy(request.strategy)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     settings = get_settings()
     feed = HistoricalDataFeed(duckdb_path=settings.duckdb_path)
@@ -74,6 +80,13 @@ async def run_backtest(request: BacktestRequest) -> dict:
                     "close": candle.close,
                     "volume": candle.volume,
                 }
+        for signal in strategy.on_bar(trading_date, day_data, runner.positions, runner.current_capital):
+            price = day_data.get(signal.symbol, {}).get("close")
+            if price is None or not signal.quantity or signal.quantity <= 0:
+                continue
+            runner.submit_order(
+                signal.symbol, "market", signal.action, signal.quantity, price=price
+            )
         runner.execute_orders(day_data)
         runner.update_equity(day_data)
 
@@ -82,4 +95,9 @@ async def run_backtest(request: BacktestRequest) -> dict:
         start_date=request.start_date,
         end_date=request.end_date,
     )
+
+    from aletheia.extensions.backtest.storage import BacktestResultStore
+
+    BacktestResultStore(str(settings.data_dir / "backtest_results.db")).save(result)
+
     return result.model_dump(mode="json")

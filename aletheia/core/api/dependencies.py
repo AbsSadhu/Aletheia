@@ -9,6 +9,7 @@ from aletheia.extensions.agents.scribe import ScribeAgent
 from aletheia.extensions.agents.sentinel import SentinelAgent
 from aletheia.core.config.settings import get_settings
 from aletheia.extensions.data.provider_base import MarketDataProvider
+from aletheia.extensions.data.registry import get_registered_providers
 from aletheia.extensions.data.providers.ccxt_provider import CCXTProvider
 from aletheia.extensions.data.providers.static_seed import StaticSeedProvider
 from aletheia.extensions.data.providers.yfinance_provider import YFinanceProvider
@@ -18,10 +19,12 @@ from aletheia.core.infrastructure.cache import TTLCache
 from aletheia.core.infrastructure.container import ServiceContainer
 from aletheia.core.infrastructure.health import HealthRegistry
 from aletheia.core.infrastructure.metrics import MetricsRegistry
+from aletheia.core.events.bus import get_event_bus
 from aletheia.core.execution.live_gate import LiveExecutionGate
 from aletheia.core.execution.paper_trader import PaperTrader
 from aletheia.core.execution.storage import ExecutionStorage
 from aletheia.core.marketdata.engine import MarketDataEngine
+from aletheia.core.marketdata.live_feed import MarketFeedPoller
 from aletheia.core.infrastructure.plugins import PluginManager
 from aletheia.core.infrastructure.scheduler import TaskScheduler
 from aletheia.core.services import RunService
@@ -85,6 +88,7 @@ def get_container() -> ServiceContainer:
         "entry_exit_scanner",
         lambda: EntryExitScanner(container.resolve("shadow_account")),
     )
+    container.register_factory("market_feed_poller", get_market_feed_poller)
     return container
 
 
@@ -135,7 +139,19 @@ _PROVIDER_TYPES: tuple[type[MarketDataProvider], ...] = (
 @lru_cache
 def get_providers() -> tuple[MarketDataProvider, ...]:
     settings = get_settings()
-    return tuple(cls() for cls in _PROVIDER_TYPES if cls.check_available(settings))
+    built_in = tuple(cls() for cls in _PROVIDER_TYPES if cls.check_available(settings))
+    # Plugin-registered providers (see aletheia.extensions.data.registry) are
+    # tried after the built-ins. Plugins load during app startup, before any
+    # request can trigger this lru_cache's first call.
+    return built_in + tuple(get_registered_providers())
+
+
+@lru_cache
+def get_market_feed_poller() -> MarketFeedPoller:
+    return MarketFeedPoller(
+        collector=CollectorAgent(list(get_providers())),
+        bus=get_event_bus(),
+    )
 
 
 @lru_cache
