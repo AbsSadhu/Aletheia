@@ -167,8 +167,8 @@ class OracleAgent:
                 ).fetchall()
                 conn.close()
                 closes = [r[0] for r in rows]
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("OracleAgent: DuckDB history lookup for %s failed: %s", symbol, exc)
 
         if len(closes) < 50:
             try:
@@ -181,12 +181,17 @@ class OracleAgent:
                 hist = ticker.history(period="6mo")
                 if not hist.empty:
                     closes = list(hist["Close"].values)[::-1]
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("OracleAgent: yfinance history fetch for %s failed: %s", symbol, exc)
 
         if len(closes) < 10:
             import random
 
+            logger.warning(
+                "OracleAgent: no real price history for %s (DuckDB and yfinance both "
+                "unavailable) — multi-timeframe signals are synthetic placeholder data.",
+                symbol,
+            )
             closes = [quote.close * (1.0 + (random.random() - 0.5) * 0.05) for _ in range(60)]
             closes[0] = quote.close
 
@@ -238,8 +243,8 @@ class OracleAgent:
                     ).fetchall()
                     conn.close()
                     nifty_closes = [r[0] for r in rows]
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("OracleAgent: DuckDB NIFTY history lookup failed: %s", exc)
 
             if len(nifty_closes) < 50:
                 try:
@@ -249,10 +254,14 @@ class OracleAgent:
                     hist = ticker.history(period="6mo")
                     if not hist.empty:
                         nifty_closes = list(hist["Close"].values)[::-1]
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("OracleAgent: yfinance NIFTY history fetch failed: %s", exc)
 
             if len(nifty_closes) < 10:
+                logger.warning(
+                    "OracleAgent: no real NIFTY history available — factor exposures "
+                    "are computed against synthetic placeholder benchmark data."
+                )
                 nifty_closes = [22000.0 * (1.0 + (i * 0.001)) for i in range(len(closes))]
 
             min_len = min(len(closes), len(nifty_closes))
@@ -329,6 +338,6 @@ Required JSON Structure:
                         factor_exposures=oracle_output.factor_exposures,
                         timeframe_agreement=oracle_output.timeframe_agreement,
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("OracleAgent: debate-node LLM response parse failed: %s", exc)
         return oracle_output
