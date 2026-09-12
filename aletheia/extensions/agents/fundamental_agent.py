@@ -111,16 +111,16 @@ class FundamentalAgent:
         if pe_raw:
             try:
                 result["pe_ratio"] = float(str(pe_raw).replace(",", ""))
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as exc:
+                logger.debug("FundamentalAgent: could not parse pe_ratio %r: %s", pe_raw, exc)
 
         # Sector P/E
         sector_pe_raw = metadata.get("pdSectorPe")
         if sector_pe_raw:
             try:
                 result["sector_pe"] = float(str(sector_pe_raw).replace(",", ""))
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as exc:
+                logger.debug("FundamentalAgent: could not parse sector_pe %r: %s", sector_pe_raw, exc)
 
         # Promoter holding
         shareholding = data.get("shareholdingPatterns", {})
@@ -132,8 +132,12 @@ class FundamentalAgent:
         if promoter_raw:
             try:
                 result["promoter_holding_pct"] = float(str(promoter_raw).replace("%", "").strip())
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as exc:
+                logger.debug(
+                    "FundamentalAgent: could not parse promoter_holding_pct %r: %s",
+                    promoter_raw,
+                    exc,
+                )
 
         return result
 

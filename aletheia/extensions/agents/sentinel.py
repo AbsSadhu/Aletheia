@@ -39,8 +39,8 @@ class SentinelAgent:
                 ).fetchall()
                 conn.close()
                 nifty_closes = [r[0] for r in rows]
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("SentinelAgent: DuckDB NIFTY history lookup failed: %s", exc)
         if len(nifty_closes) < 30:
             try:
                 import yfinance as yf
@@ -49,9 +49,13 @@ class SentinelAgent:
                 hist = ticker.history(period="3mo")
                 if not hist.empty:
                     nifty_closes = list(hist["Close"].values)[::-1]
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("SentinelAgent: yfinance NIFTY history fetch failed: %s", exc)
         if len(nifty_closes) < 10:
+            logger.warning(
+                "SentinelAgent: no real NIFTY history available — regime detection is "
+                "computed against synthetic placeholder benchmark data."
+            )
             nifty_closes = [22000.0 * (1.0 + (i * 0.001)) for i in range(60)]
 
         nifty_returns = [
@@ -158,6 +162,6 @@ class SentinelAgent:
                     regime_detail=sentinel_output.regime_detail,
                     natural_language_brief=sentinel_output.natural_language_brief,
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("SentinelAgent: debate-node LLM response parse failed: %s", exc)
         return sentinel_output
