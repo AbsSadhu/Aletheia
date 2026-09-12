@@ -66,15 +66,33 @@ fn find_workspace_root(app_dir: &std::path::Path) -> std::path::PathBuf {
     app_dir.join("../../..").canonicalize().unwrap_or_else(|_| app_dir.to_path_buf())
 }
 
-fn spawn_engine(workspace: &std::path::Path) -> Option<Child> {
+/// Resolves the engine sidecar's path, preferring a packaged build's bundled
+/// resources over the dev-tree cargo output — a real installer has no
+/// `aletheia_engine/target/release` next to it at all.
+fn resolve_engine_exe(resource_dir: Option<&std::path::Path>, workspace: &std::path::Path) -> Option<std::path::PathBuf> {
     let binary_name = if cfg!(windows) { "aletheia-engine.exe" } else { "aletheia-engine" };
-    let exe = workspace.join("aletheia_engine/target/release").join(binary_name);
-    if !exe.exists() {
-        eprintln!("[ALETHEIA] Engine binary not found at {:?} — skipping sidecar", exe);
-        return None;
+    if let Some(res) = resource_dir {
+        // `bundle.resources: ["resources"]` in tauri.conf.json preserves that
+        // "resources" folder name under the app's resource dir — confirmed by
+        // running the built exe directly and inspecting where cargo's build
+        // script actually copies things (target/<profile>/resources/), not
+        // resource_dir() itself.
+        let packaged = res.join("resources").join(binary_name);
+        if packaged.exists() {
+            return Some(packaged);
+        }
     }
+    let dev_path = workspace.join("aletheia_engine/target/release").join(binary_name);
+    dev_path.exists().then_some(dev_path)
+}
+
+fn spawn_engine(resource_dir: Option<&std::path::Path>, workspace: &std::path::Path) -> Option<Child> {
+    let Some(exe) = resolve_engine_exe(resource_dir, workspace) else {
+        eprintln!("[ALETHEIA] Engine binary not found (checked packaged resources and dev tree) — skipping sidecar");
+        return None;
+    };
     match std::process::Command::new(&exe)
-        .current_dir(workspace)
+        .current_dir(exe.parent().unwrap_or(workspace))
         .spawn()
     {
         Ok(child) => {
@@ -88,23 +106,57 @@ fn spawn_engine(workspace: &std::path::Path) -> Option<Child> {
     }
 }
 
-fn spawn_api(workspace: &std::path::Path) -> Option<Child> {
+/// Resolves how to invoke the backend, preferring the packaged
+/// PyInstaller-frozen binary (no interpreter needed) over the dev-tree
+/// `.venv` + `python -m uvicorn` invocation.
+enum BackendLaunch {
+    Frozen(std::path::PathBuf),
+    DevInterpreter(std::path::PathBuf),
+}
+
+fn resolve_backend_launch(resource_dir: Option<&std::path::Path>, workspace: &std::path::Path) -> Option<BackendLaunch> {
+    let frozen_name = if cfg!(windows) { "aletheia-backend.exe" } else { "aletheia-backend" };
+    if let Some(res) = resource_dir {
+        let frozen = res.join("resources").join("aletheia-backend").join(frozen_name);
+        if frozen.exists() {
+            return Some(BackendLaunch::Frozen(frozen));
+        }
+    }
     let python = if cfg!(windows) {
         workspace.join(".venv/Scripts/python.exe")
     } else {
         workspace.join(".venv/bin/python")
     };
-    if !python.exists() {
-        eprintln!("[ALETHEIA] Python not found at {:?} — skipping API sidecar", python);
+    python.exists().then_some(BackendLaunch::DevInterpreter(python))
+}
+
+fn spawn_api(resource_dir: Option<&std::path::Path>, workspace: &std::path::Path) -> Option<Child> {
+    let Some(launch) = resolve_backend_launch(resource_dir, workspace) else {
+        eprintln!("[ALETHEIA] No backend available (checked packaged sidecar and dev .venv) — skipping API sidecar");
         return None;
-    }
-    match std::process::Command::new(&python)
-        .args([
-            "-m", "uvicorn", "aletheia.core.main:app",
-            "--host", "127.0.0.1",
-            "--port", "8899",
-        ])
-        .current_dir(workspace)
+    };
+
+    let mut cmd = match &launch {
+        BackendLaunch::Frozen(exe) => {
+            let mut c = std::process::Command::new(exe);
+            c.current_dir(exe.parent().unwrap_or(workspace));
+            c
+        }
+        BackendLaunch::DevInterpreter(python) => {
+            let mut c = std::process::Command::new(python);
+            c.args([
+                "-m", "uvicorn", "aletheia.core.main:app",
+                "--host", "127.0.0.1",
+                "--port", "8899",
+            ])
+            .current_dir(workspace);
+            c
+        }
+    };
+
+    match cmd
+        .env("ALETHEIA_HOST", "127.0.0.1")
+        .env("ALETHEIA_PORT", "8899")
         .env("ALETHEIA_SKIP_PREFLIGHT", "false")
         .spawn()
     {
@@ -151,11 +203,11 @@ fn restart_sidecars(app: tauri::AppHandle, state: tauri::State<'_, SharedState>)
     let mut lock = state.lock().unwrap();
     lock.kill_all();
 
-    let res_dir = app.path().resource_dir().unwrap_or_default();
-    let workspace = find_workspace_root(&res_dir);
+    let res_dir = app.path().resource_dir().ok();
+    let workspace = find_workspace_root(res_dir.as_deref().unwrap_or_else(|| std::path::Path::new(".")));
 
-    lock.engine = spawn_engine(&workspace);
-    lock.api = spawn_api(&workspace);
+    lock.engine = spawn_engine(res_dir.as_deref(), &workspace);
+    lock.api = spawn_api(res_dir.as_deref(), &workspace);
 
     format!(
         "engine={} api={}",
@@ -241,17 +293,17 @@ fn main() {
         ])
         .setup(move |app| {
             // ---- Spawn sidecars on startup ----
-            let res_dir = app.path().resource_dir().unwrap_or_default();
-            let workspace = find_workspace_root(&res_dir);
+            let res_dir = app.path().resource_dir().ok();
+            let workspace = find_workspace_root(res_dir.as_deref().unwrap_or_else(|| std::path::Path::new(".")));
 
             {
                 let mut lock = shared_state.lock().unwrap();
-                lock.engine = spawn_engine(&workspace);
+                lock.engine = spawn_engine(res_dir.as_deref(), &workspace);
 
                 // Give the engine 500ms to bind its port before starting the API
                 std::thread::sleep(std::time::Duration::from_millis(500));
 
-                lock.api = spawn_api(&workspace);
+                lock.api = spawn_api(res_dir.as_deref(), &workspace);
             }
 
             // ---- Hold the window hidden until both sidecars answer their
@@ -315,11 +367,11 @@ fn main() {
                         "restart" => {
                             let mut lock = state_ref.lock().unwrap();
                             lock.kill_all();
-                            let res_dir = app_handle.path().resource_dir().unwrap_or_default();
-                            let ws = find_workspace_root(&res_dir);
-                            lock.engine = spawn_engine(&ws);
+                            let res_dir = app_handle.path().resource_dir().ok();
+                            let ws = find_workspace_root(res_dir.as_deref().unwrap_or_else(|| std::path::Path::new(".")));
+                            lock.engine = spawn_engine(res_dir.as_deref(), &ws);
                             std::thread::sleep(std::time::Duration::from_millis(500));
-                            lock.api = spawn_api(&ws);
+                            lock.api = spawn_api(res_dir.as_deref(), &ws);
                             let _ = app_handle.emit("services-restarted", ());
                         }
                         "stop" => {

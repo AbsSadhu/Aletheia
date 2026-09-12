@@ -17,6 +17,10 @@ coverage.xml
 htmlcov/
 frontend/dist/
 desktop/src-tauri/target/
+desktop/src-tauri/resources/*
+!desktop/src-tauri/resources/.gitkeep
+desktop/dist_backend/
+desktop/build_backend/
 .tmp_vibe/
 *.log
 
