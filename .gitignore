@@ -24,8 +24,8 @@ desktop/src-tauri/target/
 target/
 aletheia_engine/target/
 aletheia_rust/target/
-data/
-backups/
+/data/
+/backups/
 
 # Claude Code local dev tooling — not Aletheia product code
 .claude/settings.local.json
