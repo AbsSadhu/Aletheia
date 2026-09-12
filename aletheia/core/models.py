@@ -192,6 +192,11 @@ class Holding(BaseModel):
     exchange: str = "NSE"
     tax_profile: TaxProfile = TaxProfile.EQUITY
     sector: str = "Technology"
+    # Optional: when the position was opened. Without it, STCG/LTCG term
+    # determination can't distinguish short- from long-term holding and
+    # conservatively assumes short-term (the higher-rate case) rather than
+    # silently assuming a favorable long-term rate.
+    acquisition_date: datetime | None = None
 
 
 class Portfolio(BaseModel):
@@ -328,6 +333,13 @@ class TaxSummary(BaseModel):
     tax_drag_pct: float
     estimated_tax_amount: float
     post_tax_profit: float
+    # "short" | "long" | "flat" (crypto/F&O don't have a holding-period
+    # distinction) — which bucket of the rate table was applied.
+    term: str = "flat"
+    # False whenever the underlying rate table entry hasn't been confirmed
+    # against a primary source — see aletheia/extensions/backtest/tax_rates.py.
+    rates_verified: bool = False
+    notes: list[str] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod
