@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import AsyncGenerator
 from aletheia.core.llm.chat_llm import ChatLLM
 from aletheia.core.tools.registry import ToolRegistry
@@ -86,6 +87,7 @@ class ReActLoop:
 
                     yield StreamEvent("tool_call", {"tool": tool_name, "arguments": args})
 
+                    tool_start = time.monotonic()
                     tool = self.registry.get(tool_name)
                     if not tool:
                         result = f"Error: Tool '{tool_name}' not found."
@@ -96,8 +98,17 @@ class ReActLoop:
                             result = await tool.execute(**args)
                         except Exception as e:
                             result = f"Error executing tool: {str(e)}"
+                    latency_ms = round((time.monotonic() - tool_start) * 1000, 2)
 
-                    yield StreamEvent("tool_result", {"tool": tool_name, "result": result})
+                    yield StreamEvent(
+                        "tool_result",
+                        {
+                            "tool": tool_name,
+                            "result": result,
+                            "latency_ms": latency_ms,
+                            "result_size": len(str(result)),
+                        },
+                    )
 
                     # Add tool response to history
                     messages.append(
