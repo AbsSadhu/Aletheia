@@ -21,6 +21,22 @@ The architecture separates the authoritative **Python/FastAPI** agentic core, hi
 
 ---
 
+## 🚀 Quickstart
+
+```bash
+docker compose up
+```
+
+That's it — no API keys required. This brings up the backend, Rust compute sidecar, frontend, and an empty Ollama instance. Without pulling an LLM model, you still get: the full dashboard, runs list, portfolio, backtest, hypotheses, and factor explorer pages, and even end-to-end agent runs (LLM-backed nodes degrade gracefully to a templated summary instead of failing the run). For real LLM-synthesized analysis, pull a model once:
+
+```bash
+docker compose exec ollama ollama pull mistral:7b
+```
+
+For local (non-Docker) development — Poetry, Rust toolchain, and per-suite test commands — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
 ## 🚧 Project Status & Roadmap
 
 > [!IMPORTANT]

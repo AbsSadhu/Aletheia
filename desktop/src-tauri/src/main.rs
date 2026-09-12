@@ -67,7 +67,8 @@ fn find_workspace_root(app_dir: &std::path::Path) -> std::path::PathBuf {
 }
 
 fn spawn_engine(workspace: &std::path::Path) -> Option<Child> {
-    let exe = workspace.join("aletheia_engine/target/release/aletheia-engine.exe");
+    let binary_name = if cfg!(windows) { "aletheia-engine.exe" } else { "aletheia-engine" };
+    let exe = workspace.join("aletheia_engine/target/release").join(binary_name);
     if !exe.exists() {
         eprintln!("[ALETHEIA] Engine binary not found at {:?} — skipping sidecar", exe);
         return None;
@@ -88,7 +89,11 @@ fn spawn_engine(workspace: &std::path::Path) -> Option<Child> {
 }
 
 fn spawn_api(workspace: &std::path::Path) -> Option<Child> {
-    let python = workspace.join(".venv/Scripts/python.exe");
+    let python = if cfg!(windows) {
+        workspace.join(".venv/Scripts/python.exe")
+    } else {
+        workspace.join(".venv/bin/python")
+    };
     if !python.exists() {
         eprintln!("[ALETHEIA] Python not found at {:?} — skipping API sidecar", python);
         return None;

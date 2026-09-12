@@ -1,5 +1,12 @@
 # ALETHEIA Knowledge Graph
 
+> **Stale as of 2026-09-12.** This document predates `docs/ROADMAP.md` and
+> `CLAUDE_CODE_HANDOFF.md` (last updated 2026-09-03/04) and still lists several
+> items as "not started" — PDF export, Prometheus metrics, MCP server, Shadow
+> Account API, Tauri sidecar auto-launch — that are now done. Treat
+> `docs/ROADMAP.md` as the current status source; this file is kept for its
+> architecture graph and historical context, not its status claims.
+
 This document is the current backend-focused handoff graph for forwarding the project into
 Antigravity or another agent/workstream.
 
