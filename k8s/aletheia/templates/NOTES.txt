@@ -1,0 +1,31 @@
+ALETHEIA has been deployed as {{ include "aletheia.fullname" . }}.
+
+IMPORTANT — this chart does NOT create the `aletheia-secrets` Secret it
+references (deliberately: baking API keys into `values.yaml` puts them in
+plaintext in `helm get values`/release history). Create it yourself before
+the backend needs any of these keys:
+
+  kubectl create secret generic aletheia-secrets \
+    --namespace {{ .Release.Namespace }} \
+    --from-literal=OPENAI_API_KEY=<your-key> \
+    --from-literal=ANTHROPIC_API_KEY=<your-key> \
+    --from-literal=ZERODHA_API_KEY=<your-key> \
+    --from-literal=ZERODHA_API_SECRET=<your-key>
+
+Every key is optional (`secretKeyRef.optional: true` in deployment.yaml) —
+omit any you don't use. None of them are required for the default local
+LLM (Ollama) path.
+
+Check the backend is healthy:
+
+  kubectl port-forward --namespace {{ .Release.Namespace }} \
+    svc/{{ include "aletheia.fullname" . }}-backend {{ .Values.service.backend.port }}:{{ .Values.service.backend.port }}
+  curl http://localhost:{{ .Values.service.backend.port }}/api/v1/health
+
+{{- if .Values.ingress.enabled }}
+
+Ingress is enabled — check `kubectl get ingress` for the assigned host(s).
+{{- else }}
+
+Ingress is disabled — use port-forward above, or set `ingress.enabled=true`.
+{{- end }}

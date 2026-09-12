@@ -29,11 +29,10 @@ spec:
             - name: http
               containerPort: 8899
               protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "aletheia.fullname" . }}-config
           env:
-            {{- range $key, $val := .Values.env }}
-            - name: {{ $key }}
-              value: {{ $val | quote }}
-            {{- end }}
             {{- range $key, $_ := .Values.secretEnv }}
             - name: {{ $key }}
               valueFrom:
