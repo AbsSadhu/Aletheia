@@ -32,13 +32,14 @@ class SwarmWorker:
         for t_name in self.allowed_tools or []:
             tool = self.tool_registry.get(t_name)
             if tool:
-                worker_registry.register(tool.__class__)
+                worker_registry.register(tool)
 
         # If no allowed tools, register them all
         if not self.allowed_tools:
             for t_def in self.tool_registry.get_definitions():
                 tool = self.tool_registry.get(t_def["function"]["name"])
-                worker_registry.register(tool.__class__)
+                if tool:
+                    worker_registry.register(tool)
 
         loop = ReActLoop(llm=self.llm, tool_registry=worker_registry)
 

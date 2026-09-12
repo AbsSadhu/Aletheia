@@ -24,6 +24,7 @@ from aletheia.core.api.routers import (
     risk,
     runs,
     shadow,
+    swarm,
     websocket,
 )
 
@@ -42,6 +43,7 @@ for _module in (
     risk,
     config,
     chat,
+    swarm,
 ):
     router.include_router(_module.router)
 

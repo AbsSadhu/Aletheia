@@ -1,4 +1,4 @@
-from typing import List
+from typing import Callable, List
 from aletheia.core.swarm.worker import SwarmWorker
 from aletheia.core.llm.chat_llm import OllamaChatLLM
 from aletheia.core.tools.registry import build_registry
@@ -55,3 +55,33 @@ def get_due_diligence_team() -> List[SwarmWorker]:
             allowed_tools=["sec_filings", "fundamental_data"],
         ),
     ]
+
+
+# Preset registry: both presets above existed before this change but had
+# zero callers anywhere in the codebase — no CLI command, no API route, no
+# test. This registry plus aletheia/core/api/routers/swarm.py is what
+# actually makes them runnable, and register_preset() lets a plugin add
+# another without touching this file (mirrors the strategy/provider plugin
+# registration pattern in aletheia/extensions/backtest/strategies.py and
+# aletheia/extensions/data/registry.py).
+_PRESET_REGISTRY: dict[str, Callable[[], List[SwarmWorker]]] = {
+    "investment_team": get_investment_team,
+    "due_diligence_team": get_due_diligence_team,
+}
+
+
+def register_preset(name: str, factory: Callable[[], List[SwarmWorker]]) -> None:
+    _PRESET_REGISTRY[name] = factory
+
+
+def available_presets() -> list[str]:
+    return sorted(_PRESET_REGISTRY)
+
+
+def get_preset(name: str) -> List[SwarmWorker]:
+    factory = _PRESET_REGISTRY.get(name)
+    if factory is None:
+        raise ValueError(
+            f"Unknown swarm preset '{name}'. Available: {', '.join(available_presets())}"
+        )
+    return factory()
