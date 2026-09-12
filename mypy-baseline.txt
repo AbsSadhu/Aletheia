@@ -10,12 +10,6 @@ aletheia/core/agent/streaming.py:0: error: Function is missing a return type ann
 aletheia/core/swarm/store.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/core/swarm/store.py:0: note: Use "-> None" if function does not return a value
 aletheia/core/swarm/store.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/core/math_engine.py:0: error: Module "aletheia_rust" has no attribute "options_pricing_rust"  [attr-defined]
-aletheia/core/math_engine.py:0: error: Module "aletheia_rust" has no attribute "monte_carlo_var_rust"  [attr-defined]
-aletheia/core/math_engine.py:0: error: Module "aletheia_rust" has no attribute "calculate_technical_indicators_rust"  [attr-defined]
-aletheia/core/math_engine.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
-aletheia/core/math_engine.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
-aletheia/core/math_engine.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
 aletheia/core/tools/registry.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/core/memory/episodic.py:0: error: Returning Any from function declared to return "int"  [no-any-return]
 aletheia/core/compliance/sebi_logger.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
@@ -148,8 +142,6 @@ aletheia/extensions/backtest/runner.py:0: note: PEP 484 prohibits implicit Optio
 aletheia/extensions/backtest/runner.py:0: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
 aletheia/extensions/backtest/runner.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/extensions/backtest/runner.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/extensions/backtest/tax.py:0: error: Incompatible types in assignment (expression has type "None", variable has type Module)  [assignment]
-aletheia/extensions/backtest/tax.py:0: error: Module has no attribute "build_tax_summary_rust"  [attr-defined]
 aletheia/extensions/agents/sentiment_agent.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/extensions/agents/sentiment_agent.py:0: error: "BaseException" object is not iterable  [misc]
 aletheia/extensions/agents/options_flow_agent.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
@@ -162,8 +154,6 @@ aletheia/extensions/hypotheses/cli_handlers.py:0: error: Function is missing a t
 aletheia/extensions/hypotheses/cli_handlers.py:0: error: Function is missing a type annotation  [no-untyped-def]
 aletheia/extensions/hypotheses/cli_handlers.py:0: error: Function is missing a type annotation  [no-untyped-def]
 aletheia/extensions/hypotheses/cli_handlers.py:0: error: Function is missing a type annotation  [no-untyped-def]
-aletheia/extensions/backtest/scenario.py:0: error: Incompatible types in assignment (expression has type "None", variable has type Module)  [assignment]
-aletheia/extensions/backtest/scenario.py:0: error: Module has no attribute "build_scenario_rust"  [attr-defined]
 aletheia/extensions/backtest/local_importer.py:0: error: Argument "config" to "connect" has incompatible type "dict[str, str]"; expected "dict[str, str | bool | int | float | list[str]] | None"  [arg-type]
 aletheia/extensions/backtest/local_importer.py:0: note: "dict" is invariant -- see https://mypy.readthedocs.io/en/stable/common_issues.html#variance
 aletheia/extensions/backtest/local_importer.py:0: note: Consider using "Mapping" instead, which is covariant in the value type
@@ -246,8 +236,6 @@ aletheia/core/swarm/worker.py:0: error: Incompatible default for parameter "allo
 aletheia/core/swarm/worker.py:0: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
 aletheia/core/swarm/worker.py:0: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
 aletheia/core/swarm/worker.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
-aletheia/core/swarm/worker.py:0: error: Argument 1 to "register" of "ToolRegistry" has incompatible type "type[BaseTool]"; expected "BaseTool"  [arg-type]
-aletheia/core/swarm/worker.py:0: error: Argument 1 to "register" of "ToolRegistry" has incompatible type "type[BaseTool] | type[None]"; expected "BaseTool"  [arg-type]
 aletheia/core/swarm/worker.py:0: error: Cannot assign to a method  [method-assign]
 aletheia/core/api/routers/memory.py:0: error: Missing positional argument "db_path" in call to "VectorMemoryStore"  [call-arg]
 aletheia/core/api/routers/chat.py:0: error: Function is missing a return type annotation  [no-untyped-def]
