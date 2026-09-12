@@ -4,9 +4,16 @@ version: "3.9"
 #  ALETHEIA — Production Docker Compose Stack
 #  Services:
 #    - backend      FastAPI + LangGraph agents (port 8899)
-#    - frontend     React 19 / Vite static server (port 5173)
+#    - engine       Rust compute sidecar (port 18899)
+#    - ollama       Local LLM runtime (port 11434)
+#    - frontend     React 19 static build served via nginx (port 5173)
 #    - prometheus   Metrics scraper (port 9090)
 #    - grafana      Dashboards (port 3000)
+#
+#  `docker compose up` alone gives you a fully working stack with zero API
+#  keys. Ollama starts empty — pull a model once with:
+#    docker compose exec ollama ollama pull mistral:7b
+#  Until a model is pulled, every page works except LLM-backed agent runs.
 # ============================================================
 
 x-logging: &default-logging
@@ -30,11 +37,19 @@ services:
     environment:
       - ALETHEIA_SKIP_PREFLIGHT=false
       - ALETHEIA_LOG_LEVEL=INFO
+      # Container-network hostnames — only resolvable from other containers
+      # on aletheia-net, unlike the browser-facing VITE_API_BASE_URL below.
+      - ALETHEIA_OLLAMA_BASE_URL=http://ollama:11434
+      - ALETHEIA_COMPUTE_ENGINE_URL=http://engine:18899
+      - ALETHEIA_COMPUTE_ENGINE_ENABLED=true
     ports:
       - "8899:8899"
     volumes:
       - aletheia-data:/app/data
       - aletheia-logs:/app/logs
+    depends_on:
+      - ollama
+      - engine
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8899/api/v1/health"]
       interval: 30s
@@ -47,15 +62,56 @@ services:
       - aletheia-net
 
   # ----------------------------------------------------------
+  # Rust Compute Sidecar
+  # ----------------------------------------------------------
+  engine:
+    build:
+      context: ./aletheia_engine
+      dockerfile: Dockerfile
+    container_name: aletheia-engine
+    environment:
+      - ALETHEIA_ENGINE_HOST=0.0.0.0
+      - ALETHEIA_ENGINE_PORT=18899
+    ports:
+      - "18899:18899"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18899/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - aletheia-net
+
+  # ----------------------------------------------------------
+  # Ollama — Local LLM Runtime
+  # ----------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: aletheia-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - aletheia-net
+
+  # ----------------------------------------------------------
   # React Frontend
   # ----------------------------------------------------------
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Resolved from the browser on the host, not from inside the compose
+        # network — must be the host-mapped backend port, not `http://backend:8899`.
+        VITE_API_BASE_URL: http://localhost:8899
     container_name: aletheia-frontend
-    environment:
-      - VITE_API_BASE_URL=http://backend:8899
     ports:
       - "5173:80"
     depends_on:
@@ -120,3 +176,4 @@ volumes:
   aletheia-logs:
   prometheus-data:
   grafana-data:
+  ollama-data:

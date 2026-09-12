@@ -36,7 +36,12 @@ class Settings(BaseSettings):
     retention_days: int | None = Field(default=30)
     db_encryption_key: str | None = Field(default=None)
     api_keys: list[str] = Field(default_factory=list)
-    tax_jurisdiction: str | None = Field(default=None)
+    # Gates the Sage agent (RunService.execute_run removes "sage" from the
+    # active agent list when this is unset) — India-first product, so this
+    # defaults on rather than requiring every user to discover and set an
+    # env var just to see the platform's flagship tax-aware feature. Set to
+    # None (ALETHEIA_TAX_JURISDICTION=) to disable tax-aware projections.
+    tax_jurisdiction: str | None = Field(default="IN")
     node_timeout_secs: int = Field(default=30)
     enabled_agents: list[str] = Field(
         default_factory=lambda: [
@@ -74,6 +79,19 @@ class Settings(BaseSettings):
     enable_cloud_llm_fallback: bool = False
     llm_max_retries: int = 2
     llm_retry_delay_secs: float = 1.0
+    # Fail app startup if the configured LLM provider is unreachable. Off by
+    # default so the app (and its non-LLM pages: runs list, portfolio,
+    # backtest, hypotheses, factors) still boots without Ollama installed.
+    require_llm_preflight: bool = False
+
+    # --- Hypothesis auto-validation ---
+    # Heuristic default, not a claim of statistical rigor — a widely-cited
+    # "acceptable risk-adjusted return" cutoff, configurable per deployment.
+    hypothesis_validation_sharpe_threshold: float = 1.0
+
+    # --- Live Market Feed ---
+    market_feed_enabled: bool = True
+    market_feed_interval_secs: float = 15.0
 
     # --- Rust Compute Engine Sidecar ---
     compute_engine_url: str = "http://127.0.0.1:18899"

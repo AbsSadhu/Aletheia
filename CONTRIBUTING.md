@@ -14,8 +14,13 @@ that don't need repeating here.
   extension) and `aletheia_engine` (compute sidecar); required even for the
   Docker image now, since the build stage compiles the Rust extension there
 - **Node 20+** and npm — for the React frontend
-- **[Ollama](https://ollama.com/)** running locally if you want to exercise
-  the LLM-backed agents without cloud API keys (the default provider)
+- **[Ollama](https://ollama.com/)** running locally if you want real
+  LLM-synthesized analysis (the default provider). It's optional to get the
+  app running at all — without it, the backend starts with a warning and
+  every non-LLM page works normally; LLM-backed agent nodes degrade to a
+  templated fallback instead of failing the run. Set
+  `ALETHEIA_REQUIRE_LLM_PREFLIGHT=true` to make a missing Ollama a hard
+  startup failure instead.
 
 ## Setup
 

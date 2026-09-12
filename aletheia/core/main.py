@@ -74,7 +74,11 @@ def run_preflight_checks(settings) -> None:
             "Please compile the extension by running 'maturin develop' in the workspace."
         ) from exc
 
-    # 4. Verify Ollama model is pulled (if Ollama is active)
+    # 4. Verify Ollama model is pulled (if Ollama is active). Non-fatal by
+    # default: the app still serves its non-LLM pages (runs, portfolio,
+    # backtest, hypotheses, factors) without a local LLM. Agent runs that
+    # actually need the LLM will surface the real connection error when
+    # invoked. Set ALETHEIA_REQUIRE_LLM_PREFLIGHT=true to restore fail-fast.
     if settings.default_llm_provider == "ollama":
         try:
             r = httpx.get(f"{settings.ollama_base_url}/api/tags", timeout=3.0)
@@ -98,10 +102,17 @@ def run_preflight_checks(settings) -> None:
                     f"Please pull it by running 'ollama pull {target_model}' in your terminal."
                 )
         except Exception as exc:
-            raise RuntimeError(
-                f"Preflight Check Failed: Ollama is unreachable at {settings.ollama_base_url} or "
-                f"model verification failed. Error: {exc}"
-            ) from exc
+            message = (
+                f"Ollama is unreachable at {settings.ollama_base_url} or model "
+                f"verification failed. Error: {exc}"
+            )
+            if settings.require_llm_preflight:
+                raise RuntimeError(f"Preflight Check Failed: {message}") from exc
+            logger.warning(
+                "Startup preflight: %s Agent runs that need the LLM will fail until "
+                "Ollama is running; all other features work normally.",
+                message,
+            )
 
 
 def register_exception_handlers(app: FastAPI, settings) -> None:
@@ -177,6 +188,11 @@ def create_app() -> FastAPI:
         metrics = container.resolve("metrics")
         plugins.load_all()
         await scheduler.start()
+        if settings.market_feed_enabled:
+            poller = container.resolve("market_feed_poller")
+            scheduler.schedule_interval(
+                "market_feed", poller.poll_once, settings.market_feed_interval_secs
+            )
         metrics.increment("app.startups")
         try:
             yield

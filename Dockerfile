@@ -24,7 +24,7 @@ RUN maturin build --release --manifest-path aletheia_rust/Cargo.toml -o /wheels
 # Stage 2: runtime image — production dependencies only, plus the wheel
 # built above. No dev/test tooling ships in this image.
 # ---------------------------------------------------------------------------
-FROM python:3.13-slim AS runtime
+FROM python:3.13-slim AS backend
 
 WORKDIR /app
 
