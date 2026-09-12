@@ -94,6 +94,18 @@ async def link_hypothesis_backtest(hypo_id: str, request: LinkBacktestRequest) -
         hypo = reg.link_to_backtest(hypo_id, request.backtest_run_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+    settings = get_settings()
+    from aletheia.extensions.backtest.storage import BacktestResultStore
+
+    store = BacktestResultStore(str(settings.data_dir / "backtest_results.db"))
+    result = store.get(request.backtest_run_id)
+    if result is not None:
+        sharpe = result.metrics.get("sharpe_ratio", 0.0)
+        hypo = reg.evaluate_against_backtest(
+            hypo_id, sharpe, settings.hypothesis_validation_sharpe_threshold
+        )
+
     return hypo.model_dump(mode="json")
 
 

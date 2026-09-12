@@ -24,6 +24,45 @@ def test_link_to_backtest_persists_and_is_readable_via_get(registry: HypothesisR
     assert fetched.backtest_run_id == "run-123"
 
 
+def test_evaluate_against_backtest_validates_on_high_sharpe(registry: HypothesisRegistry) -> None:
+    hypo = registry.propose(title="t", description="d", test_criteria="c")
+    result = registry.evaluate_against_backtest(hypo.id, sharpe_ratio=1.8, threshold=1.0)
+
+    assert result.status == "validated"
+    assert result.evidence
+    assert result.evidence[-1].supports_hypothesis is True
+
+
+def test_evaluate_against_backtest_rejects_on_low_sharpe(registry: HypothesisRegistry) -> None:
+    hypo = registry.propose(title="t", description="d", test_criteria="c")
+    result = registry.evaluate_against_backtest(hypo.id, sharpe_ratio=0.2, threshold=1.0)
+
+    assert result.status == "rejected"
+    assert result.evidence[-1].supports_hypothesis is False
+
+
+def test_evaluate_against_backtest_moves_proposed_through_testing_first(
+    registry: HypothesisRegistry,
+) -> None:
+    hypo = registry.propose(title="t", description="d", test_criteria="c")
+    assert hypo.status == "proposed"
+
+    result = registry.evaluate_against_backtest(hypo.id, sharpe_ratio=2.0, threshold=1.0)
+    assert result.status == "validated"  # passed through "testing", not stuck there
+
+
+def test_evaluate_against_backtest_does_not_flip_an_already_validated_hypothesis(
+    registry: HypothesisRegistry,
+) -> None:
+    hypo = registry.propose(title="t", description="d", test_criteria="c")
+    registry.evaluate_against_backtest(hypo.id, sharpe_ratio=2.0, threshold=1.0)
+    assert registry.get(hypo.id).status == "validated"
+
+    # A later re-link with a bad Sharpe must not silently overwrite it.
+    result = registry.evaluate_against_backtest(hypo.id, sharpe_ratio=0.1, threshold=1.0)
+    assert result.status == "validated"
+
+
 def test_backtest_link_survives_a_later_transition(registry: HypothesisRegistry) -> None:
     """Regression test: save() used to omit backtest_run_id from its column
     list, so any later save() (e.g. via transition()) silently wiped the
