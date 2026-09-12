@@ -119,12 +119,18 @@ async def export_run(run_id: str, format: str = "pdf") -> StreamingResponse:
     else:
         # Default to PDF
         try:
-            data = export_pdf(run_dict)
+            data, is_pdf = export_pdf(run_dict)
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"PDF export failed: {exc}") from exc
-        # If WeasyPrint falls back to HTML, still serve it gracefully
-        media_type = "application/pdf"
-        filename = f"aletheia_run_{run_id[:8]}.pdf"
+        # If WeasyPrint is unavailable/broken, serve the HTML fallback honestly
+        # rather than labeling it application/pdf — a browser or PDF viewer
+        # can't open an HTML file that's merely renamed to .pdf.
+        if is_pdf:
+            media_type = "application/pdf"
+            filename = f"aletheia_run_{run_id[:8]}.pdf"
+        else:
+            media_type = "text/html"
+            filename = f"aletheia_run_{run_id[:8]}.html"
 
     return StreamingResponse(
         iter([data]),

@@ -107,26 +107,32 @@ def render_html(run: dict[str, Any]) -> str:
     return template.render(**ctx)
 
 
-def export_pdf(run: dict[str, Any]) -> bytes:
+def export_pdf(run: dict[str, Any]) -> tuple[bytes, bool]:
     """
     Export run result as a PDF binary.
-    Uses WeasyPrint if available; falls back to returning the raw HTML bytes.
+
+    Uses WeasyPrint if available and functional; falls back to returning the
+    raw HTML bytes. Returns (data, is_pdf) so callers can label the response
+    correctly instead of serving HTML mislabeled as `application/pdf`.
     """
     html_str = render_html(run)
     try:
         from weasyprint import HTML  # type: ignore[import-untyped]
 
         pdf_bytes: bytes = HTML(string=html_str).write_pdf()
-        return pdf_bytes
+        return pdf_bytes, True
     except ImportError:
         logger.warning(
             "weasyprint not installed — falling back to raw HTML export. "
             "Install with: pip install weasyprint"
         )
-        return html_str.encode("utf-8")
+        return html_str.encode("utf-8"), False
     except Exception as exc:
+        # Commonly OSError: weasyprint's native GTK/Pango/Cairo libraries
+        # aren't on the system (this is a runtime library dependency pip
+        # can't install) — not just a missing Python package.
         logger.error("WeasyPrint PDF rendering failed: %s — returning HTML", exc)
-        return html_str.encode("utf-8")
+        return html_str.encode("utf-8"), False
 
 
 def export_excel(run: dict[str, Any]) -> bytes:
