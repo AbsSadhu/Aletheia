@@ -25,6 +25,7 @@ class Position(BaseModel):
 
 
 class BacktestResult(BaseModel):
+    run_id: str
     strategy_name: str
     start_date: str
     end_date: str

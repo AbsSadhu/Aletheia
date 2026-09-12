@@ -1,0 +1,44 @@
+"""Example plugin: a market data provider for one extra symbol.
+
+Rename this file to `example_provider.py` to have it loaded automatically at
+the next backend startup — PluginManager globs `*.py` in this directory.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+from aletheia.core.models import MarketQuote
+from aletheia.extensions.data.provider_base import MarketDataProvider
+from aletheia.extensions.data.registry import register_provider
+
+
+class ExampleProvider(MarketDataProvider):
+    name = "example_plugin_provider"
+
+    async def get_quote(self, symbol: str, exchange: str) -> list[MarketQuote]:
+        if symbol.upper() != "EXAMPLE":
+            return []
+        return [
+            MarketQuote(
+                symbol="EXAMPLE",
+                exchange=exchange,
+                close=100.0,
+                open=99.0,
+                high=101.0,
+                low=98.5,
+                volume=1000,
+                as_of=datetime.now(UTC),
+                provider=self.name,
+            )
+        ]
+
+
+class ExamplePlugin:
+    name = "example_provider_plugin"
+
+    def register(self) -> None:
+        register_provider(ExampleProvider())
+
+
+PLUGIN_CLASS = ExamplePlugin

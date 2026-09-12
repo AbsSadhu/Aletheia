@@ -1,6 +1,7 @@
-"""Live run-event WebSocket stream.
+"""Live run-event and market-feed WebSocket streams.
 
   WS /ws/runs/{run_id}
+  WS /ws/market
 
 Included in main.py WITHOUT the router-level X-API-Key dependency, because
 FastAPI resolves HTTP-typed dependencies against a WebSocket connection
@@ -15,6 +16,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
 from aletheia.core.api.dependencies import get_run_service
 from aletheia.core.api.security import is_authorized
+from aletheia.core.events.bus import Event, Topics, get_event_bus
 from aletheia.core.models import RunStatus
 
 router = APIRouter(prefix="/api/v1")
@@ -49,3 +51,34 @@ async def run_events(websocket: WebSocket, run_id: str) -> None:
         return
     finally:
         service.unregister_socket(run_id, websocket)
+
+
+@router.websocket("/ws/market")
+async def market_feed(websocket: WebSocket) -> None:
+    if not is_authorized(websocket.query_params.get("api_key")):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    await websocket.accept()
+    bus = get_event_bus()
+
+    async def forward(event: Event) -> None:
+        try:
+            await websocket.send_json(
+                {
+                    "topic": event.topic,
+                    "payload": event.payload,
+                    "timestamp": event.timestamp.isoformat(),
+                }
+            )
+        except Exception:
+            pass
+
+    bus.subscribe(Topics.MARKET_QUOTE, forward)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        return
+    finally:
+        bus.unsubscribe(Topics.MARKET_QUOTE, forward)
