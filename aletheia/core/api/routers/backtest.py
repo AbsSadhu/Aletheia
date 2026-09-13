@@ -13,6 +13,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from aletheia.core.config.settings import get_settings
+from aletheia.core.execution.position_sizing import PositionSizer
+from aletheia.extensions.backtest.runner import BacktestRunner
+from aletheia.extensions.backtest.strategy import StrategySignal
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +30,25 @@ class BacktestRequest(BaseModel):
     initial_capital: float = 100_000.0
 
 
+def resolve_signal_quantity(
+    signal: StrategySignal, price: float, runner: BacktestRunner
+) -> float:
+    """StrategySignal.quantity=None means "caller sizes the position" (see
+    strategy.py) -- a strategy that follows that documented contract must
+    not have its signal silently dropped."""
+    quantity = signal.quantity
+    if quantity and quantity > 0:
+        return quantity
+    if signal.action == "buy":
+        return PositionSizer.compute_shares(
+            runner.current_capital, price, portfolio_value=runner.current_capital
+        )
+    if signal.action == "sell":
+        held = runner.positions.get(signal.symbol)
+        return held.quantity if held else 0
+    return 0
+
+
 @router.post("/backtest")
 async def run_backtest(request: BacktestRequest) -> dict:
     """
@@ -34,7 +56,6 @@ async def run_backtest(request: BacktestRequest) -> dict:
     Returns BacktestResult with metrics and equity curve.
     """
     from aletheia.extensions.backtest.data_feed import HistoricalDataFeed
-    from aletheia.extensions.backtest.runner import BacktestRunner
     from aletheia.extensions.backtest.strategies import get_strategy
 
     try:
@@ -82,11 +103,14 @@ async def run_backtest(request: BacktestRequest) -> dict:
                 }
         for signal in strategy.on_bar(trading_date, day_data, runner.positions, runner.current_capital):
             price = day_data.get(signal.symbol, {}).get("close")
-            if price is None or not signal.quantity or signal.quantity <= 0:
+            if price is None:
                 continue
-            runner.submit_order(
-                signal.symbol, "market", signal.action, signal.quantity, price=price
-            )
+
+            quantity = resolve_signal_quantity(signal, price, runner)
+            if not quantity or quantity <= 0:
+                continue
+
+            runner.submit_order(signal.symbol, "market", signal.action, quantity, price=price)
         runner.execute_orders(day_data)
         runner.update_equity(day_data)
 
