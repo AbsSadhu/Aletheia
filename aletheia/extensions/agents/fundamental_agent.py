@@ -154,17 +154,21 @@ class FundamentalAgent:
             ticker = yf.Ticker(ticker_sym)
             info = ticker.info
             result: dict[str, Any] = {}
-            if info.get("trailingPE"):
+            # `is not None` (not truthy) checks throughout: a genuine 0 --
+            # debt-free company, zero insider holding, flat growth -- is
+            # real data, not "missing." `.get()` returning None is the only
+            # signal that the field is actually absent.
+            if info.get("trailingPE") is not None:
                 result["pe_ratio"] = float(info["trailingPE"])
-            if info.get("sectorPE"):
+            if info.get("sectorPE") is not None:
                 result["sector_pe"] = float(info["sectorPE"])
-            if info.get("earningsGrowth"):
+            if info.get("earningsGrowth") is not None:
                 result["eps_growth_pct"] = float(info["earningsGrowth"]) * 100
-            if info.get("revenueGrowth"):
+            if info.get("revenueGrowth") is not None:
                 result["revenue_growth_pct"] = float(info["revenueGrowth"]) * 100
-            if info.get("debtToEquity"):
+            if info.get("debtToEquity") is not None:
                 result["debt_to_equity"] = float(info["debtToEquity"])
-            if info.get("heldPercentInsiders"):
+            if info.get("heldPercentInsiders") is not None:
                 # yfinance's "insiders" is officers/directors, not NSE's legal "promoter"
                 # category — an approximation used only when the NSE shareholding-pattern
                 # endpoint (the actual promoter figure) is unreachable.
