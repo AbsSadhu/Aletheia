@@ -40,7 +40,7 @@ jobs:
         poetry run ruff format --check .
 
     - name: Run Mypy (Type Check, gated against baseline)
-      # 232 pre-existing errors are snapshotted in mypy-baseline.txt (mostly
+      # ~213 pre-existing errors are snapshotted in mypy-baseline.txt (mostly
       # missing return-type annotations) — this gate only fails on errors
       # NOT already in that file, i.e. new type errors in new/changed code.
       # Update the baseline (`poetry run mypy aletheia | poetry run
