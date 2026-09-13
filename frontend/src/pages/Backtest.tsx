@@ -17,7 +17,7 @@ export default function Backtest() {
   const [symbols, setSymbols] = useState("RELIANCE,TCS");
   const [startDate, setStartDate] = useState("2025-01-01");
   const [endDate, setEndDate] = useState("2025-06-30");
-  const [strategy, setStrategy] = useState("oracle_signals");
+  const [strategy, setStrategy] = useState("sma_crossover");
   const [initialCapital, setInitialCapital] = useState("100000");
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +113,7 @@ export default function Backtest() {
             <input
               className="form-control"
               style={{ width: 160 }}
-              placeholder="Strategy"
+              placeholder="Strategy (e.g. sma_crossover)"
               value={strategy}
               onChange={(e) => setStrategy(e.target.value)}
             />
