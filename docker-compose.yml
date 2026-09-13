@@ -1,5 +1,3 @@
-version: "3.9"
-
 # ============================================================
 #  ALETHEIA — Production Docker Compose Stack
 #  Services:
@@ -128,6 +126,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.53.0
     container_name: aletheia-prometheus
+    profiles: ["observability"]
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -151,8 +150,15 @@ services:
   grafana:
     image: grafana/grafana:11.1.0
     container_name: aletheia-grafana
+    profiles: ["observability"]
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env before starting Grafana}
+      # A hard-required var here (`:?...`) blocks `docker compose config` for
+      # EVERY service, not just this one -- Compose interpolates the whole
+      # file up front regardless of which `profiles` are active. Defaulting
+      # to "admin" keeps the zero-config `docker compose up` promise; this
+      # is a local dev default, not a production one -- set a real
+      # GRAFANA_ADMIN_PASSWORD in .env before exposing port 3000 publicly.
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/aletheia.json
     ports:

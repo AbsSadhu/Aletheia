@@ -33,6 +33,14 @@ That's it — no API keys required. This brings up the backend, Rust compute sid
 docker compose exec ollama ollama pull mistral:7b
 ```
 
+Prometheus + Grafana dashboards are opt-in (they add two containers nobody needs for the core app):
+
+```bash
+docker compose --profile observability up
+```
+
+Grafana defaults to `admin`/`admin` locally — set a real `GRAFANA_ADMIN_PASSWORD` in `.env` before exposing port 3000 beyond your own machine.
+
 For local (non-Docker) development — Poetry, Rust toolchain, and per-suite test commands — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
@@ -41,7 +49,7 @@ For local (non-Docker) development — Poetry, Rust toolchain, and per-suite tes
 
 > [!IMPORTANT]
 > **Aletheia is currently under active development.**
-> The multi-agent orchestration engine, the React/Tauri desktop app, and a terminal dashboard (`aletheia tui`) are all functional and verified running end-to-end locally, backed by 138 Python unit tests, 32 Rust tests, and 8 frontend tests.
+> The multi-agent orchestration engine, the React/Tauri desktop app, and a terminal dashboard (`aletheia tui`) are all functional and verified running end-to-end locally, backed by 265 Python unit/integration tests, 32 Rust tests, and 8 frontend tests.
 
 ### Development Progress: Sprint 2.5 & Sprint 3.5 Completed ✅
 
