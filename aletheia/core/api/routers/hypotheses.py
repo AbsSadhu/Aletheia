@@ -89,22 +89,30 @@ async def transition_hypothesis(hypo_id: str, request: TransitionRequest) -> dic
 
 @router.post("/hypotheses/{hypo_id}/link-backtest")
 async def link_hypothesis_backtest(hypo_id: str, request: LinkBacktestRequest) -> dict:
+    settings = get_settings()
+    from aletheia.extensions.backtest.storage import BacktestResultStore
+
+    store = BacktestResultStore(str(settings.data_dir / "backtest_results.db"))
+    result = store.get(request.backtest_run_id)
+    if result is None:
+        # A typo'd/nonexistent backtest_run_id used to succeed silently --
+        # the hypothesis got a backtest_run_id set but was never actually
+        # evaluated, with no error and no indication anything was wrong.
+        raise HTTPException(
+            status_code=404,
+            detail=f"No stored backtest result for run_id '{request.backtest_run_id}'",
+        )
+
     reg = _get_hypothesis_registry()
     try:
         hypo = reg.link_to_backtest(hypo_id, request.backtest_run_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
-    settings = get_settings()
-    from aletheia.extensions.backtest.storage import BacktestResultStore
-
-    store = BacktestResultStore(str(settings.data_dir / "backtest_results.db"))
-    result = store.get(request.backtest_run_id)
-    if result is not None:
-        sharpe = result.metrics.get("sharpe_ratio", 0.0)
-        hypo = reg.evaluate_against_backtest(
-            hypo_id, sharpe, settings.hypothesis_validation_sharpe_threshold
-        )
+    sharpe = result.metrics.get("sharpe_ratio", 0.0)
+    hypo = reg.evaluate_against_backtest(
+        hypo_id, sharpe, settings.hypothesis_validation_sharpe_threshold
+    )
 
     return hypo.model_dump(mode="json")
 
