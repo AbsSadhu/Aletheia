@@ -31,6 +31,14 @@ jobs:
         poetry run pip install maturin
         cd aletheia_rust && poetry run maturin develop
 
+    - name: Run Rust Tests (aletheia_rust)
+      # `maturin develop` above only builds the PyO3 extension for Python's
+      # use -- it never runs `cargo test`, so the crate's own unit tests
+      # (Black-Scholes/Greeks, VaR, technical indicators, Sharpe/Sortino,
+      # regime detection) had zero CI coverage until this step.
+      run: |
+        cd aletheia_rust && cargo test
+
     - name: Run Ruff (Lint)
       run: |
         poetry run ruff check .
@@ -74,6 +82,10 @@ jobs:
       # (the Axum sidecar) had no build step in CI at all until now.
       run: |
         cd aletheia_engine && cargo build --release
+
+    - name: Run Rust Tests (aletheia_engine)
+      run: |
+        cd aletheia_engine && cargo test
 
     - name: Rust Dependency Audit (Library)
       uses: actions-rust-lang/audit@v1
