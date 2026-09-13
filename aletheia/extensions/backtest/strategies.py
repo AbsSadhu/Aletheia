@@ -51,7 +51,9 @@ class SMACrossoverStrategy(Strategy):
             held = positions.get(symbol)
 
             if fast_avg > slow_avg and held is None:
-                qty = PositionSizer.compute_shares(capital, close, pct=self.position_pct)
+                qty = PositionSizer.compute_shares(
+                    capital, close, pct=self.position_pct, portfolio_value=capital
+                )
                 if qty > 0:
                     signals.append(StrategySignal(symbol=symbol, action="buy", quantity=qty))
             elif fast_avg < slow_avg and held is not None:

@@ -53,6 +53,32 @@ def test_sma_crossover_buys_on_uptrend_then_sells_on_downtrend() -> None:
     assert sell_signal.quantity == positions["AAA"].quantity
 
 
+def test_sma_crossover_respects_position_pct_not_full_capital() -> None:
+    """Regression guard: compute_shares() must receive portfolio_value=capital
+    so `pct` actually scales the allocation -- omitting it silently sizes
+    every buy at 100% of capital regardless of position_pct."""
+    strategy = SMACrossoverStrategy(fast=2, slow=4, position_pct=10.0)
+    positions: dict = {}
+    capital = 100_000.0
+
+    prices = [100, 101, 103, 106, 110, 115]
+    buy_signal = None
+    last_price = None
+    for i, price in enumerate(prices):
+        signals = strategy.on_bar(f"day-{i}", {"AAA": {"close": price}}, positions, capital)
+        if signals:
+            buy_signal = signals[0]
+            last_price = price
+            break
+
+    assert buy_signal is not None
+    assert buy_signal.quantity is not None
+    max_shares_at_full_capital = int(capital / last_price)
+    max_shares_at_10pct = int((capital * 0.10) / last_price)
+    assert buy_signal.quantity <= max_shares_at_10pct
+    assert buy_signal.quantity < max_shares_at_full_capital
+
+
 def test_register_strategy_adds_a_custom_strategy() -> None:
     class _NoOpStrategy(Strategy):
         name = "noop_test_strategy"
