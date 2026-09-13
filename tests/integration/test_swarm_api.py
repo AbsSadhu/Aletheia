@@ -29,6 +29,23 @@ def test_run_swarm_unknown_preset_returns_400() -> None:
     assert response.status_code == 400
 
 
+def test_run_swarm_invalid_portfolio_returns_400_not_silently_dropped() -> None:
+    """A malformed portfolio payload used to be swallowed by a bare
+    `except Exception: portfolio = None` -- the run proceeded with no
+    portfolio context and a 200 response, with no indication anything
+    was wrong. Must reject with 400 instead."""
+    client = TestClient(app)
+    response = client.post(
+        "/api/v1/swarm/run",
+        json={
+            "preset": "due_diligence_team",
+            "prompt": "Analyze RELIANCE",
+            "portfolio": {"not_a_real_field": "garbage"},
+        },
+    )
+    assert response.status_code == 400
+
+
 def test_run_swarm_streams_one_event_per_worker() -> None:
     client = TestClient(app)
     with client.stream(
