@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from aletheia.core.events.bus import EventBus, Topics
-from aletheia.core.models import AssetType, Holding
+from aletheia.core.models import AssetType, CollectorOutput, Holding
 from aletheia.extensions.agents.collector import CollectorAgent
 
 logger = logging.getLogger(__name__)
@@ -42,19 +43,31 @@ class MarketFeedPoller:
         self._bus = bus
         self._watchlist = watchlist
 
+    async def _collect_one(self, symbol: str, exchange: str) -> CollectorOutput | None:
+        holding = Holding(
+            symbol=symbol,
+            quantity=1,
+            average_price=1,
+            exchange=exchange,
+            asset_type=AssetType.CRYPTO if "/" in symbol else AssetType.EQUITY,
+        )
+        try:
+            return await self._collector.collect_for_holding(holding)
+        except Exception as exc:
+            logger.warning("MarketFeedPoller: failed to poll %s: %s", symbol, exc)
+            return None
+
     async def poll_once(self) -> None:
-        for symbol, exchange in self._watchlist:
-            holding = Holding(
-                symbol=symbol,
-                quantity=1,
-                average_price=1,
-                exchange=exchange,
-                asset_type=AssetType.CRYPTO if "/" in symbol else AssetType.EQUITY,
-            )
-            try:
-                output = await self._collector.collect_for_holding(holding)
-            except Exception as exc:
-                logger.warning("MarketFeedPoller: failed to poll %s: %s", symbol, exc)
+        # Symbols were previously polled one at a time -- CollectorAgent
+        # retries each provider up to 3x with a 5s timeout, so a single
+        # slow/unreachable provider could make one poll cycle take tens of
+        # seconds and overrun the next scheduled tick. Fetching concurrently
+        # bounds one cycle to the slowest single symbol instead of the sum.
+        results = await asyncio.gather(
+            *(self._collect_one(symbol, exchange) for symbol, exchange in self._watchlist)
+        )
+        for output in results:
+            if output is None:
                 continue
             for quote in output.quotes:
                 await self._bus.emit(
