@@ -2,14 +2,25 @@
 Tests for ComputeClient and aletheia-engine Rust sidecar integration.
 """
 
+import httpx
 import pytest
 from aletheia.core.compute.client import ComputeClient
 from aletheia.core.config.settings import get_settings
 
-# Skip all tests in this file if compute engine sidecar is not enabled in settings
+
+def _sidecar_reachable() -> bool:
+    if not get_settings().compute_engine_enabled:
+        return False
+    try:
+        return httpx.get(f"{ComputeClient()._base_url}/health", timeout=2.0).status_code == 200
+    except Exception:
+        return False
+
+
+# Skip all tests in this file unless the aletheia-engine sidecar is enabled AND running
 pytestmark = pytest.mark.skipif(
-    not get_settings().compute_engine_enabled,
-    reason="aletheia-engine compute sidecar is not enabled in settings",
+    not _sidecar_reachable(),
+    reason="aletheia-engine compute sidecar is not enabled or not running",
 )
 
 
