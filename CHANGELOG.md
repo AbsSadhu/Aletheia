@@ -1,0 +1,59 @@
+# Changelog
+
+All notable changes to Aletheia are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
+[Semantic Versioning](https://semver.org/). While the version is `0.x`, anything may change
+between releases.
+
+## [0.1.0] - 2026-10-19 — first alpha release
+
+First tagged release. Aletheia is alpha software: the core loop works end to end, but see
+[Known Limitations](README.md#known-limitations) and [What's Left](README.md#whats-left) before
+relying on it. Nothing it produces is financial advice.
+
+### Added
+- **Multi-agent analysis pipeline** (LangGraph) for Indian equities and crypto: collector,
+  oracle, risk, tax, sentiment, fundamentals, options-flow, debate and portfolio-manager nodes
+  with per-node timeouts, partial-failure tolerance and Pydantic role contracts.
+- **Local-first LLM routing** via Ollama with retry/circuit-breaker and a multi-provider router;
+  runs fall back to templated summaries when no model is loaded.
+- **Rust compute layer**: PyO3 extension (`aletheia_rust`) and standalone Axum sidecar
+  (`aletheia_engine`) behind `ComputeClient`, with a Python fallback.
+- **React frontend** (dashboard, runs, portfolio, backtest, hypotheses, factor
+  explorer, shadow trader, paper trades, settings) with live WebSocket agent streaming.
+- **Tauri desktop app** with a frozen backend and the Rust sidecar bundled into the installer.
+- **Backtesting**, hypothesis lifecycle with automatic Sharpe-threshold validation, paper
+  trading and shadow account, alpha-factor explorer, F&O expiry calendar, STCG/LTCG-aware tax
+  scenarios.
+- **Live market feed**: watchlist poller streaming over `/ws/market-feed` (polling through the
+  provider chain, not an exchange feed).
+- **PDF/Excel report export**, terminal dashboard (`aletheia tui`), MCP server (`aletheia mcp`),
+  swarm presets, plugin contracts for strategies and data providers.
+- **Deployment**: Docker Compose (backend, engine, frontend, Ollama; opt-in Prometheus/Grafana)
+  and Kubernetes manifests with a Helm ConfigMap.
+- `docs/sample_portfolio.csv` — a ready-to-import example portfolio.
+- README "not financial advice" notice.
+
+### Fixed
+- `GET /api/v1/factors/{ticker}` failed with `'Candle' object has no attribute 'date'`; it now
+  reads `Candle.ts`, with a regression test.
+- `poetry.lock` was out of sync with `pyproject.toml`, so `poetry install` failed for
+  contributors and CI. `pyinstaller` is now restricted to `python<3.16` so the lock resolves.
+- `cargo test` for `aletheia_rust` failed to link on Linux; removed the hard-coded PyO3
+  `extension-module` feature (maturin enables it when building the wheel).
+- Sidecar integration tests now skip when the sidecar is not running instead of failing.
+- Dependency advisories: bumped `pyjwt`, `urllib3`, `soupsieve`, `virtualenv`, `weasyprint`,
+  `anyio`, `mcp`, `multidict`, `langgraph-sdk` (Python) and `source-map-js`, `undici` (npm).
+- Code was not `ruff`-clean; formatted and removed an unused import.
+
+### Security
+- Dependency audits for Python, npm and Rust run in CI; the vulnerabilities above were cleared
+  as part of making them pass. See [SECURITY.md](SECURITY.md) to report issues.
+
+### Known issues
+- Default per-node timeout (30 s) can mark runs `partial` with larger local models; raise
+  `ALETHEIA_NODE_TIMEOUT_SECS`.
+- Live broker execution (Zerodha) is a non-functional blueprint; use paper trading.
+- No NSE/BSE real-time data source; the dark theme is the only theme.
+
+[0.1.0]: https://github.com/AbsSadhu/Aletheia/releases/tag/v0.1.0
