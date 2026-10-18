@@ -6,7 +6,7 @@ from aletheia.extensions.data.registry import (
     reset_registered_providers,
 )
 
-PLUGIN_SOURCE = '''
+PLUGIN_SOURCE = """
 from aletheia.core.models import MarketQuote
 from aletheia.extensions.data.provider_base import MarketDataProvider
 from aletheia.extensions.data.registry import register_provider
@@ -34,7 +34,7 @@ class _TestPlugin:
 
 
 PLUGIN_CLASS = _TestPlugin
-'''
+"""
 
 
 def test_plugin_can_register_a_market_data_provider(tmp_path) -> None:

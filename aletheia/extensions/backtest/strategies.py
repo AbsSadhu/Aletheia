@@ -57,9 +57,7 @@ class SMACrossoverStrategy(Strategy):
                 if qty > 0:
                     signals.append(StrategySignal(symbol=symbol, action="buy", quantity=qty))
             elif fast_avg < slow_avg and held is not None:
-                signals.append(
-                    StrategySignal(symbol=symbol, action="sell", quantity=held.quantity)
-                )
+                signals.append(StrategySignal(symbol=symbol, action="sell", quantity=held.quantity))
 
         return signals
 

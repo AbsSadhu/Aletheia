@@ -4,9 +4,9 @@ NSE Corporate Actions Fetcher.
 Source: NSE India corporate actions API (public JSON, no auth).
 Caches per symbol per day to avoid hammering the endpoint.
 """
+
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -16,8 +16,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 _NSE_CORP_ACTIONS_URL = (
-    "https://www.nseindia.com/api/corporates-corporateActions"
-    "?index=equities&symbol={symbol}"
+    "https://www.nseindia.com/api/corporates-corporateActions?index=equities&symbol={symbol}"
 )
 _NSE_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -29,7 +28,7 @@ _NSE_HEADERS = {
 @dataclass
 class CorporateAction:
     symbol: str
-    action_type: str          # "DIVIDEND" | "BONUS" | "SPLIT" | "RIGHTS" | "OTHER"
+    action_type: str  # "DIVIDEND" | "BONUS" | "SPLIT" | "RIGHTS" | "OTHER"
     ex_date: date | None
     description: str
     impact_pct_estimate: float | None = None  # estimated % impact on stock price

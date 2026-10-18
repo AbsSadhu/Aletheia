@@ -108,7 +108,11 @@ async def test_analyze_falls_back_to_heuristic_on_malformed_llm_output() -> None
 async def test_analyze_rejects_invalid_llm_signal_by_defaulting_to_hold() -> None:
     agent = _agent_with_history(
         [2900.0] * 150,
-        llm_result={"signal": "STRONG_BUY", "confidence": 0.9, "rationale": "not a real signal value"},
+        llm_result={
+            "signal": "STRONG_BUY",
+            "confidence": 0.9,
+            "rationale": "not a real signal value",
+        },
     )
 
     output = await agent.analyze(_holding(), _quote(2900.0))

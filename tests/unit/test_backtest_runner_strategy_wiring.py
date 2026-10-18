@@ -21,9 +21,13 @@ def test_backtest_loop_actually_submits_and_fills_orders() -> None:
 
     for i, price in enumerate(prices):
         day_data = {"AAA": {"close": price}}
-        for signal in strategy.on_bar(f"day-{i}", day_data, runner.positions, runner.current_capital):
+        for signal in strategy.on_bar(
+            f"day-{i}", day_data, runner.positions, runner.current_capital
+        ):
             if signal.quantity and signal.quantity > 0:
-                runner.submit_order(signal.symbol, "market", signal.action, signal.quantity, price=price)
+                runner.submit_order(
+                    signal.symbol, "market", signal.action, signal.quantity, price=price
+                )
         runner.execute_orders(day_data)
         runner.update_equity(day_data)
 

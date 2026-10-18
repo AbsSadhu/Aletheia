@@ -32,10 +32,20 @@ class ExpiryRule:
 # Unverified as of this session — confirm against a live NSE/BSE circular
 # before trusting these for real trading.
 EXPIRY_RULES: dict[str, ExpiryRule] = {
-    "NIFTY": ExpiryRule(TUESDAY, verified=False, note="NSE consolidated to a single weekly expiry day (Tuesday) from Jan 2025 per SEBI circular."),
-    "BANKNIFTY": ExpiryRule(TUESDAY, verified=False, note="Same NSE consolidation as NIFTY; BANKNIFTY weekly contracts were discontinued in 2024, monthly only."),
+    "NIFTY": ExpiryRule(
+        TUESDAY,
+        verified=False,
+        note="NSE consolidated to a single weekly expiry day (Tuesday) from Jan 2025 per SEBI circular.",
+    ),
+    "BANKNIFTY": ExpiryRule(
+        TUESDAY,
+        verified=False,
+        note="Same NSE consolidation as NIFTY; BANKNIFTY weekly contracts were discontinued in 2024, monthly only.",
+    ),
     "FINNIFTY": ExpiryRule(TUESDAY, verified=False, note="Same NSE consolidation as NIFTY."),
-    "SENSEX": ExpiryRule(THURSDAY, verified=False, note="BSE settled on Thursday as its single weekly expiry day."),
+    "SENSEX": ExpiryRule(
+        THURSDAY, verified=False, note="BSE settled on Thursday as its single weekly expiry day."
+    ),
     "BANKEX": ExpiryRule(THURSDAY, verified=False, note="Same BSE consolidation as SENSEX."),
 }
 
@@ -78,14 +88,18 @@ def _roll_back_to_trading_day(d: date, holidays: set[date] | None) -> date:
     return d
 
 
-def monthly_expiry(underlying: str, year: int, month: int, holidays: set[date] | None = None) -> date:
+def monthly_expiry(
+    underlying: str, year: int, month: int, holidays: set[date] | None = None
+) -> date:
     """Last `expiry weekday` of the month, rolled back over holidays/weekends."""
     rule = get_expiry_rule(underlying)
     raw = _last_weekday_of_month(year, month, rule.weekday)
     return _roll_back_to_trading_day(raw, holidays)
 
 
-def weekly_expiries(underlying: str, year: int, month: int, holidays: set[date] | None = None) -> list[date]:
+def weekly_expiries(
+    underlying: str, year: int, month: int, holidays: set[date] | None = None
+) -> list[date]:
     """Every weekly expiry in the month, each independently rolled back over holidays."""
     rule = get_expiry_rule(underlying)
     raw_dates = _weekday_occurrences_in_month(year, month, rule.weekday)
