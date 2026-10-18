@@ -11,7 +11,13 @@ def _result(run_id: str, sharpe: float) -> BacktestResult:
         initial_capital=100_000.0,
         final_capital=110_000.0,
         total_return=0.10,
-        metrics={"sharpe_ratio": sharpe, "max_drawdown": -0.05, "win_rate": 0.6, "profit_factor": 1.5, "total_trades": 4},
+        metrics={
+            "sharpe_ratio": sharpe,
+            "max_drawdown": -0.05,
+            "win_rate": 0.6,
+            "profit_factor": 1.5,
+            "total_trades": 4,
+        },
         orders=[],
         equity_curve=[],
     )

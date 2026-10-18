@@ -30,9 +30,7 @@ def build_tax_summary(
 
     notes = list(entry.notes)
     if holding_days is None and term == "short":
-        notes.append(
-            "No acquisition date on this holding — assumed short-term (higher rate)."
-        )
+        notes.append("No acquisition date on this holding — assumed short-term (higher rate).")
     if not entry.verified:
         notes.append(f"Rate unverified against a primary source (as of {entry.assessment_year}).")
 

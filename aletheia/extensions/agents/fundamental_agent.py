@@ -119,7 +119,9 @@ class FundamentalAgent:
             try:
                 result["sector_pe"] = float(str(sector_pe_raw).replace(",", ""))
             except (ValueError, TypeError) as exc:
-                logger.debug("FundamentalAgent: could not parse sector_pe %r: %s", sector_pe_raw, exc)
+                logger.debug(
+                    "FundamentalAgent: could not parse sector_pe %r: %s", sector_pe_raw, exc
+                )
 
         # Promoter holding
         shareholding = data.get("shareholdingPatterns", {})

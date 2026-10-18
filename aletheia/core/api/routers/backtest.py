@@ -30,9 +30,7 @@ class BacktestRequest(BaseModel):
     initial_capital: float = 100_000.0
 
 
-def resolve_signal_quantity(
-    signal: StrategySignal, price: float, runner: BacktestRunner
-) -> float:
+def resolve_signal_quantity(signal: StrategySignal, price: float, runner: BacktestRunner) -> float:
     """StrategySignal.quantity=None means "caller sizes the position" (see
     strategy.py) -- a strategy that follows that documented contract must
     not have its signal silently dropped."""
@@ -101,7 +99,9 @@ async def run_backtest(request: BacktestRequest) -> dict:
                     "close": candle.close,
                     "volume": candle.volume,
                 }
-        for signal in strategy.on_bar(trading_date, day_data, runner.positions, runner.current_capital):
+        for signal in strategy.on_bar(
+            trading_date, day_data, runner.positions, runner.current_capital
+        ):
             price = day_data.get(signal.symbol, {}).get("close")
             if price is None:
                 continue
