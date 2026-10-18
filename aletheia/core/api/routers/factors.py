@@ -54,7 +54,7 @@ async def compute_factors(
     df = pd.DataFrame(
         [
             {
-                "date": c.date,
+                "date": c.ts,
                 "open": c.open,
                 "high": c.high,
                 "low": c.low,
