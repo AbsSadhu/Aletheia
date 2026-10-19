@@ -81,6 +81,16 @@ def _get_new_llm_calls(start_time: float) -> list[dict[str, Any]]:
     return calls
 
 
+def describe_node_failure(exc: BaseException, timeout_secs: float) -> str:
+    """Human-readable reason for a node failure; never empty."""
+    if isinstance(exc, asyncio.TimeoutError):
+        return (
+            f"timed out after {timeout_secs:g}s "
+            "(raise ALETHEIA_NODE_TIMEOUT_SECS if your model is slow)"
+        )
+    return str(exc) or exc.__class__.__name__
+
+
 def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None) -> Any:
     """Creates and compiles a LangGraph StateGraph bound to the given RunService instance."""
 
@@ -107,6 +117,9 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                 return updates
             except Exception as exc:
                 logger.error("Node %s failed: %r", agent_name, exc, exc_info=True)
+                # asyncio.TimeoutError stringifies to "", which would surface as a blank
+                # reason in the span and the event stream.
+                reason = describe_node_failure(exc, timeout)
                 state["agent_statuses"][agent_name] = "failed"
 
                 duration = time.time() - start_time
@@ -116,7 +129,7 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                     "end_time": time.time(),
                     "duration": duration,
                     "llm_calls": [],
-                    "error": str(exc),
+                    "error": reason,
                 }
 
                 merged_fallback = dict(fallback_updates)
@@ -130,7 +143,7 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                         AgentEvent(
                             run_id=run_id,
                             agent=AgentName(agent_name),
-                            message=f"Node execution failed or timed out: {exc}",
+                            message=f"Node execution failed: {reason}",
                         )
                     )
                 except Exception:

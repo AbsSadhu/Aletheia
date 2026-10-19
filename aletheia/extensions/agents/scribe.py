@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class ScribeAgent:
-    def __init__(self):
+    def __init__(self) -> None:
         self.settings = get_settings()
         self.llm_client = OllamaClient(base_url=self.settings.ollama_base_url)
 

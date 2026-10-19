@@ -14,20 +14,20 @@ class StreamEvent:
 class AgentStreamer:
     """Helper to yield SSE events during the ReAct loop."""
 
-    def __init__(self):
-        self.queue = []
+    def __init__(self) -> None:
+        self.queue: list[StreamEvent] = []
 
-    def push_thought(self, content: str):
+    def push_thought(self, content: str) -> None:
         self.queue.append(StreamEvent("thought", {"content": content}))
 
-    def push_tool_call(self, tool_name: str, arguments: dict):
+    def push_tool_call(self, tool_name: str, arguments: dict) -> None:
         self.queue.append(StreamEvent("tool_call", {"tool": tool_name, "arguments": arguments}))
 
-    def push_tool_result(self, tool_name: str, result: Any):
+    def push_tool_result(self, tool_name: str, result: Any) -> None:
         self.queue.append(StreamEvent("tool_result", {"tool": tool_name, "result": result}))
 
-    def push_final_answer(self, content: str):
+    def push_final_answer(self, content: str) -> None:
         self.queue.append(StreamEvent("final_answer", {"content": content}))
 
-    def push_error(self, message: str):
+    def push_error(self, message: str) -> None:
         self.queue.append(StreamEvent("error", {"message": message}))

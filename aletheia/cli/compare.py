@@ -103,7 +103,7 @@ def _build_run_panel(run_id: str, service, label: str) -> Panel:
 def compare_runs(
     run_a: str = typer.Argument(..., help="First run ID"),
     run_b: str = typer.Argument(..., help="Second run ID"),
-):
+) -> None:
     """Compare two analysis runs side-by-side."""
     service = _get_service()
     panel_a = _build_run_panel(run_a, service, "Run A")

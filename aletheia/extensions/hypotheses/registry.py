@@ -57,7 +57,7 @@ class HypothesisRegistry:
         self.save(hypo)
         return hypo
 
-    def save(self, hypo: Hypothesis):
+    def save(self, hypo: Hypothesis) -> None:
         with sqlite3.connect(self.db_path) as conn:
             evidence_json = json.dumps([e.model_dump(mode="json") for e in hypo.evidence])
             conn.execute(

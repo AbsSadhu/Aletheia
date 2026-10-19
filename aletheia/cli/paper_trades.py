@@ -36,7 +36,7 @@ def _get_paper_trader():
 @app.command(name="show")
 def show_trades(
     limit: int = typer.Option(20, "--limit", "-n", help="Number of trades to show"),
-):
+) -> None:
     """Show recent paper trading history."""
     trader = _get_paper_trader()
     trades = trader.list_trades(limit=limit)
@@ -90,7 +90,7 @@ def show_trades(
 
 
 @app.command(name="positions")
-def show_positions():
+def show_positions() -> None:
     """Show currently open paper positions."""
     trader = _get_paper_trader()
     positions = trader.list_positions()
@@ -139,7 +139,7 @@ def settle_trades(
         "-d",
         help="Date to settle trades (YYYY-MM-DD). Defaults to yesterday.",
     ),
-):
+) -> None:
     """
     Fetch actual closing prices and settle paper trades.
 
@@ -193,7 +193,7 @@ def settle_trades(
 
 
 @app.command(name="summary")
-def summary():
+def summary() -> None:
     """Show aggregate paper trading statistics."""
     trader = _get_paper_trader()
     trades = trader.list_trades(limit=500)

@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
+
+from aletheia import __version__
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -202,7 +204,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="ALETHEIA",
-        version="0.1.1",
+        version=__version__,
         description="India-first multi-agent financial intelligence platform",
         lifespan=lifespan,
     )
@@ -234,7 +236,7 @@ def create_app() -> FastAPI:
     async def root() -> dict[str, str]:
         return {
             "service": "ALETHEIA",
-            "version": "0.1.1",
+            "version": __version__,
             "docs": "/docs",
         }
 

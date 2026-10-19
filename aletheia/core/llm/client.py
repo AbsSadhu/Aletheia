@@ -29,7 +29,7 @@ class OllamaCircuitBreaker:
                 self.open_until = 0.0
             return True
 
-    async def record_failure(self):
+    async def record_failure(self) -> None:
         async with self._lock:
             self.failures += 1
             if self.failures >= self.failure_threshold:
@@ -38,7 +38,7 @@ class OllamaCircuitBreaker:
                     f"OllamaCircuitBreaker: circuit opened for {self.cooldown_secs}s due to consecutive failures."
                 )
 
-    async def record_success(self):
+    async def record_success(self) -> None:
         async with self._lock:
             self.failures = 0
             self.open_until = 0.0

@@ -1,14 +1,5 @@
 aletheia/core/infrastructure/plugins.py:0: error: Returning Any from function declared to return "AletheiaPlugin"  [no-any-return]
 aletheia/core/infrastructure/plugins.py:0: error: Returning Any from function declared to return "AletheiaPlugin"  [no-any-return]
-aletheia/core/agent/streaming.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/core/agent/streaming.py:0: note: Use "-> None" if function does not return a value
-aletheia/core/agent/streaming.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/core/agent/streaming.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/core/agent/streaming.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/core/agent/streaming.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/core/agent/streaming.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/core/swarm/store.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/core/swarm/store.py:0: note: Use "-> None" if function does not return a value
 aletheia/core/swarm/store.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/core/tools/registry.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/core/memory/episodic.py:0: error: Returning Any from function declared to return "int"  [no-any-return]
@@ -118,7 +109,6 @@ aletheia/core/memory/vector_store.py:0: error: Returning Any from function decla
 aletheia/core/context/macro_injector.py:0: error: Argument "usd_inr" to "MacroContext" has incompatible type "float | BaseException | None"; expected "float | None"  [arg-type]
 aletheia/core/context/macro_injector.py:0: error: Argument "crude_oil_usd" to "MacroContext" has incompatible type "float | BaseException | None"; expected "float | None"  [arg-type]
 aletheia/core/context/macro_injector.py:0: error: Returning Any from function declared to return "float | None"  [no-any-return]
-aletheia/extensions/hypotheses/models.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/core/models.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/config/config_manager.py:0: error: Incompatible types in assignment (expression has type "None", variable has type Module)  [assignment]
 aletheia/config/config_manager.py:0: error: Name "KeyringError" already defined (possibly by an import)  [no-redef]
@@ -131,17 +121,10 @@ aletheia/factors/momentum.py:0: error: Argument "signal" to "FactorOutput" has i
 aletheia/factors/momentum.py:0: error: Argument "signal" to "FactorOutput" has incompatible type "str"; expected "Literal['BUY', 'HOLD', 'SELL']"  [arg-type]
 aletheia/factors/mean_reversion.py:0: error: Argument "signal" to "FactorOutput" has incompatible type "str"; expected "Literal['BUY', 'HOLD', 'SELL']"  [arg-type]
 aletheia/factors/mean_reversion.py:0: error: Argument "signal" to "FactorOutput" has incompatible type "str"; expected "Literal['BUY', 'HOLD', 'SELL']"  [arg-type]
-aletheia/extensions/shadow_account/storage.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/extensions/shadow_account/storage.py:0: note: Use "-> None" if function does not return a value
-aletheia/extensions/shadow_account/storage.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/extensions/shadow_account/storage.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/extensions/hypotheses/registry.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/extensions/backtest/runner.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/extensions/backtest/runner.py:0: error: Incompatible default for parameter "price" (default has type "None", parameter has type "float")  [assignment]
 aletheia/extensions/backtest/runner.py:0: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
 aletheia/extensions/backtest/runner.py:0: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
-aletheia/extensions/backtest/runner.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/extensions/backtest/runner.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/extensions/agents/sentiment_agent.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/extensions/agents/sentiment_agent.py:0: error: "BaseException" object is not iterable  [misc]
 aletheia/extensions/agents/options_flow_agent.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
@@ -159,10 +142,6 @@ aletheia/extensions/backtest/local_importer.py:0: note: "dict" is invariant -- s
 aletheia/extensions/backtest/local_importer.py:0: note: Consider using "Mapping" instead, which is covariant in the value type
 aletheia/extensions/backtest/data_feed.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/extensions/backtest/data_feed.py:0: error: Returning Any from function declared to return "bool"  [no-any-return]
-aletheia/core/llm/client.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/core/llm/client.py:0: note: Use "-> None" if function does not return a value
-aletheia/core/llm/client.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/core/llm/client.py:0: note: Use "-> None" if function does not return a value
 aletheia/core/llm/client.py:0: error: Returning Any from function declared to return "dict[str, Any] | None"  [no-any-return]
 aletheia/core/llm/chat_llm.py:0: error: "ChatLLM" has no attribute "model"  [attr-defined]
 aletheia/core/db/sqlite_store.py:0: error: Unsupported target for indexed assignment ("object")  [index]
@@ -215,8 +194,6 @@ aletheia/extensions/data/providers/yfinance_provider.py:0: error: Function is mi
 aletheia/extensions/data/providers/ccxt_provider.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/extensions/data/providers/ccxt_provider.py:0: error: Returning Any from function declared to return "bool"  [no-any-return]
 aletheia/extensions/backtest/benchmark.py:0: error: Argument "duckdb_path" to "HistoricalDataFeed" has incompatible type "Path"; expected "str"  [arg-type]
-aletheia/extensions/agents/scribe.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/extensions/agents/scribe.py:0: note: Use "-> None" if function does not return a value
 aletheia/extensions/agents/oracle.py:0: error: Function is missing a type annotation  [no-untyped-def]
 aletheia/extensions/agents/sentinel.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/core/agent/loop.py:0: error: Name "traceable" already defined (possibly by an import)  [no-redef]
@@ -226,12 +203,6 @@ aletheia/core/agent/loop.py:0: error: "Sequence[str]" has no attribute "append" 
 aletheia/core/agent/loop.py:0: error: Argument 1 to "append" of "list" has incompatible type "dict[str, Sequence[str]]"; expected "dict[str, str]"  [arg-type]
 aletheia/core/marketdata/adapters.py:0: error: Returning Any from function declared to return "list[list[float]]"  [no-any-return]
 aletheia/cli/benchmark.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/benchmark.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/benchmark.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/benchmark.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/benchmark.py:0: note: Use "-> None" if function does not return a value
-aletheia/cli/benchmark.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/benchmark.py:0: note: Use "-> None" if function does not return a value
 aletheia/core/swarm/worker.py:0: error: Incompatible default for parameter "allowed_tools" (default has type "None", parameter has type "list[str]")  [assignment]
 aletheia/core/swarm/worker.py:0: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
 aletheia/core/swarm/worker.py:0: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
@@ -244,7 +215,6 @@ aletheia/core/marketdata/engine.py:0: error: Function is missing a return type a
 aletheia/core/marketdata/engine.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/core/swarm/runtime.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/core/swarm/runtime.py:0: error: Need type annotation for "queue"  [var-annotated]
-aletheia/core/swarm/runtime.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/core/api/security.py:0: error: Module has no attribute "RateLimiter"  [attr-defined]
 aletheia/core/api/security.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/core/api/security.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
@@ -252,8 +222,6 @@ aletheia/core/api/security.py:0: error: Need type annotation for "request_counts
 aletheia/core/api/security.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/core/api/security.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/core/api/security.py:0: error: Item "None" of "Address | None" has no attribute "host"  [union-attr]
-aletheia/core/api/security.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/mcp_server.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/mcp_server.py:0: error: Function is missing a type annotation  [no-untyped-def]
 aletheia/mcp_server.py:0: error: Function is missing a type annotation  [no-untyped-def]
 aletheia/core/graph_flow.py:0: error: Returning Any from function declared to return "dict[str, Any]"  [no-any-return]
@@ -271,32 +239,13 @@ aletheia/core/api/dependencies.py:0: error: Returning Any from function declared
 aletheia/core/api/routers/portfolios.py:0: error: Argument "api_key" to "ZerodhaKiteConnector" has incompatible type "str | None"; expected "str"  [arg-type]
 aletheia/core/api/routers/health.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
 aletheia/cli/paper_trades.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/paper_trades.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/paper_trades.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/paper_trades.py:0: note: Use "-> None" if function does not return a value
-aletheia/cli/paper_trades.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/paper_trades.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/paper_trades.py:0: note: Use "-> None" if function does not return a value
 aletheia/cli/paper_trades.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/cli/paper_trades.py:0: error: Returning Any from function declared to return "float | None"  [no-any-return]
 aletheia/cli/compare.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/cli/compare.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
-aletheia/cli/compare.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/cli/compare.py:0: error: Function is missing a type annotation  [no-untyped-def]
 aletheia/cli/compare.py:0: error: Function is missing a type annotation  [no-untyped-def]
 aletheia/cli/compare.py:0: error: Function is missing a type annotation  [no-untyped-def]
-aletheia/cli/main.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/main.py:0: note: Use "-> None" if function does not return a value
-aletheia/cli/main.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/main.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/main.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/main.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/main.py:0: note: Use "-> None" if function does not return a value
-aletheia/cli/main.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/main.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/main.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/main.py:0: error: Function is missing a return type annotation  [no-untyped-def]
-aletheia/cli/main.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/core/main.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/core/main.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
 aletheia/core/main.py:0: error: Function is missing a type annotation  [no-untyped-def]

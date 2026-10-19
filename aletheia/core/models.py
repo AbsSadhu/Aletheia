@@ -7,6 +7,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
+from aletheia import __version__
+
 
 def coerce_none_and_nan(cls, data: Any) -> Any:
     if isinstance(data, dict):
@@ -505,6 +507,6 @@ class RunResult(BaseModel):
 class HealthResponse(BaseModel):
     service: str = "ALETHEIA"
     status: str = "ok"
-    version: str = "0.1.1"
+    version: str = __version__
     sqlite_path: str
     duckdb_path: str
