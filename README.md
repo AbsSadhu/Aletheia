@@ -238,7 +238,7 @@ Aletheia is under active development. This table reflects the actual code as of 
 | Swarm presets | Done | `investment_team`/`quant_team` presets wired to `/api/v1/swarm/presets` and `/api/v1/swarm/run` |
 | Desktop packaging | Done | Frozen backend (PyInstaller) and the Rust sidecar are staged into the Tauri bundle's `resources/`, producing an installer with no dev-machine dependency |
 | Docker Compose | Done | Ships `backend`, `engine`, `ollama`, `frontend`, plus opt-in `prometheus`/`grafana` — this is what the Quickstart above actually runs |
-| Kubernetes / Helm | Partial | Deployment, Service, HPA, liveness/readiness probes, and a Helm ConfigMap are real; there's no Helm Secret template yet (assumes one is provisioned externally) |
+| Kubernetes / Helm | Done (untested on a live cluster) | Deployment, Service, HPA, liveness/readiness probes, a Helm ConfigMap and an opt-in Secret (`secret.create`, or point `secret.existingSecret` at your own) are real; the chart lints and renders under `helm lint`/`helm template`, but it hasn't been installed on a real cluster |
 | Full MCP server | Done | All registered tools exposed over stdio; verified against a real `tools/list` handshake, works with Claude Desktop / Cursor |
 | Multi-swarm specialist tuning, domain fine-tuning, live broker orders | Not started | See [What's Left](#whats-left) |
 
@@ -252,7 +252,6 @@ Gaps that are either fully unbuilt or real but incomplete, roughly in order of i
 - **Tauri deep links and native notifications.** `aletheia://run/{id}` and OS-level "run complete" notifications are not wired up — sidecar auto-launch, tray, and installer packaging are done, these two plugins aren't added yet.
 - **Live broker execution.** `aletheia/extensions/brokers/zerodha.py` is explicitly a blueprint: `get_account_balance`/`place_order`/`cancel_order` wrap the `kiteconnect` SDK, but there's no OAuth (`generate_session`/`request_token`) flow, so it can't place a real order yet. This touches real money and should stay staged behind paper mode until it's finished properly.
 - **Options pricing widget.** Black-Scholes/Greeks are already computed server-side in Rust; nothing in the frontend exposes them yet.
-- **Helm Secret template.** `deployment.yaml` references an `aletheia-secrets` Secret via `secretKeyRef`, but nothing in the chart creates it — fine if you provision it externally, but that's not documented anywhere in the chart itself.
 - **Light theme and a real mobile pass.** The design system is dark-mode only (`color-scheme: dark` is hard-coded), with two basic responsive breakpoints and no dedicated mobile layout work.
 - **Multi-swarm specialist tuning.** The `investment_team`/`quant_team` presets exist and run, but the originally-scoped `crypto_team`/`macro_team`/`smallcap_team` tuning (different metrics/thresholds per asset class) hasn't been started.
 - **Domain fine-tuning.** Training a model on NSE/BSE filings and earnings-call transcripts (the long-term "moat" idea) hasn't been started.

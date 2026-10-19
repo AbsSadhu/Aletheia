@@ -5,6 +5,27 @@ All notable changes to Aletheia are documented here. The format follows
 [Semantic Versioning](https://semver.org/). While the version is `0.x`, anything may change
 between releases.
 
+## [Unreleased]
+
+### Added
+- Helm chart: optional chart-managed Secret (`secret.create`, off by default) and
+  `secret.existingSecret` to name your own; the default behaviour is unchanged.
+- Frontend tests for the warnings banner and sidebar (14 tests, up from 8), and a test that every
+  manifest (pyproject, frontend, desktop, Tauri, Cargo) matches `aletheia.__version__`.
+
+### Changed
+- The frontend is split by route: the entry bundle drops from 782 kB to 236 kB, with the charting
+  library in its own chunk.
+- CI uses current major versions of `actions/checkout`, `setup-python`, `setup-node` and
+  `upload-artifact` (no more Node 20 deprecation warning).
+- The version now has one source per ecosystem: `aletheia.__version__` for Python and
+  `package.json` for the UI.
+
+### Fixed
+- Node failures caused by a timeout no longer show a blank reason; the message states the limit and
+  names `ALETHEIA_NODE_TIMEOUT_SECS`.
+- Exported reports and the sidebar still said v0.1.0; both now show the real version.
+
 ## [0.1.1] - 2026-10-19
 
 ### Changed
