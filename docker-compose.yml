@@ -3,7 +3,7 @@
 #  Services:
 #    - backend      FastAPI + LangGraph agents (port 8899)
 #    - engine       Rust compute sidecar (port 18899)
-#    - ollama       Local LLM runtime (port 11434)
+#    - ollama       Local LLM runtime (host port 11435, loopback only)
 #    - frontend     React 19 static build served via nginx (port 5173)
 #    - prometheus   Metrics scraper (port 9090)
 #    - grafana      Dashboards (port 3000)
@@ -90,7 +90,10 @@ services:
     image: ollama/ollama:latest
     container_name: aletheia-ollama
     ports:
-      - "11434:11434"
+      # Loopback-only, and 11435 by default so it doesn't collide with an Ollama
+      # you already run on the host (11434). The backend reaches this container
+      # over the internal network, so this mapping is only for your own tooling.
+      - "127.0.0.1:${OLLAMA_HOST_PORT:-11435}:11434"
     volumes:
       - ollama-data:/root/.ollama
     restart: unless-stopped
