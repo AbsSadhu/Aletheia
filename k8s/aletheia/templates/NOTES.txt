@@ -1,11 +1,17 @@
 ALETHEIA has been deployed as {{ include "aletheia.fullname" . }}.
 
-IMPORTANT — this chart does NOT create the `aletheia-secrets` Secret it
-references (deliberately: baking API keys into `values.yaml` puts them in
-plaintext in `helm get values`/release history). Create it yourself before
-the backend needs any of these keys:
+{{- if .Values.secret.create }}
+This release created the Secret `{{ include "aletheia.secretName" . }}` from `secretEnv`.
+Those values are visible in `helm get values` and release history - prefer
+`secret.create=false` with a Secret you provision yourself for anything real.
+{{- else }}
+IMPORTANT - by default this chart does NOT create the Secret it references
+(`{{ include "aletheia.secretName" . }}`): baking API keys into `values.yaml` puts them in
+plaintext in `helm get values`/release history. Create it yourself before
+the backend needs any of these keys (or set `secret.create=true` for a
+throwaway/dev install, or point `secret.existingSecret` at your own Secret name):
 
-  kubectl create secret generic aletheia-secrets \
+  kubectl create secret generic {{ include "aletheia.secretName" . }} \
     --namespace {{ .Release.Namespace }} \
     --from-literal=OPENAI_API_KEY=<your-key> \
     --from-literal=ANTHROPIC_API_KEY=<your-key> \
@@ -15,6 +21,7 @@ the backend needs any of these keys:
 Every key is optional (`secretKeyRef.optional: true` in deployment.yaml) —
 omit any you don't use. None of them are required for the default local
 LLM (Ollama) path.
+{{- end }}
 
 Check the backend is healthy:
 

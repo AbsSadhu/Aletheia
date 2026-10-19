@@ -92,12 +92,21 @@ env:
   ALETHEIA_LOG_LEVEL: "INFO"
   ALETHEIA_SKIP_PREFLIGHT: "false"
 
+# Which keys the backend reads from the Secret (all optional; none are needed
+# for the default local Ollama path). The values here are only used when
+# secret.create is true.
 secretEnv:
-  # These are mounted from a Kubernetes Secret named 'aletheia-secrets'
   OPENAI_API_KEY: ""
   ANTHROPIC_API_KEY: ""
   ZERODHA_API_KEY: ""
   ZERODHA_API_SECRET: ""
+
+secret:
+  # Recommended: leave false and provision the Secret yourself (see NOTES.txt),
+  # so API keys never appear in `helm get values` or release history.
+  create: false
+  # Name of the pre-existing Secret to read from when create is false.
+  existingSecret: aletheia-secrets
 
 # ----------------------------------------------------------
 # Monitoring (Prometheus ServiceMonitor)
