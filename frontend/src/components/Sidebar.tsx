@@ -65,7 +65,7 @@ export default function Sidebar({ backendOnline }: SidebarProps) {
         </div>
         <div className="sidebar-status" style={{ marginTop: 6 }}>
           <Activity size={12} />
-          <span>v0.1.0 · Sprint 3</span>
+          <span>v{__APP_VERSION__} · alpha</span>
         </div>
       </div>
     </aside>

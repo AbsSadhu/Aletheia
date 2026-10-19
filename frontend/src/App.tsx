@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Sidebar from "./components/Sidebar";
-import Dashboard from "./pages/Dashboard";
-import RunsList from "./pages/RunsList";
-import RunDetail from "./pages/RunDetail";
-import Portfolio from "./pages/Portfolio";
-import SettingsPage from "./pages/Settings";
-import PaperTrades from "./pages/PaperTrades";
-import FactorExplorer from "./pages/FactorExplorer";
-import ShadowTrader from "./pages/ShadowTrader";
-import Backtest from "./pages/Backtest";
-import Hypotheses from "./pages/Hypotheses";
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const RunsList = lazy(() => import("./pages/RunsList"));
+const RunDetail = lazy(() => import("./pages/RunDetail"));
+const Portfolio = lazy(() => import("./pages/Portfolio"));
+const SettingsPage = lazy(() => import("./pages/Settings"));
+const PaperTrades = lazy(() => import("./pages/PaperTrades"));
+const FactorExplorer = lazy(() => import("./pages/FactorExplorer"));
+const ShadowTrader = lazy(() => import("./pages/ShadowTrader"));
+const Backtest = lazy(() => import("./pages/Backtest"));
+const Hypotheses = lazy(() => import("./pages/Hypotheses"));
 import { fetchHealth } from "./lib/api";
 
 export default function App() {
@@ -36,6 +36,7 @@ export default function App() {
     <BrowserRouter>
       <div className="app-layout">
         <Sidebar backendOnline={backendOnline} />
+        <Suspense fallback={<main className="page-loading" role="status">Loading…</main>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/runs" element={<RunsList />} />
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/factors" element={<FactorExplorer />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
+        </Suspense>
       </div>
     </BrowserRouter>
   );
