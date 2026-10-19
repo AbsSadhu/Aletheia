@@ -42,7 +42,10 @@ class Settings(BaseSettings):
     # env var just to see the platform's flagship tax-aware feature. Set to
     # None (ALETHEIA_TAX_JURISDICTION=) to disable tax-aware projections.
     tax_jurisdiction: str | None = Field(default="IN")
-    node_timeout_secs: int = Field(default=30)
+    # Per-node time budget. Collector fans out to several LLM-backed analysts that
+    # queue on one local Ollama instance, so a mid-size local model on modest
+    # hardware routinely needs well over 30s per node; 120s was reliable in testing.
+    node_timeout_secs: int = Field(default=120, gt=0)
     enabled_agents: list[str] = Field(
         default_factory=lambda: [
             "collector",

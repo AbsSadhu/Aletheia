@@ -94,7 +94,7 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
             state["agent_statuses"][agent_name] = "running"
             await run_service.update_run_progress(run_id, state, status=RunStatus.RUNNING)
 
-            timeout = getattr(run_service.settings, "node_timeout_secs", 30)
+            timeout = getattr(run_service.settings, "node_timeout_secs", 120)
 
             try:
                 updates = await asyncio.wait_for(node_func(state), timeout=timeout)
