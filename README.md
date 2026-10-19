@@ -262,9 +262,7 @@ Gaps that are either fully unbuilt or real but incomplete, roughly in order of i
 
 ## Known Limitations
 
-Found while producing this README against a real local run — worth knowing before you file a bug on this:
-
-- **Per-node timeout can be too tight for larger local models.** The default `node_timeout_secs` is 30 seconds. Collector fans out to five analyst agents that all queue on a single local Ollama instance; with a larger local model (`qwen3.5:9b` in testing) on modest hardware, later nodes can exceed 30 seconds and the run comes back `partial` with those agents marked failed even though nothing is actually broken. Raising `ALETHEIA_NODE_TIMEOUT_SECS` (120 was reliable in testing) resolves it. This is a tuning gap, not a correctness bug — worth a saner default or a per-model heuristic.
+- **Very large local models on slow hardware can still hit the per-node timeout.** The default `node_timeout_secs` is 120 seconds (it was 30 in 0.1.0, which was too tight: Collector fans out to five analyst agents that all queue on a single local Ollama instance, so with a 9B-class model on modest hardware later nodes exceeded it and runs came back `partial`). If a run still comes back `partial` with agents marked failed and nothing is actually broken, raise `ALETHEIA_NODE_TIMEOUT_SECS`.
 
 ---
 

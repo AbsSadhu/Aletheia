@@ -5,6 +5,13 @@ All notable changes to Aletheia are documented here. The format follows
 [Semantic Versioning](https://semver.org/). While the version is `0.x`, anything may change
 between releases.
 
+## [Unreleased]
+
+### Changed
+- Default per-node timeout raised from 30 s to 120 s (`ALETHEIA_NODE_TIMEOUT_SECS`). At 30 s, runs
+  with a mid-size local model on modest hardware came back `partial` with healthy agents marked
+  failed. The setting is now validated to be positive and documented in `.env.example`.
+
 ## [0.1.0] - 2026-10-19 — first alpha release
 
 First tagged release. Aletheia is alpha software: the core loop works end to end, but see
