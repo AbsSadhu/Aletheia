@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "aletheia"
-version = "0.1.0"
+version = "0.1.1"
 description = "Terminal-First Agentic Trading Framework"
 authors = ["Aletheia <admin@aletheia.local>"]
 readme = "README.md"

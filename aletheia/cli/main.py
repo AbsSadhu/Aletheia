@@ -141,7 +141,7 @@ def info():
     """
     Display framework information and loaded extensions.
     """
-    console.print("[bold cyan]Aletheia Framework v0.1.0[/bold cyan]")
+    console.print("[bold cyan]Aletheia Framework v0.1.1[/bold cyan]")
     console.print("Architecture: Terminal-First / Agentic / Multi-Agent")
     console.print("\nLoaded Extensions:")
     console.print(

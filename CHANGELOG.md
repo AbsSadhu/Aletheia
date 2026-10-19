@@ -5,12 +5,14 @@ All notable changes to Aletheia are documented here. The format follows
 [Semantic Versioning](https://semver.org/). While the version is `0.x`, anything may change
 between releases.
 
-## [Unreleased]
+## [0.1.1] - 2026-10-19
 
 ### Changed
 - Default per-node timeout raised from 30 s to 120 s (`ALETHEIA_NODE_TIMEOUT_SECS`). At 30 s, runs
   with a mid-size local model on modest hardware came back `partial` with healthy agents marked
   failed. The setting is now validated to be positive and documented in `.env.example`.
+- Version number bumped to 0.1.1 across the Python package, API/CLI output, frontend, desktop
+  app and Rust crates.
 
 ## [0.1.0] - 2026-10-19 — first alpha release
 
@@ -69,4 +71,5 @@ relying on it. Nothing it produces is financial advice.
 - Live broker execution (Zerodha) is a non-functional blueprint; use paper trading.
 - No NSE/BSE real-time data source; the dark theme is the only theme.
 
+[0.1.1]: https://github.com/AbsSadhu/Aletheia/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AbsSadhu/Aletheia/releases/tag/v0.1.0
