@@ -36,3 +36,15 @@ Selector labels
 app.kubernetes.io/name: {{ include "aletheia.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Name of the Secret holding API keys: the chart-managed one when secret.create is
+true, otherwise the pre-existing secret.existingSecret.
+*/}}
+{{- define "aletheia.secretName" -}}
+{{- if .Values.secret.create }}
+{{- printf "%s-secrets" (include "aletheia.fullname" .) }}
+{{- else }}
+{{- .Values.secret.existingSecret }}
+{{- end }}
+{{- end }}
