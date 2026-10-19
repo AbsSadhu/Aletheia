@@ -1,3 +1,4 @@
+import DataWarnings from "../components/DataWarnings";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -376,24 +377,7 @@ export default function RunDetail() {
         {/* Overview Tab */}
         {tab === "Overview" && (
           <div>
-            {dataWarnings.length > 0 && (
-              <div
-                role="alert"
-                style={{
-                  fontSize: "var(--text-sm)",
-                  padding: "var(--space-3)",
-                  marginBottom: "var(--space-4)",
-                  background: "var(--amber-muted)",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--amber)",
-                  color: "var(--amber)",
-                }}
-              >
-                {dataWarnings.map((w, i) => (
-                  <div key={i}>{w}</div>
-                ))}
-              </div>
-            )}
+            <DataWarnings warnings={dataWarnings} />
             <div className="card-subtitle" style={{ marginBottom: "var(--space-3)" }}>Insights</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginBottom: "var(--space-5)" }}>
               {insights.map((insight, i) => (
