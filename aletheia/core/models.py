@@ -473,11 +473,33 @@ class RunResult(BaseModel):
     confidence_score: float = 0.0
     traces: list[dict[str, Any]] = Field(default_factory=list)
     agent_statuses: dict[str, str] = Field(default_factory=dict)
+    # Run-level data-quality warnings, derived from collector_output (see below).
+    warnings: list[str] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod
     def _coerce_fields(cls, data: Any) -> Any:
         return coerce_none_and_nan(cls, data)
+
+    @model_validator(mode="after")
+    def _flag_non_live_data(self) -> "RunResult":
+        """Surface symbols priced from built-in sample data (or not priced at all).
+
+        Without this, a run that silently fell back to ``static_seed`` looks
+        identical to one priced from live quotes.
+        """
+        sample = [c.symbol for c in self.collector_output if c.provider_used == "static_seed"]
+        missing = [c.symbol for c in self.collector_output if c.provider_used == "unavailable"]
+        derived = []
+        if sample:
+            derived.append(
+                "Built-in sample data, not live market prices, was used for: "
+                f"{', '.join(sample)}. Treat these results as illustrative only."
+            )
+        if missing:
+            derived.append(f"No price data could be retrieved for: {', '.join(missing)}.")
+        self.warnings = [*(w for w in self.warnings if w not in derived), *derived]
+        return self
 
 
 class HealthResponse(BaseModel):

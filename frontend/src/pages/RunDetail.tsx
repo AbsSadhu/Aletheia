@@ -183,6 +183,7 @@ export default function RunDetail() {
   const fundamentalOutputs = run.fundamental_outputs ?? [];
   const optionsFlowOutputs = run.options_flow_outputs ?? [];
   const insights = run.insights ?? [];
+  const dataWarnings = run.warnings ?? [];
   const collectorOutput = run.collector_output ?? [];
   const recs = scribe?.recommendations ?? [];
 
@@ -375,6 +376,24 @@ export default function RunDetail() {
         {/* Overview Tab */}
         {tab === "Overview" && (
           <div>
+            {dataWarnings.length > 0 && (
+              <div
+                role="alert"
+                style={{
+                  fontSize: "var(--text-sm)",
+                  padding: "var(--space-3)",
+                  marginBottom: "var(--space-4)",
+                  background: "var(--amber-muted)",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--amber)",
+                  color: "var(--amber)",
+                }}
+              >
+                {dataWarnings.map((w, i) => (
+                  <div key={i}>{w}</div>
+                ))}
+              </div>
+            )}
             <div className="card-subtitle" style={{ marginBottom: "var(--space-3)" }}>Insights</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginBottom: "var(--space-5)" }}>
               {insights.map((insight, i) => (

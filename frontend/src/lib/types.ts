@@ -149,6 +149,7 @@ export interface RunResult {
   options_flow_outputs: OptionsFlowOutput[];
   insights: string[];
   confidence_score: number;
+  warnings?: string[];
 }
 
 export interface BacktestOrder {
