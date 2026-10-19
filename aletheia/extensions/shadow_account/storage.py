@@ -13,7 +13,7 @@ class ShadowAccountStorage:
         self.db_path = db_path
         self._init_db()
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS trades (
@@ -36,7 +36,7 @@ class ShadowAccountStorage:
             """)
             conn.commit()
 
-    def log_trade(self, trade: TradeEntry):
+    def log_trade(self, trade: TradeEntry) -> None:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """
@@ -76,7 +76,7 @@ class ShadowAccountStorage:
                 for row in rows
             ]
 
-    def save_snapshot(self, snapshot: AccountSnapshot):
+    def save_snapshot(self, snapshot: AccountSnapshot) -> None:
         with sqlite3.connect(self.db_path) as conn:
             positions_json = json.dumps([p.model_dump(mode="json") for p in snapshot.positions])
             conn.execute(

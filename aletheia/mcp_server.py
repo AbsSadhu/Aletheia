@@ -15,7 +15,7 @@ mcp = FastMCP(
 registry = build_registry()
 
 
-def _register_tools():
+def _register_tools() -> None:
     for tool_def in registry.get_definitions():
         func_name = tool_def["function"]["name"]
         func_desc = tool_def["function"]["description"]

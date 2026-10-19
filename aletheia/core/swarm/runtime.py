@@ -19,7 +19,7 @@ class SwarmRuntime:
         """Runs all workers in parallel and yields their stream events."""
         queue = asyncio.Queue()
 
-        async def worker_task(worker: SwarmWorker):
+        async def worker_task(worker: SwarmWorker) -> None:
             try:
                 async for event in worker.execute(prompt, portfolio):
                     await queue.put(event)

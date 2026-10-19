@@ -21,6 +21,6 @@ class Hypothesis(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
-    def add_evidence(self, ev: Evidence):
+    def add_evidence(self, ev: Evidence) -> None:
         self.evidence.append(ev)
         self.updated_at = datetime.now(UTC)

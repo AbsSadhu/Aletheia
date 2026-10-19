@@ -38,7 +38,7 @@ def benchmark_run(
     label: str = typer.Option(
         ..., "--label", "-l", help="Label for this run (e.g. before_memory_v1)"
     ),
-):
+) -> None:
     """Run a historical benchmark scenario and save results."""
     harness = _get_harness()
     try:
@@ -76,7 +76,7 @@ def benchmark_run(
 def benchmark_compare(
     label_a: str = typer.Argument(..., help="Label of first benchmark result"),
     label_b: str = typer.Argument(..., help="Label of second benchmark result"),
-):
+) -> None:
     """Compare two benchmark results — show metric diffs."""
     harness = _get_harness()
     try:
@@ -115,7 +115,7 @@ def benchmark_compare(
 
 
 @app.command(name="list")
-def benchmark_list():
+def benchmark_list() -> None:
     """List all saved benchmark results."""
     harness = _get_harness()
     results = harness.list_results()
@@ -136,7 +136,7 @@ def benchmark_list():
 
 
 @app.command(name="scenarios")
-def list_scenarios():
+def list_scenarios() -> None:
     """List all available built-in benchmark scenarios."""
     from aletheia.extensions.backtest.benchmark import BUILTIN_SCENARIOS
 

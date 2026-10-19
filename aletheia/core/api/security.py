@@ -33,7 +33,7 @@ class PyO3RateLimiter:
         except ImportError:
             return None
 
-    async def __call__(self, request: Request):
+    async def __call__(self, request: Request) -> None:
         client_ip = request.client.host if request.client else "unknown"
         limiter = self.get_limiter(client_ip)
         if limiter is not None:

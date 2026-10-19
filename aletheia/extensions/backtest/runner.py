@@ -39,7 +39,7 @@ class BacktestRunner:
         logger.info(f"Order submitted: {action} {quantity} {symbol}")
         return order
 
-    def execute_orders(self, current_data: Dict[str, Any]):
+    def execute_orders(self, current_data: Dict[str, Any]) -> None:
         """Simulates order execution against current market data."""
         # Highly simplified execution model
         for order in self.orders:
@@ -85,7 +85,7 @@ class BacktestRunner:
                         if pos.quantity == 0:
                             del self.positions[order.symbol]
 
-    def update_equity(self, current_data: Dict[str, Any]):
+    def update_equity(self, current_data: Dict[str, Any]) -> None:
         """Updates portfolio value based on current prices."""
         total_value = self.current_capital
         for symbol, pos in self.positions.items():

@@ -17,6 +17,8 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from aletheia import __version__
+
 logger = logging.getLogger(__name__)
 
 _TEMPLATE_DIR = Path(__file__).parent.parent / "templates"
@@ -104,7 +106,7 @@ def render_html(run: dict[str, Any]) -> str:
     env = _build_jinja_env()
     template = env.get_template("report.html")
     ctx = _flatten_run_data(run)
-    return template.render(**ctx)
+    return template.render(app_version=__version__, **ctx)
 
 
 def export_pdf(run: dict[str, Any]) -> tuple[bytes, bool]:

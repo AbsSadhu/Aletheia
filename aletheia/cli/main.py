@@ -1,4 +1,5 @@
 import typer
+from aletheia import __version__
 from rich.console import Console
 from aletheia.cli.config import app as config_app
 from aletheia.cli.onboard import run_onboarding
@@ -20,7 +21,7 @@ app.add_typer(compare_app)
 
 
 @app.command()
-def setup():
+def setup() -> None:
     """
     Run the interactive setup wizard to configure LLMs and API keys.
     """
@@ -31,7 +32,7 @@ def setup():
 def analyze(
     symbol: str = typer.Option(..., "--symbol", "-s", help="The stock symbol to analyze"),
     provider: str = typer.Option("yfinance", "--provider", "-p", help="Data provider to use"),
-):
+) -> None:
     """
     Run an agentic analysis pipeline on a given symbol.
     """
@@ -95,7 +96,7 @@ async def _async_run(prompt_text: str) -> None:
 @app.command(name="run")
 def run_prompt(
     prompt: str = typer.Argument(..., help="The natural language query/task to execute"),
-):
+) -> None:
     """
     Run an agentic task using natural language in the terminal.
     """
@@ -114,7 +115,7 @@ def import_data(
         None, "--date-format", "-d", help="Optional date parsing format, e.g. %Y-%m-%d"
     ),
     query: str = typer.Option(None, "--query", "-q", help="Optional SQL query for DuckDB files"),
-):
+) -> None:
     """
     Import local CSV, Parquet, or DuckDB data into Aletheia's unified DuckDB store.
     """
@@ -137,11 +138,11 @@ def import_data(
 
 
 @app.command()
-def info():
+def info() -> None:
     """
     Display framework information and loaded extensions.
     """
-    console.print("[bold cyan]Aletheia Framework v0.1.1[/bold cyan]")
+    console.print(f"[bold cyan]Aletheia Framework v{__version__}[/bold cyan]")
     console.print("Architecture: Terminal-First / Agentic / Multi-Agent")
     console.print("\nLoaded Extensions:")
     console.print(
@@ -199,7 +200,7 @@ def serve(
     host: str = typer.Option("127.0.0.1", "--host", "-H", help="Bind host"),
     port: int = typer.Option(8899, "--port", "-p", help="Bind port"),
     reload: bool = typer.Option(False, "--reload", "-r", help="Enable auto-reload (dev mode)"),
-):
+) -> None:
     """
     Start the Aletheia FastAPI backend server.
     Used by the desktop app as a sidecar process.
@@ -226,7 +227,7 @@ def memory_cmd(
     ),
     ticker: str = typer.Option(None, "--ticker", "-t", help="Filter observations by ticker"),
     limit: int = typer.Option(10, "--limit", "-n", help="Number of records to show"),
-):
+) -> None:
     """
     View an agent's working memory observations and self-critiques.
     """
@@ -297,7 +298,7 @@ def db_backup(
     backup_dir: str = typer.Option(
         "./backups", "--dir", "-d", help="Directory where database snapshots will be stored"
     ),
-):
+) -> None:
     """
     Safely snapshot both SQLite and DuckDB databases.
     """
@@ -359,7 +360,7 @@ def db_restore(
     backup_path: str = typer.Option(
         ..., "--path", "-p", help="Path to the timestamped backup directory"
     ),
-):
+) -> None:
     """
     Restore SQLite and DuckDB databases from a backup snapshot.
     """
@@ -446,7 +447,7 @@ def db_prune(
     days: int = typer.Option(
         None, "--days", "-d", help="Number of days of data to retain. Overrides .env"
     ),
-):
+) -> None:
     """
     Manually prune SQLite run traces and DuckDB market quotes.
     """
