@@ -202,7 +202,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="ALETHEIA",
-        version="0.1.0",
+        version="0.1.1",
         description="India-first multi-agent financial intelligence platform",
         lifespan=lifespan,
     )
@@ -234,7 +234,7 @@ def create_app() -> FastAPI:
     async def root() -> dict[str, str]:
         return {
             "service": "ALETHEIA",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "docs": "/docs",
         }
 

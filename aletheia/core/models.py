@@ -505,6 +505,6 @@ class RunResult(BaseModel):
 class HealthResponse(BaseModel):
     service: str = "ALETHEIA"
     status: str = "ok"
-    version: str = "0.1.0"
+    version: str = "0.1.1"
     sqlite_path: str
     duckdb_path: str
