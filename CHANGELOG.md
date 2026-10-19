@@ -33,6 +33,9 @@ relying on it. Nothing it produces is financial advice.
   and Kubernetes manifests with a Helm ConfigMap.
 - `docs/sample_portfolio.csv` — a ready-to-import example portfolio.
 - README "not financial advice" notice.
+- Runs now carry a `warnings` list, shown as a banner on the Overview tab, when any symbol was
+  priced from built-in sample data (`static_seed`) or could not be priced at all, instead of
+  looking identical to a live-priced run.
 
 ### Fixed
 - `GET /api/v1/factors/{ticker}` failed with `'Candle' object has no attribute 'date'`; it now
@@ -41,6 +44,9 @@ relying on it. Nothing it produces is financial advice.
   contributors and CI. `pyinstaller` is now restricted to `python<3.16` so the lock resolves.
 - `cargo test` for `aletheia_rust` failed to link on Linux; removed the hard-coded PyO3
   `extension-module` feature (maturin enables it when building the wheel).
+- The bundled Ollama container no longer fails with a port conflict on machines that already run
+  Ollama (host port is now `127.0.0.1:11435`, override with `OLLAMA_HOST_PORT`) and is no longer
+  exposed on all network interfaces.
 - Sidecar integration tests now skip when the sidecar is not running instead of failing.
 - Dependency advisories: bumped `pyjwt`, `urllib3`, `soupsieve`, `virtualenv`, `weasyprint`,
   `anyio`, `mcp`, `multidict`, `langgraph-sdk` (Python) and `source-map-js`, `undici` (npm).
