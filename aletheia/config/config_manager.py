@@ -30,6 +30,13 @@ SENSITIVE_FIELDS = {
     "gemini_api_key",
     "zerodha_api_key",
     "zerodha_api_secret",
+    "zerodha_access_token",
+    "angel_one_api_key",
+    "angel_one_pin",
+    "angel_one_totp_secret",
+    "fyers_app_id",
+    "fyers_secret",
+    "fyers_access_token",
     "tradingview_session",
     "db_encryption_key",
 }
@@ -47,6 +54,8 @@ ENV_FIELD_MAP = {
     "anthropic_api_key": "ANTHROPIC_API_KEY",
     "gemini_api_key": "GEMINI_API_KEY",
     "yfinance_enabled": "ALETHEIA_YFINANCE_ENABLED",
+    "angel_one_enabled": "ALETHEIA_ANGEL_ONE_ENABLED",
+    "live_feed_provider": "ALETHEIA_LIVE_FEED_PROVIDER",
     "ccxt_enabled": "ALETHEIA_CCXT_ENABLED",
     "sqlite_path": "ALETHEIA_SQLITE_PATH",
     "db_encryption_key": "ALETHEIA_DB_ENCRYPTION_KEY",
@@ -93,9 +102,25 @@ class AletheiaConfig(BaseModel):
     gemini_api_key: str | None = None
     zerodha_api_key: str | None = None
     zerodha_api_secret: str | None = None
+    # Kite access tokens die at ~6 AM IST daily; the date lets us refuse a stale one.
+    zerodha_access_token: str | None = None
+    zerodha_token_date: str | None = None
+    angel_one_api_key: str | None = None
+    angel_one_client_code: str | None = None
+    angel_one_pin: str | None = None
+    angel_one_totp_secret: str | None = None
+    fyers_app_id: str | None = None  # e.g. ABC123XYZ-100
+    fyers_secret: str | None = None
+    # Fyers tokens expire daily at 06:30 IST; the timestamp lets us refuse a stale one.
+    fyers_access_token: str | None = None
+    fyers_token_date: str | None = None
     tradingview_session: str | None = None
     yfinance_enabled: bool = True
     ccxt_enabled: bool = True
+    # Read by the backend at startup (restart after changing it).
+    angel_one_enabled: bool = False
+    # Which broker feeds the per-second live stream. Read by the backend at startup.
+    live_feed_provider: Literal["angel_one", "fyers", "bse_web"] = "angel_one"
     sqlite_path: str = "~/.aletheia/aletheia.db"
     db_encryption_key: str | None = None
     duckdb_path: str = "~/.aletheia/quotes.duckdb"
@@ -270,6 +295,8 @@ class ConfigManager:
         current["ALETHEIA_DEFAULT_LLM_MODEL"] = config.default_llm_model
         current["ALETHEIA_OLLAMA_BASE_URL"] = config.ollama_base_url
         current["ALETHEIA_YFINANCE_ENABLED"] = str(config.yfinance_enabled).lower()
+        current["ALETHEIA_ANGEL_ONE_ENABLED"] = str(config.angel_one_enabled).lower()
+        current["ALETHEIA_LIVE_FEED_PROVIDER"] = config.live_feed_provider
         current["ALETHEIA_CCXT_ENABLED"] = str(config.ccxt_enabled).lower()
         current["ALETHEIA_SQLITE_PATH"] = config.sqlite_path
         current["ALETHEIA_DUCKDB_PATH"] = config.duckdb_path

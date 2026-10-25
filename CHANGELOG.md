@@ -8,12 +8,59 @@ between releases.
 ## [Unreleased]
 
 ### Added
+- **BSE website quote source** (`live_feed_provider=bse_web`, free, no account, UNOFFICIAL): polls BSE's public
+  API every ~2 s with an 8 requests/s overall cap and exponential backoff on 403/429/5xx. Each quote carries
+  BSE's own 'as on' time, so Live Market shows when the exchange's data trails your clock instead of calling
+  it live. Rows are labelled "BSE price", and the feed is flagged unofficial on screen. `scripts/bse_check.py`
+  measures its real-time-ness on a trading day; `docs/FREE_LIVE_DATA.md` records which free sources were
+  tested and why most fail (NSE blocks scripts; `maanavshah/stock-market-india` targets a dead host).
+- **Free per-second crypto feed** from Binance's public WebSocket (no account or key): subscribe/unsubscribe
+  follows the watchlist live, falls back to Binance's market-data host, reconnects on drops and silence,
+  and runs alongside whichever stock feed is active. Live Market now says which parts are live and which are
+  delayed, and treats a quiet crypto row as stale at any hour (crypto trades 24/7). `scripts/crypto_check.py`
+  verifies it. Measured against the live service: about 1 update per second, ~0.08 s from Binance's event time to
+  arrival, prices within 0.15% of Yahoo.
+- **Fyers per-second feed** as an alternative to Angel One (`live_feed_provider`). It runs Fyers' official
+  `fyers-apiv3` SDK in an isolated virtualenv helper process (`aletheia/extensions/data/fyers_bridge.py`),
+  created by `scripts/fyers_setup.py`, because the SDK's dependencies (boto3, AWS packages, older `requests`
+  and `aiohttp`) break the main environment. Daily OAuth login via Settings (`/brokers/fyers/*`), expiry
+  handling at 06:30 IST, `scripts/fyers_check.py`, and `docs/FYERS_SETUP.md`.
+- **Per-second live feed:** Angel One SmartAPI WebSocket client (reconnect with backoff, heartbeat,
+  token/headers per the official SDK, paise-to-rupee scaling checked against a REST quote), a saved
+  watchlist (`GET/PUT /watchlist`), feed health (`/marketdata/feed-status`), a quote snapshot for late
+  joiners, market-hours awareness, and a **Live Market** page with flashing prices, source/age per row,
+  and explicit closed/delayed/stale/unverified states.
+- `docs/ANGEL_ONE_SETUP.md` and `scripts/angel_check.py` (step-by-step verification of an Angel One setup);
+  the config wizard now asks for Angel One credentials.
+- **Live data:** Angel One SmartAPI provider (free, official) as the first quote source when
+  `ALETHEIA_ANGEL_ONE_ENABLED=true`. Static demo prices are opt-in and last.
+- **Zerodha:** OAuth login (`/brokers/zerodha/*`), real holdings sync, and a guarded live-order
+  endpoint (`/execution/live-order`) with six independent checks, a daily cap and an order ledger.
+  Off by default; tested against mocked HTTP only.
+- Options pricing page and `/options/price` (Black-Scholes + Greeks), light theme with a toggle,
+  native run-complete notifications and `aletheia://run/<id>` deep links in the desktop app.
+- Run events now flow through the event bus (persistence and WebSocket fan-out are subscribers).
+- Presets `quant_team` (documented but missing until now), `crypto_team`, `macro_team`,
+  `smallcap_team`, each with asset-class-specific instructions.
+- Calibration loop: a scheduled job (`calibration_resolve_interval_secs`, default 6h) scores past
+  Oracle predictions against realised 7d/30d returns and stores Brier scores, which activates the
+  PM's poor-calibration confidence haircut (previously outcomes were never filled in).
 - Helm chart: optional chart-managed Secret (`secret.create`, off by default) and
   `secret.existingSecret` to name your own; the default behaviour is unchanged.
 - Frontend tests for the warnings banner and sidebar (14 tests, up from 8), and a test that every
   manifest (pyproject, frontend, desktop, Tauri, Cargo) matches `aletheia.__version__`.
 
 ### Changed
+- **Oracle signals are now deterministic.** The signal is the factor-registry composite (momentum,
+  mean-reversion, volume, technicals) on real daily OHLCV. The LLM only writes commentary; it can no
+  longer set or upgrade a signal, and the debate node can only de-risk. Confidence is the shrunk
+  walk-forward hit rate of that same composite on that symbol (no look-ahead; capped at 0.55 under
+  20 samples) instead of a hardcoded or LLM-reported number.
+- With no usable price history (under 120 bars, or older than 7 days) Oracle returns HOLD at
+  confidence 0 with `data_quality` set, rather than inventing prices. Shadow Trader ignores those.
+- `stop_loss` / `target_price` on recommendations are now absolute ATR-based prices (2x / 3x ATR)
+  instead of percentages. Cost-basis P&L (`fair_value_gap_pct`) no longer influences the signal.
+- Portfolio Manager overrides keep all Oracle fields instead of dropping them.
 - The frontend is split by route: the entry bundle drops from 782 kB to 236 kB, with the charting
   library in its own chunk.
 - CI uses current major versions of `actions/checkout`, `setup-python`, `setup-node` and
@@ -22,6 +69,17 @@ between releases.
   `package.json` for the UI.
 
 ### Fixed
+- Live Market banners no longer name Angel One when another broker is streaming, and an auth problem is
+  shown once instead of twice.
+- The live-feed path was documented as `/ws/market-feed`; it is `/api/v1/ws/market`. The frontend also
+  never connected to it, so no screen showed live quotes until the Live Market page.
+- **Stale prices:** the static seed provider used to be first in the chain, so RELIANCE, TCS, INFY,
+  HDFCBANK, ICICIBANK and SBIN were served hardcoded 2024 prices in real runs.
+- **Mock holdings on real failure:** a failed Zerodha sync used to insert mock holdings into the
+  portfolio; it now returns an error.
+- **Self-reported paper-trading period:** `POST /execution/mode` trusted the caller's
+  `paper_observation_days`; it is now measured from recorded paper trades.
+- The Zerodha sync passed the API secret as the access token.
 - Node failures caused by a timeout no longer show a blank reason; the message states the limit and
   names `ALETHEIA_NODE_TIMEOUT_SECS`.
 - Exported reports and the sidebar still said v0.1.0; both now show the real version.

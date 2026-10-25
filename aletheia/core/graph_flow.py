@@ -643,13 +643,11 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                                 message=msg,
                             )
                         )
-                        new_oracle_outputs[idx] = OracleOutput(
-                            symbol=o.symbol,
-                            signal="HOLD",
-                            confidence=o.confidence,
-                            rationale=o.rationale + [f"[PM Override] {msg}"],
-                            fair_value_gap_pct=o.fair_value_gap_pct,
-                            momentum_pct=o.momentum_pct,
+                        new_oracle_outputs[idx] = o.model_copy(
+                            update={
+                                "signal": "HOLD",
+                                "rationale": o.rationale + [f"[PM Override] {msg}"],
+                            }
                         )
 
         # 2. Sector concentration check
@@ -683,13 +681,11 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                         message=msg,
                     )
                 )
-                new_oracle_outputs[idx] = OracleOutput(
-                    symbol=o.symbol,
-                    signal="HOLD",
-                    confidence=o.confidence,
-                    rationale=o.rationale + [f"[PM Override] {msg}"],
-                    fair_value_gap_pct=o.fair_value_gap_pct,
-                    momentum_pct=o.momentum_pct,
+                new_oracle_outputs[idx] = o.model_copy(
+                    update={
+                        "signal": "HOLD",
+                        "rationale": o.rationale + [f"[PM Override] {msg}"],
+                    }
                 )
 
         # 3. Max position size check
@@ -711,13 +707,11 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                         message=msg,
                     )
                 )
-                new_oracle_outputs[idx] = OracleOutput(
-                    symbol=o.symbol,
-                    signal="HOLD",
-                    confidence=o.confidence,
-                    rationale=o.rationale + [f"[PM Override] {msg}"],
-                    fair_value_gap_pct=o.fair_value_gap_pct,
-                    momentum_pct=o.momentum_pct,
+                new_oracle_outputs[idx] = o.model_copy(
+                    update={
+                        "signal": "HOLD",
+                        "rationale": o.rationale + [f"[PM Override] {msg}"],
+                    }
                 )
 
         end_time = time.time()

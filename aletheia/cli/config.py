@@ -99,6 +99,35 @@ def run_config_wizard(manager: ConfigManager | None = None) -> AletheiaConfig:
             }
         )
 
+    if typer.confirm(
+        "Add Angel One SmartAPI credentials (free live NSE/BSE feed)?",
+        default=bool(base.angel_one_api_key),
+    ):
+        config = config.model_copy(
+            update={
+                "angel_one_api_key": typer.prompt(
+                    "SmartAPI API key", default=base.angel_one_api_key or "", hide_input=True
+                ).strip(),
+                "angel_one_client_code": typer.prompt(
+                    "Angel One client code (your login ID)",
+                    default=base.angel_one_client_code or "",
+                ).strip(),
+                "angel_one_pin": typer.prompt(
+                    "Angel One PIN (4-digit trading PIN)",
+                    default=base.angel_one_pin or "",
+                    hide_input=True,
+                ).strip(),
+                "angel_one_totp_secret": typer.prompt(
+                    "TOTP secret (the base32 text shown when you enabled TOTP)",
+                    default=base.angel_one_totp_secret or "",
+                    hide_input=True,
+                )
+                .replace(" ", "")
+                .strip(),
+                "angel_one_enabled": True,
+            }
+        )
+
     if typer.confirm("Add TradingView session token?", default=bool(base.tradingview_session)):
         config = config.model_copy(
             update={

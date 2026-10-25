@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from uuid import uuid4
 
+from aletheia.core.execution.guard import ExecutionGuard
 from aletheia.core.marketdata.engine import MarketDataEngine
 from aletheia.core.marketdata.models import MarketDataRequest
 from aletheia.extensions.shadow_account.models import AccountSnapshot, TradeEntry, VirtualPosition
@@ -19,10 +20,25 @@ class ShadowAccount:
         storage: ShadowAccountStorage,
         market_data: MarketDataEngine,
         starting_cash: float = 1_000_000.0,
+        guard: ExecutionGuard | None = None,
     ) -> None:
         self.storage = storage
         self.market_data = market_data
         self.starting_cash = starting_cash
+        self.guard = guard
+
+    def account_state(self) -> tuple[float, float, dict[str, float]]:
+        """(equity, cash, {symbol: quantity}) from the latest snapshot, or the starting cash."""
+        snap = self.storage.get_latest_snapshot()
+        if snap is None:
+            return self.starting_cash, self.starting_cash, {}
+        return snap.total_equity, snap.cash_balance, {p.symbol: p.quantity for p in snap.positions}
+
+    async def quote_price(self, symbol: str, exchange: str = "NSE") -> float:
+        quote = await self.market_data.get_quote(
+            MarketDataRequest(symbol=symbol, exchange=exchange)
+        )
+        return quote.close
 
     def _positions_from_trades(self, trades: list[TradeEntry]) -> dict[str, VirtualPosition]:
         positions: dict[str, VirtualPosition] = {}
@@ -59,6 +75,16 @@ class ShadowAccount:
         quote = await self.market_data.get_quote(
             MarketDataRequest(symbol=symbol, exchange=exchange)
         )
+        if self.guard is not None:
+            equity, cash, held = self.account_state()
+            held_qty = held.get(symbol.upper(), 0.0)
+            if action == "sell":
+                self.guard.check_sell(symbol.upper(), quantity, held_qty)
+            else:
+                decision = self.guard.check_buy(
+                    symbol.upper(), quantity, quote.close, equity, cash, held_qty * quote.close
+                )
+                quantity = decision.approved_qty  # automated callers may be shrunk, see scanner
         trade = TradeEntry(
             id=str(uuid4()),
             symbol=symbol.upper(),

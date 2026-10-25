@@ -11,6 +11,7 @@ from aletheia.core.config.settings import get_settings
 from aletheia.extensions.data.provider_base import MarketDataProvider
 from aletheia.extensions.data.registry import get_registered_providers
 from aletheia.extensions.data.providers.ccxt_provider import CCXTProvider
+from aletheia.extensions.data.providers.angel_one_provider import AngelOneProvider
 from aletheia.extensions.data.providers.static_seed import StaticSeedProvider
 from aletheia.extensions.data.providers.yfinance_provider import YFinanceProvider
 from aletheia.core.db.duckdb_store import DuckDBStore
@@ -20,8 +21,11 @@ from aletheia.core.infrastructure.container import ServiceContainer
 from aletheia.core.infrastructure.health import HealthRegistry
 from aletheia.core.infrastructure.metrics import MetricsRegistry
 from aletheia.core.events.bus import get_event_bus
+from aletheia.core.marketdata.feed_manager import FeedManager
+from aletheia.core.marketdata.watchlist import WatchlistStore
 from aletheia.core.execution.live_gate import LiveExecutionGate
 from aletheia.core.execution.paper_trader import PaperTrader
+from aletheia.core.execution.guard import ExecutionGuard
 from aletheia.core.execution.storage import ExecutionStorage
 from aletheia.core.marketdata.engine import MarketDataEngine
 from aletheia.core.marketdata.live_feed import MarketFeedPoller
@@ -67,6 +71,8 @@ def get_container() -> ServiceContainer:
         lambda: PaperTrader(
             storage=container.resolve("execution_storage"),
             market_data=container.resolve("market_data"),
+            guard=ExecutionGuard(settings),
+            starting_cash=settings.paper_starting_cash,
         ),
     )
     container.register_factory(
@@ -82,6 +88,8 @@ def get_container() -> ServiceContainer:
         lambda: ShadowAccount(
             storage=container.resolve("shadow_account_storage"),
             market_data=container.resolve("market_data"),
+            starting_cash=settings.paper_starting_cash,
+            guard=ExecutionGuard(settings),
         ),
     )
     container.register_factory(
@@ -125,14 +133,16 @@ def get_duckdb_store() -> DuckDBStore:
 
 
 # Explicit, ordered — CollectorAgent tries providers in this order and stops
-# at the first one that returns data, so order is meaningful (static seed
-# first, for a fast known-symbol dev path; live providers after). Adding a
-# provider means adding it here and giving it a `check_available()` override
-# if it should be gated behind a settings flag; no other wiring needed.
+# at the first one that returns data, so order is meaningful: live exchange feed
+# first, then delayed public data, then crypto. The static seed (hardcoded demo
+# prices, long out of date) is opt-in and last, so it can never shadow real data.
+# Adding a provider means adding it here and giving it a `check_available()`
+# override if it should be gated behind a settings flag; no other wiring needed.
 _PROVIDER_TYPES: tuple[type[MarketDataProvider], ...] = (
-    StaticSeedProvider,
+    AngelOneProvider,
     YFinanceProvider,
     CCXTProvider,
+    StaticSeedProvider,
 )
 
 
@@ -147,10 +157,23 @@ def get_providers() -> tuple[MarketDataProvider, ...]:
 
 
 @lru_cache
+def get_watchlist_store() -> WatchlistStore:
+    return WatchlistStore(get_settings().data_dir / "watchlist.json")
+
+
+@lru_cache
 def get_market_feed_poller() -> MarketFeedPoller:
     return MarketFeedPoller(
         collector=CollectorAgent(list(get_providers())),
         bus=get_event_bus(),
+        watchlist_fn=get_watchlist_store().items,
+    )
+
+
+@lru_cache
+def get_feed_manager() -> FeedManager:
+    return FeedManager(
+        get_settings(), get_event_bus(), get_watchlist_store(), get_market_feed_poller()
     )
 
 
@@ -166,6 +189,7 @@ def get_run_service() -> RunService:
         ScribeAgent(),
         get_sqlite_store(),
         get_duckdb_store(),
+        bus=get_event_bus(),
     )
     container.register_singleton("run_service", service)
     return service

@@ -188,6 +188,7 @@ class Topics:
     PORTFOLIO_UPDATED = "portfolio.updated"
 
     # System
+    RUN_EVENT = "run.event"  # every AgentEvent a run records
     RUN_STARTED = "run.started"
     RUN_COMPLETED = "run.completed"
     RUN_FAILED = "run.failed"

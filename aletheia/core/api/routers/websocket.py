@@ -1,7 +1,7 @@
 """Live run-event and market-feed WebSocket streams.
 
   WS /ws/runs/{run_id}
-  WS /ws/market
+  WS /ws/market   (latest quote per symbol on connect, then live updates)
 
 Included in main.py WITHOUT the router-level X-API-Key dependency, because
 FastAPI resolves HTTP-typed dependencies against a WebSocket connection
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
-from aletheia.core.api.dependencies import get_run_service
+from aletheia.core.api.dependencies import get_feed_manager, get_run_service
 from aletheia.core.api.security import is_authorized
 from aletheia.core.events.bus import Event, Topics, get_event_bus
 from aletheia.core.models import RunStatus
@@ -61,6 +61,12 @@ async def market_feed(websocket: WebSocket) -> None:
 
     await websocket.accept()
     bus = get_event_bus()
+
+    # Late joiners get the latest known quote per symbol immediately, not a blank screen.
+    for payload in get_feed_manager().snapshot():
+        await websocket.send_json(
+            {"topic": Topics.MARKET_QUOTE, "payload": payload, "timestamp": payload.get("as_of")}
+        )
 
     async def forward(event: Event) -> None:
         try:

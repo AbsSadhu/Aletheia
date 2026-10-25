@@ -73,16 +73,14 @@ class ScribeAgent:
                 )
 
             explanation = oracle.rationale[0] if oracle.rationale else f"{oracle.signal} signal."
-            target_price = None
-            stop_loss = None
+            # Absolute ATR-based prices from Oracle (None when there's no usable history).
+            target_price = oracle.target_price
+            stop_loss = oracle.stop_loss_price
             if sage:
                 explanation = (
                     f"{oracle.signal} view with {sage.scenario.projected_post_tax_return_pct:.2f}% projected "
                     f"post-tax return."
                 )
-                target_price = round(sage.scenario.projected_return_pct, 2)
-                # Compute stop loss relative to average cost basis
-                stop_loss = round(max(oracle.fair_value_gap_pct - 5, -25), 2)
 
             recommendations.append(
                 Recommendation(

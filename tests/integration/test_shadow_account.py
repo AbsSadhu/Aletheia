@@ -47,11 +47,12 @@ def test_shadow_orders_endpoint_lists_trades() -> None:
     assert any(o["symbol"] == "INFY" for o in orders)
 
 
-def test_shadow_sell_without_position_is_noop_position() -> None:
+def test_shadow_sell_without_position_is_rejected() -> None:
+    # Used to be accepted, which credited cash for shares that were never held.
     c = _client()
     r = c.post(
         "/api/v1/shadow/orders",
-        json={"symbol": "RELIANCE", "exchange": "NSE", "action": "sell", "quantity": 1},
+        json={"symbol": "WIPRO", "exchange": "NSE", "action": "sell", "quantity": 1},
     )
-    # Order still records (no short-selling guard in this scaffold); trade recorded regardless.
-    assert r.status_code == 200
+    assert r.status_code == 422
+    assert "No open position" in r.json()["detail"]["message"]

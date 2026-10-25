@@ -38,6 +38,7 @@ import {
 
 import TopBar from "../components/TopBar";
 import { getRun, getRunEvents, getWebSocketUrl } from "../lib/api";
+import { notifyRunFinished } from "../lib/desktop";
 import type { RunResult, AgentEvent } from "../lib/types";
 
 const TABS = ["Overview", "Oracle Signals", "Risk", "Tax Scenarios", "Extended Signals", "Recommendations", "Live Timeline"] as const;
@@ -95,6 +96,7 @@ export default function RunDetail() {
                 .then((finalRun) => {
                   setRun(finalRun);
                   setTab("Overview"); // Go back to Overview when finished
+                  void notifyRunFinished(id, finalRun.summary.status);
                 })
                 .catch(() => {});
               socket?.close();

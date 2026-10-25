@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from aletheia.core.execution.guard import ExecutionGuard, RiskLimitExceeded
 from aletheia.core.execution.models import OrderRequest, PaperPosition, PaperTradeResult
 from aletheia.core.execution.storage import ExecutionStorage
 from aletheia.core.marketdata.engine import MarketDataEngine
@@ -9,9 +10,24 @@ from aletheia.core.marketdata.models import MarketDataRequest
 
 
 class PaperTrader:
-    def __init__(self, storage: ExecutionStorage, market_data: MarketDataEngine) -> None:
+    def __init__(
+        self,
+        storage: ExecutionStorage,
+        market_data: MarketDataEngine,
+        guard: ExecutionGuard | None = None,
+        starting_cash: float = 1_000_000.0,
+    ) -> None:
         self.storage = storage
         self.market_data = market_data
+        self.guard = guard
+        self.starting_cash = starting_cash
+
+    def _account_state(self) -> tuple[float, float]:
+        """(equity, cash) at cost: starting cash + realised P&L, less capital tied up in positions."""
+        positions = self.storage.list_positions()
+        invested = sum(p.quantity * p.average_price for p in positions)
+        equity = self.starting_cash + sum(p.realized_pnl for p in positions) + 0.0
+        return equity, equity - invested
 
     async def submit_order(
         self, order: OrderRequest, run_id: str | None = None
@@ -23,6 +39,24 @@ class PaperTrader:
         side = order.side.upper()
         position = self.storage.get_position(order.symbol.upper(), order.exchange)
         realized_pnl = 0.0
+
+        if self.guard is not None:
+            # Strict: a manual order that breaks a limit is rejected, never silently resized.
+            if side == "BUY":
+                equity, cash = self._account_state()
+                held_value = position.quantity * position.average_price if position else 0.0
+                decision = self.guard.check_buy(
+                    order.symbol, order.quantity, fill_price, equity, cash, held_value
+                )
+                if decision.reduced:
+                    raise RiskLimitExceeded(
+                        f"Order too large; the most allowed right now is {decision.approved_qty} shares.",
+                        decision.notes,
+                    )
+            elif side == "SELL":
+                self.guard.check_sell(
+                    order.symbol, order.quantity, position.quantity if position else 0.0
+                )
 
         if side == "BUY":
             if position:

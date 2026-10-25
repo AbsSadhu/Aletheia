@@ -1,3 +1,43 @@
+# ruff: noqa: E402  (imports must follow the data-dir isolation below, on purpose)
+"""Shared test fixtures.
+
+ISOLATION: the integration tests drive the real FastAPI app, whose stores default to ./data. Left
+alone, every test run piled paper trades into the developer's real execution database (a RELIANCE
+position grew by a share per run), and the risk guard's position cap would eventually have made
+those tests fail. So, before anything from `aletheia` is imported, every data path is pointed at a
+throwaway directory that is deleted when the test process exits.
+"""
+
+import atexit
+import glob
+import os
+import shutil
+import tempfile
+import time
+
+# Windows can't delete database files still open at interpreter exit, so also sweep folders
+# left behind by earlier runs (older than an hour, so a parallel run's folder is never touched).
+for _stale in glob.glob(os.path.join(tempfile.gettempdir(), "aletheia-tests-*")):
+    try:
+        if time.time() - os.path.getmtime(_stale) > 3600:
+            shutil.rmtree(_stale, ignore_errors=True)
+    except OSError:
+        pass
+
+_TEST_DATA = tempfile.mkdtemp(prefix="aletheia-tests-")
+atexit.register(shutil.rmtree, _TEST_DATA, ignore_errors=True)
+for _name, _value in {
+    "ALETHEIA_DATA_DIR": _TEST_DATA,
+    "ALETHEIA_SQLITE_PATH": os.path.join(_TEST_DATA, "aletheia.sqlite3"),
+    "ALETHEIA_DUCKDB_PATH": os.path.join(_TEST_DATA, "aletheia.duckdb"),
+    "ALETHEIA_EXECUTION_DB_PATH": os.path.join(_TEST_DATA, "execution.sqlite3"),
+    "ALETHEIA_REPORTS_DIR": os.path.join(_TEST_DATA, "reports"),
+    "ALETHEIA_EXPORTS_DIR": os.path.join(_TEST_DATA, "exports"),
+    "ALETHEIA_LOG_DIR": os.path.join(_TEST_DATA, "logs"),
+    "ALETHEIA_MEMORY_DIR": os.path.join(_TEST_DATA, "memory"),
+}.items():
+    os.environ[_name] = _value
+
 from pathlib import Path
 
 import pytest
@@ -96,3 +136,21 @@ def configure_test_settings():
         new=AsyncMock(side_effect=mock_generate),
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+def offline_price_history(monkeypatch):
+    """Oracle's default loader hits yfinance; keep the suite offline and deterministic."""
+    import numpy as np
+    import pandas as pd
+
+    async def _flat_history(symbol: str):
+        rng = np.random.default_rng(11)
+        close = 100 + rng.normal(0, 0.05, 300)
+        idx = pd.bdate_range(end=pd.Timestamp.now().normalize(), periods=300)
+        return pd.DataFrame(
+            {"Open": close, "High": close + 0.1, "Low": close - 0.1, "Close": close, "Volume": 1e6},
+            index=idx,
+        )
+
+    monkeypatch.setattr(OracleAgent, "_yfinance_ohlcv", staticmethod(_flat_history))

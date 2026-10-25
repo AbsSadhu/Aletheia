@@ -1,36 +1,13 @@
-"""OracleAgent had zero direct test coverage before this file — only
-exercised indirectly through end-to-end run integration tests. Fakes for
-duckdb_store/llm_client keep these hitting neither the network (yfinance)
-nor a real Ollama instance, matching >=50 rows so _compute_multi_timeframe
-never falls through to its synthetic-random-data tier either.
-"""
+"""Oracle's signal is the deterministic quant composite. The LLM only comments on it,
+and with no trustworthy history the signal is HOLD at zero confidence (never synthetic
+data). The loader is injected so nothing here touches yfinance or Ollama."""
 
+import numpy as np
+import pandas as pd
 import pytest
 
-from aletheia.extensions.agents.oracle import OracleAgent
 from aletheia.core.models import AssetType, Holding, MarketQuote, TaxProfile
-
-
-class _FakeConnection:
-    def __init__(self, closes: list[float]) -> None:
-        self._closes = closes
-
-    def execute(self, query, params=None):
-        return self
-
-    def fetchall(self):
-        return [(c,) for c in self._closes]
-
-    def close(self) -> None:
-        pass
-
-
-class _FakeDuckDBStore:
-    def __init__(self, closes: list[float]) -> None:
-        self._closes = closes
-
-    def _connect(self):
-        return _FakeConnection(self._closes)
+from aletheia.extensions.agents.oracle import OracleAgent
 
 
 class _FakeLLM:
@@ -39,6 +16,16 @@ class _FakeLLM:
 
     async def generate_structured(self, prompt, model=None, format="json"):
         return self._result
+
+
+def _history(n: int = 300) -> pd.DataFrame:
+    rng = np.random.default_rng(3)
+    close = 2000 * np.cumprod(1 + 0.001 + rng.normal(0, 0.01, n))
+    idx = pd.bdate_range(end=pd.Timestamp.now().normalize(), periods=n)
+    return pd.DataFrame(
+        {"Open": close, "High": close * 1.01, "Low": close * 0.99, "Close": close, "Volume": 1e6},
+        index=idx,
+    )
 
 
 def _holding(**overrides) -> Holding:
@@ -54,7 +41,7 @@ def _holding(**overrides) -> Holding:
     return Holding(**defaults)
 
 
-def _quote(close: float) -> MarketQuote:
+def _quote(close: float = 2900.0) -> MarketQuote:
     return MarketQuote(
         symbol="RELIANCE",
         exchange="NSE",
@@ -67,77 +54,69 @@ def _quote(close: float) -> MarketQuote:
     )
 
 
-def _agent_with_history(closes: list[float], llm_result: dict | None) -> OracleAgent:
-    agent = OracleAgent(duckdb_store=_FakeDuckDBStore(closes))
+def _agent(df: pd.DataFrame | None, llm_result: dict | None = None) -> OracleAgent:
+    async def loader(symbol: str):
+        return df
+
+    agent = OracleAgent(ohlcv_loader=loader)
     agent.llm_client = _FakeLLM(result=llm_result)
     return agent
 
 
-async def test_analyze_uses_heuristic_fallback_when_llm_returns_none() -> None:
-    agent = _agent_with_history([2900.0] * 150, llm_result=None)
+async def test_no_history_never_fabricates_a_signal() -> None:
+    out = await _agent(None).analyze(_holding(), _quote())
 
-    output = await agent.analyze(_holding(average_price=2000), _quote(2900.0))
-
-    assert output.signal in {"BUY", "HOLD", "REDUCE"}
-    assert not any("LLM Insights" in r for r in output.rationale)
-
-
-async def test_analyze_uses_llm_signal_when_valid() -> None:
-    agent = _agent_with_history(
-        [2900.0] * 150,
-        llm_result={"signal": "buy", "confidence": 0.65, "rationale": "strong momentum"},
-    )
-
-    output = await agent.analyze(_holding(), _quote(2900.0))
-
-    assert output.signal == "BUY"
-    assert any("LLM Insights" in r for r in output.rationale)
+    assert out.signal == "HOLD"
+    assert out.confidence == 0.0
+    assert out.data_quality == "insufficient_history"
+    assert out.stop_loss_price is None and out.target_price is None
+    assert out.multi_timeframe_signals == []
 
 
-async def test_analyze_falls_back_to_heuristic_on_malformed_llm_output() -> None:
-    # Missing required "confidence"/"rationale" fields -> OracleLLMOutput
-    # validation fails, and analyze() must fall back, not crash the run.
-    agent = _agent_with_history([2900.0] * 150, llm_result={"signal": "buy"})
+async def test_signal_comes_from_quant_not_llm() -> None:
+    llm = {"signal": "buy", "confidence": 0.99, "rationale": "to the moon"}
+    base = await _agent(_history(), llm_result=None).analyze(_holding(), _quote())
+    with_llm = await _agent(_history(), llm_result=llm).analyze(_holding(), _quote())
 
-    output = await agent.analyze(_holding(), _quote(2900.0))
-
-    assert any("LLM Fallback" in r for r in output.rationale)
-    assert output.signal in {"BUY", "HOLD", "REDUCE"}
-
-
-async def test_analyze_rejects_invalid_llm_signal_by_defaulting_to_hold() -> None:
-    agent = _agent_with_history(
-        [2900.0] * 150,
-        llm_result={
-            "signal": "STRONG_BUY",
-            "confidence": 0.9,
-            "rationale": "not a real signal value",
-        },
-    )
-
-    output = await agent.analyze(_holding(), _quote(2900.0))
-
-    assert output.signal == "HOLD"
+    assert with_llm.signal == base.signal
+    assert with_llm.confidence == base.confidence
+    assert any("LLM Insights" in r for r in with_llm.rationale)
 
 
-async def test_analyze_computes_fair_value_gap_from_average_price() -> None:
-    agent = _agent_with_history([2900.0] * 150, llm_result=None)
+async def test_llm_dissent_is_surfaced_not_obeyed() -> None:
+    base = await _agent(_history()).analyze(_holding(), _quote())
+    other = "REDUCE" if base.signal != "REDUCE" else "BUY"
+    out = await _agent(
+        _history(), llm_result={"signal": other, "confidence": 0.9, "rationale": "x"}
+    ).analyze(_holding(), _quote())
 
-    output = await agent.analyze(_holding(average_price=2500.0), _quote(2900.0))
+    assert out.signal == base.signal
+    assert any("LLM Dissent" in r for r in out.rationale)
 
-    assert output.fair_value_gap_pct == pytest.approx((2900 - 2500) / 2500 * 100, rel=1e-3)
+
+async def test_malformed_llm_output_does_not_crash_or_change_signal() -> None:
+    base = await _agent(_history()).analyze(_holding(), _quote())
+    out = await _agent(_history(), llm_result={"signal": "buy"}).analyze(_holding(), _quote())
+
+    assert out.signal == base.signal
+    assert any("LLM Fallback" in r for r in out.rationale)
 
 
-async def test_analyze_high_confidence_gate_caps_buy_without_multi_timeframe_alignment() -> None:
-    # Flat closes -> HOLD on every timeframe -> buy_count stays 0, so a
-    # high-confidence LLM "buy" must be capped to 0.7 by the gate.
-    agent = _agent_with_history(
-        [2900.0] * 150,
-        llm_result={"signal": "buy", "confidence": 0.95, "rationale": "aggressive"},
-    )
+async def test_cost_basis_gap_is_reported_but_does_not_drive_signal() -> None:
+    cheap = await _agent(_history()).analyze(_holding(average_price=100.0), _quote())
+    dear = await _agent(_history()).analyze(_holding(average_price=9000.0), _quote())
 
-    output = await agent.analyze(_holding(), _quote(2900.0))
+    assert cheap.fair_value_gap_pct == pytest.approx((2900 - 100) / 100 * 100)
+    assert (cheap.signal, cheap.confidence) == (dear.signal, dear.confidence)
 
-    assert output.signal == "BUY"
-    assert output.confidence == 0.7
-    assert any("High Confidence Gate" in r for r in output.rationale)
+
+async def test_debate_can_only_derisk() -> None:
+    agent = _agent(_history(), llm_result={"signal": "BUY", "confidence": 0.95, "rationale": "x"})
+    from aletheia.core.models import OracleOutput, SentinelOutput
+
+    original = OracleOutput(symbol="X", signal="HOLD", confidence=0.5, stop_loss_price=1.0)
+    out = await agent.debate(original, SentinelOutput())
+
+    assert out.signal == "HOLD"
+    assert out.confidence <= 0.5
+    assert out.stop_loss_price == 1.0

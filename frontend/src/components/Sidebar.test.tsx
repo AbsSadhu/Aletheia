@@ -19,12 +19,15 @@ describe("Sidebar", () => {
     for (const label of [
       "Dashboard",
       "Runs",
+      "Live Market",
       "Portfolio",
       "Paper Trades",
       "Shadow Trader",
       "Backtest",
       "Hypotheses",
       "Factor Explorer",
+      "Options",
+      "Signal Validation",
       "Settings",
     ]) {
       expect(screen.getByRole("link", { name: label })).toBeTruthy();

@@ -20,6 +20,19 @@ from aletheia.core.services import RunService
 from aletheia.core.config.settings import get_settings
 
 
+def _force_quant_buy(monkeypatch) -> None:
+    """Oracle's signal is deterministic from price history; pin it to BUY so these tests
+    exercise the debate / PM-override paths rather than the factor math."""
+    from aletheia.core.signals.quant import QuantSignal
+    from aletheia.extensions.agents import oracle
+
+    monkeypatch.setattr(
+        oracle,
+        "compute_quant_signal",
+        lambda df: QuantSignal(signal="BUY", confidence=0.8, composite_score=0.5),
+    )
+
+
 def test_pydantic_org_chart_role_contracts():
     # 1. Analyst contract violation: collector/oracle/sentinel trying to output final decisions
     with pytest.raises(ValidationError) as excinfo:
@@ -133,7 +146,8 @@ async def test_oracle_sentinel_debate_node_convergence(run_service: RunService):
 
 
 @pytest.mark.asyncio
-async def test_oracle_sentinel_debate_node_unresolved(run_service: RunService):
+async def test_oracle_sentinel_debate_node_unresolved(run_service: RunService, monkeypatch):
+    _force_quant_buy(monkeypatch)
     # Setup portfolio with "DISAGREE" symbol to trigger mock disagreement flow in conftest
     portfolio = Portfolio(
         name="TestPortfolio",
@@ -192,7 +206,8 @@ async def test_oracle_sentinel_debate_node_unresolved(run_service: RunService):
 
 
 @pytest.mark.asyncio
-async def test_portfolio_manager_overrides(run_service: RunService):
+async def test_portfolio_manager_overrides(run_service: RunService, monkeypatch):
+    _force_quant_buy(monkeypatch)
     # Setup settings constraints to trigger PM overrides
     settings = get_settings()
     original_max_pos = settings.pm_max_position_size_pct
