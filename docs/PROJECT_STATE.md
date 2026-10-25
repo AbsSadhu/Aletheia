@@ -4,7 +4,8 @@
 (2026-09-03) and `docs/KNOWLEDGE_GRAPH.md` (2026-06-27) predate most of this work; trust this file where they disagree.
 
 - **Last updated:** 2026-10-25 (end of a long working session)
-- **Baseline commit:** `967ce64` (2026-10-19). **Everything below is UNCOMMITTED:** 54 modified files + 65 new paths (some are whole directories).
+- **Git state:** all of this work is committed as `171e615` on branch `feat/live-data-and-signal-validation` (129 files), branched from `main` at `967ce64`. It is **not merged and not pushed**: `main` is protected by the repo's `no-commit-to-branch` pre-commit rule, and pushing/merging needs the owner's say-so.
+- **Left uncommitted on purpose:** `frontend/tsconfig.tsbuildinfo` and the four `desktop/src-tauri/gen/schemas/*.json` files (build artifacts that only show line-ending churn after each build).
 - **Update this file** when you finish meaningful work, and keep claims honest (see "Rules for the next session").
 
 ---
@@ -13,7 +14,7 @@
 
 These come from the repo owner (`CLAUDE.md`, and preferences stated during this work).
 
-1. **Do not commit until the owner says so.** They want everything finished, then one commit. No `Co-Authored-By` or AI attribution trailer (`CLAUDE.md` overrides any default).
+1. **Do not commit until the owner says so.** They want a body of work finished, then one commit. No `Co-Authored-By` or AI attribution trailer (`CLAUDE.md` overrides any default). Commit on a feature branch, never `main`. The repo's pre-commit hooks are **not installed in `.git/hooks`**, so run them by hand before committing: `.venv\Scripts\pre-commit.exe run --files $(git diff --cached --name-only)` (ruff, format, secrets, whitespace). `.secrets.baseline` was refreshed in `171e615`; if `detect-secrets` flags field names or fake test fixtures, review each line, then `.venv\Scripts\detect-secrets.exe scan --baseline .secrets.baseline`.
 2. **Be honest about verification.** The owner values "works / doesn't work / unverified" over optimism. This session's most useful catches came from testing against the real service or a real browser, not mocks (see section 7).
 3. **Never `pip install` a vendor SDK into `.venv`.** `fyers-apiv3` downgraded `requests`/`aiohttp` (breaking `ccxt`) and added boto3 and a bogus `asyncio` package. To read an SDK: `pip download <pkg> --no-deps` and unzip the wheel. If needed at runtime, use an isolated venv. Run `pip check` after any install and compare with `poetry.lock`.
 4. **The owner does not want to open a broker account right now** and prefers free, no-signup sources. Broker paths are built for later.
@@ -185,7 +186,7 @@ Dependencies added: Python none (Angel/Zerodha/Fyers-auth use `httpx`; websocket
 
 ## 10. Open items, in priority order
 
-1. **Commit** (owner decides when): one commit for all of it, by the owner's preference.
+1. **Merge or open a PR** for `feat/live-data-and-signal-validation` into `main`, and push, when the owner decides. Nothing has been pushed.
 2. **Monday trading day:** run `scripts\bse_check.py`. Lag 0 to 1 min = BSE feed is genuinely live; several minutes = delayed (keep it only as a labelled convenience). Record the result in section 2 and `docs/FREE_LIVE_DATA.md`.
 3. **Optional cleanup:** clear the ~63 test-created paper trades in `data/execution.sqlite3` (ask the owner first; it is their local data).
 4. **When a broker account exists:** run `scripts\angel_check.py` in market hours first (no daily login, packaged-app friendly) and record results; Fyers is the fallback. Then verify Zerodha orders with 1 share.
