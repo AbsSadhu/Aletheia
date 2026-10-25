@@ -236,7 +236,6 @@ aletheia/core/api/dependencies.py:0: error: Returning Any from function declared
 aletheia/core/api/dependencies.py:0: error: Returning Any from function declared to return "MarketDataEngine"  [no-any-return]
 aletheia/core/api/dependencies.py:0: error: Returning Any from function declared to return "PaperTrader"  [no-any-return]
 aletheia/core/api/dependencies.py:0: error: Returning Any from function declared to return "LiveExecutionGate"  [no-any-return]
-aletheia/core/api/routers/portfolios.py:0: error: Argument "api_key" to "ZerodhaKiteConnector" has incompatible type "str | None"; expected "str"  [arg-type]
 aletheia/core/api/routers/health.py:0: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
 aletheia/cli/paper_trades.py:0: error: Function is missing a return type annotation  [no-untyped-def]
 aletheia/cli/paper_trades.py:0: error: Function is missing a type annotation for one or more parameters  [no-untyped-def]
