@@ -4,7 +4,7 @@
 (2026-09-03) and `docs/KNOWLEDGE_GRAPH.md` (2026-06-27) predate most of this work; trust this file where they disagree.
 
 - **Last updated:** 2026-10-25 (end of a long working session)
-- **Git state:** all of this work is committed as `171e615` on branch `feat/live-data-and-signal-validation` (129 files), branched from `main` at `967ce64`. It is **not merged and not pushed**: `main` is protected by the repo's `no-commit-to-branch` pre-commit rule, and pushing/merging needs the owner's say-so.
+- **Git state:** the work was committed as `171e615` (129 files) on `feat/live-data-and-signal-validation`, then **fast-forwarded into `main` and pushed to `origin/main` on the owner's instruction** (2026-10-25). `main` is protected by the repo's `no-commit-to-branch` pre-commit rule, so commits go on a feature branch and `main` is only fast-forwarded (`git fetch . <branch>:main` works even when a dirty working tree blocks `git switch main`). CI runs on `main` pushes: check it with `gh run list --branch main`.
 - **Left uncommitted on purpose:** `frontend/tsconfig.tsbuildinfo` and the four `desktop/src-tauri/gen/schemas/*.json` files (build artifacts that only show line-ending churn after each build).
 - **Update this file** when you finish meaningful work, and keep claims honest (see "Rules for the next session").
 
@@ -150,7 +150,7 @@ npm run dev            # http://localhost:5173  (Live Market at /live)
 .venv\Scripts\pytest tests -q -p no:cacheprovider          # 491 passed, 5 skipped at last run
 .venv\Scripts\python.exe -m ruff check aletheia tests scripts
 .venv\Scripts\python.exe -m ruff format --check aletheia tests scripts
-.venv\Scripts\mypy.exe aletheia | .venv\Scripts\mypy-baseline.exe filter    # must print no errors
+.venv\Scripts\mypy.exe aletheia | .venv\Scripts\mypy-baseline.exe filter    # must EXIT 0 (check `$?`); printing nothing is not enough: it also fails on resolved violations, fix with `mypy-baseline sync`
 .venv\Scripts\python.exe -m pip check
 # Frontend gate (in frontend/)
 npx tsc -b ; npx vitest run ; npm run build                 # 58 tests at last run
@@ -186,7 +186,7 @@ Dependencies added: Python none (Angel/Zerodha/Fyers-auth use `httpx`; websocket
 
 ## 10. Open items, in priority order
 
-1. **Merge or open a PR** for `feat/live-data-and-signal-validation` into `main`, and push, when the owner decides. Nothing has been pushed.
+1. **Check CI on `main`** (`gh run list --branch main`). The first push of this work failed only the mypy-baseline gate (stale resolved entries); that was fixed in a follow-up commit. Confirm it is green.
 2. **Monday trading day:** run `scripts\bse_check.py`. Lag 0 to 1 min = BSE feed is genuinely live; several minutes = delayed (keep it only as a labelled convenience). Record the result in section 2 and `docs/FREE_LIVE_DATA.md`.
 3. **Optional cleanup:** clear the ~63 test-created paper trades in `data/execution.sqlite3` (ask the owner first; it is their local data).
 4. **When a broker account exists:** run `scripts\angel_check.py` in market hours first (no daily login, packaged-app friendly) and record results; Fyers is the fallback. Then verify Zerodha orders with 1 share.
