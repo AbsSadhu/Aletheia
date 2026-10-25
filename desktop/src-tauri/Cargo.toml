@@ -11,10 +11,15 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2.0.1", features = ["tray-icon"] }
 tauri-plugin-shell = "2.0.0"
+tauri-plugin-notification = "2"
+tauri-plugin-deep-link = "2"
 reqwest = { version = "0.12", default-features = false, features = ["blocking"] }
 
 [target.'cfg(windows)'.dependencies]
 win32job = "2"
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 [features]
 # Standard Tauri feature: selects embedded `frontendDist` assets over `devUrl`

@@ -281,6 +281,14 @@ class OracleOutput(AnalystContract):
         None  # alpha, beta, smb_loading, hml_loading, r_squared
     )
     timeframe_agreement: str = "UNKNOWN"  # ALL_AGREE | MAJORITY_AGREE | SPLIT | NO_AGREEMENT
+    # "ok" | "insufficient_history" | "stale". Anything but "ok" means the signal was
+    # forced to HOLD at zero confidence because no trustworthy price history existed.
+    data_quality: str = "ok"
+    composite_score: float | None = None  # factor composite in [-1, 1]
+    hit_rate: float | None = None  # walk-forward directional hit rate behind `confidence`
+    hit_rate_samples: int = 0
+    stop_loss_price: float | None = None  # absolute price, ATR-based
+    target_price: float | None = None  # absolute price, ATR-based
 
 
 class SentinelOutput(AnalystContract):

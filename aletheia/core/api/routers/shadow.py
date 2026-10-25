@@ -12,6 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from aletheia.core.execution.guard import RiskLimitExceeded
 from aletheia.core.api.dependencies import (
     get_entry_exit_scanner,
     get_run_service,
@@ -43,9 +44,14 @@ async def shadow_orders(limit: int = 100) -> dict:
 @router.post("/shadow/orders")
 async def submit_shadow_order(order: ShadowOrderRequest) -> dict:
     account = get_shadow_account()
-    trade = await account.execute_virtual_order(
-        order.symbol, order.exchange, order.action, order.quantity
-    )
+    try:
+        trade = await account.execute_virtual_order(
+            order.symbol, order.exchange, order.action, order.quantity
+        )
+    except RiskLimitExceeded as exc:
+        raise HTTPException(
+            status_code=422, detail={"message": str(exc), "violations": exc.violations}
+        ) from exc
     return {"trade": trade.model_dump(mode="json")}
 
 

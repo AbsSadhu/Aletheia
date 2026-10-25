@@ -2,35 +2,27 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
+from typing import Any
 
 from aletheia.core.events.bus import EventBus, Topics
 from aletheia.core.models import AssetType, CollectorOutput, Holding
+from aletheia.core.marketdata.watchlist import DEFAULT_ITEMS
 from aletheia.extensions.agents.collector import CollectorAgent
 
 logger = logging.getLogger(__name__)
 
-# Small fixed watchlist so the feed ticks out of the box with zero API keys —
-# every symbol here resolves via StaticSeedProvider even with yfinance/ccxt
-# disabled. Live deployments with real providers enabled will get real quotes
-# for the same symbols instead, since CollectorAgent tries providers in order.
-DEFAULT_WATCHLIST: tuple[tuple[str, str], ...] = (
-    ("RELIANCE", "NSE"),
-    ("TCS", "NSE"),
-    ("INFY", "NSE"),
-    ("HDFCBANK", "NSE"),
-    ("ICICIBANK", "NSE"),
-    ("SBIN", "NSE"),
-    ("BTC/USDT", "BINANCE"),
-)
+# Kept for callers/tests that import it; the live list now comes from the saved watchlist.
+DEFAULT_WATCHLIST: tuple[tuple[str, str], ...] = tuple(DEFAULT_ITEMS)
 
 
 class MarketFeedPoller:
-    """Ticks a watchlist through CollectorAgent's existing provider chain and
-    publishes each resulting quote onto the event bus as Topics.MARKET_QUOTE.
+    """Polls a watchlist through CollectorAgent's provider chain and publishes each quote onto
+    the event bus as Topics.MARKET_QUOTE.
 
-    Deliberately thin: all provider selection, retry, and fallback logic
-    already lives in CollectorAgent — this just turns a watchlist into
-    events on a schedule.
+    This is the fallback path (15 s cadence, delayed public data). When the Angel One stream is
+    connected it covers NSE/BSE symbols per-second, so `skip` lets the poller leave those alone
+    and only handle what the stream can't (crypto, or everything if the stream is down).
     """
 
     def __init__(
@@ -38,10 +30,18 @@ class MarketFeedPoller:
         collector: CollectorAgent,
         bus: EventBus,
         watchlist: tuple[tuple[str, str], ...] = DEFAULT_WATCHLIST,
+        watchlist_fn: Callable[[], list[tuple[str, str]]] | None = None,
+        skip: Callable[[str, str], bool] | None = None,
     ) -> None:
         self._collector = collector
         self._bus = bus
         self._watchlist = watchlist
+        self._watchlist_fn = watchlist_fn
+        self._skip = skip
+        self.last_quotes: dict[tuple[str, str], dict[str, Any]] = {}
+
+    def current_watchlist(self) -> list[tuple[str, str]]:
+        return self._watchlist_fn() if self._watchlist_fn else list(self._watchlist)
 
     async def _collect_one(self, symbol: str, exchange: str) -> CollectorOutput | None:
         holding = Holding(
@@ -58,18 +58,17 @@ class MarketFeedPoller:
             return None
 
     async def poll_once(self) -> None:
-        # Symbols were previously polled one at a time -- CollectorAgent
-        # retries each provider up to 3x with a 5s timeout, so a single
-        # slow/unreachable provider could make one poll cycle take tens of
-        # seconds and overrun the next scheduled tick. Fetching concurrently
-        # bounds one cycle to the slowest single symbol instead of the sum.
-        results = await asyncio.gather(
-            *(self._collect_one(symbol, exchange) for symbol, exchange in self._watchlist)
-        )
+        # Fetched concurrently: CollectorAgent retries each provider up to 3x with a 5 s timeout,
+        # so polling serially could overrun the next scheduled tick.
+        targets = [
+            (s, e) for s, e in self.current_watchlist() if not (self._skip and self._skip(s, e))
+        ]
+        results = await asyncio.gather(*(self._collect_one(s, e) for s, e in targets))
         for output in results:
             if output is None:
                 continue
             for quote in output.quotes:
-                await self._bus.emit(
-                    Topics.MARKET_QUOTE, quote.model_dump(mode="json"), source="live_feed"
-                )
+                payload = quote.model_dump(mode="json")
+                payload["stream"] = False
+                self.last_quotes[(quote.symbol, quote.exchange)] = payload
+                await self._bus.emit(Topics.MARKET_QUOTE, payload, source="live_feed")

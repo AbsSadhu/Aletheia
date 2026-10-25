@@ -576,6 +576,30 @@ class SQLiteStore:
         scores = [r[0] for r in rows]
         return round(sum(scores) / len(scores), 4)
 
+    def get_resolved_calibration(self, agent: str = "oracle", limit: int = 2000) -> list[dict]:
+        """Records whose outcomes have been filled in, newest first."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT symbol, predicted_signal, predicted_confidence, actual_return_7d,
+                       actual_return_30d, brier_score, recorded_at
+                FROM confidence_calibration
+                WHERE agent = ? AND actual_return_7d IS NOT NULL
+                ORDER BY recorded_at DESC LIMIT ?
+                """,
+                (agent, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def count_unresolved_calibration(self, agent: str = "oracle") -> int:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM confidence_calibration "
+                "WHERE agent = ? AND actual_return_7d IS NULL",
+                (agent,),
+            ).fetchone()
+        return int(row[0])
+
     def get_pending_calibration_records(self, days_old: int = 7) -> list[dict]:
         """Return records where outcomes are not yet filled (>N days old)."""
         import datetime
@@ -586,7 +610,7 @@ class SQLiteStore:
         with self.connect() as conn:
             rows = conn.execute(
                 """
-                SELECT record_id, symbol, predicted_signal, predicted_confidence, recorded_at
+                SELECT record_id, symbol, agent, predicted_signal, predicted_confidence, recorded_at
                 FROM confidence_calibration
                 WHERE actual_return_7d IS NULL AND recorded_at < ?
                 ORDER BY recorded_at ASC

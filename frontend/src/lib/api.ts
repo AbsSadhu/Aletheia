@@ -448,3 +448,236 @@ export async function getSystemConfig(): Promise<any> {
 export async function updateSystemConfig(config: Record<string, any>): Promise<any> {
   return apiPost("/api/v1/config", config);
 }
+
+// ---------------------------------------------------------------------------
+// Options pricing
+// ---------------------------------------------------------------------------
+
+export interface OptionPrice {
+  kind: "call" | "put";
+  price: number;
+  intrinsic: number;
+  delta: number;
+  gamma: number;
+  theta_per_day: number;
+  vega_per_vol_point: number;
+}
+
+export async function priceOption(p: {
+  spot: number;
+  strike: number;
+  days: number;
+  vol_pct: number;
+  rate_pct: number;
+  kind: "call" | "put";
+}): Promise<OptionPrice> {
+  const qs = new URLSearchParams(Object.entries(p).map(([k, v]) => [k, String(v)]));
+  return apiGet<OptionPrice>(`/api/v1/options/price?${qs}`);
+}
+
+// ---------------------------------------------------------------------------
+// Broker connection
+// ---------------------------------------------------------------------------
+
+export async function zerodhaStatus(): Promise<{ configured: boolean; logged_in: boolean }> {
+  return apiGet("/api/v1/brokers/zerodha/status");
+}
+
+export async function zerodhaLoginUrl(): Promise<{ url: string }> {
+  return apiGet("/api/v1/brokers/zerodha/login-url");
+}
+
+// ---------------------------------------------------------------------------
+// Signal validation
+// ---------------------------------------------------------------------------
+
+export interface PerfBlock {
+  total_return_pct?: number;
+  cagr_pct?: number;
+  volatility_pct?: number;
+  sharpe?: number;
+  max_drawdown_pct?: number;
+  beta?: number;
+  alpha_pct?: number;
+  information_ratio?: number;
+}
+
+export interface SignalBacktest {
+  period: { start: string; end: string };
+  config: { universe_size: number; max_positions: number; rebalance_days: number };
+  strategy: PerfBlock;
+  strategy_post_tax: PerfBlock;
+  nifty: PerfBlock;
+  equal_weight: PerfBlock;
+  out_of_sample: { start: string | null; strategy_post_tax: PerfBlock; nifty: PerfBlock; note: string };
+  trading: {
+    trades: number;
+    win_rate_pct: number;
+    avg_holding_days: number;
+    stopped_out_pct: number;
+    trading_costs_inr: number;
+    tax_paid_inr: number;
+    gross_final_equity: number;
+    post_tax_final_equity: number;
+    avg_invested_pct: number;
+  };
+  verdict: { status: "PASS" | "FAIL" | "INCONCLUSIVE"; headline: string; reasons: string[] };
+  equity_curve: { date: string; strategy: number; nifty: number; equal_weight: number | null }[];
+  caveats: string[];
+  missing_symbols?: string[];
+  ran_at?: string;
+}
+
+export async function runSignalBacktest(body: {
+  years?: number;
+  max_positions?: number;
+  rebalance_days?: number;
+}): Promise<SignalBacktest> {
+  return apiPost<SignalBacktest>("/api/v1/backtest/signal", body);
+}
+
+export async function getLatestSignalBacktest(): Promise<{ result: SignalBacktest | null }> {
+  return apiGet("/api/v1/backtest/signal/latest");
+}
+
+export interface AccuracyBlock {
+  n: number;
+  hit_rate_pct: number | null;
+  avg_confidence: number;
+  avg_return_7d_pct: number;
+  brier: number | null;
+}
+
+export interface SignalAccuracy {
+  resolved: number;
+  pending: number;
+  enough_data: boolean;
+  coin_flip_brier: number;
+  overall: AccuracyBlock | null;
+  by_signal: Record<string, AccuracyBlock>;
+  calibration: { range: string; n: number; claimed_pct: number; actual_hit_rate_pct: number | null }[];
+  by_symbol: (AccuracyBlock & { symbol: string })[];
+  verdict: string;
+}
+
+export async function getSignalAccuracy(): Promise<SignalAccuracy> {
+  return apiGet("/api/v1/signals/accuracy");
+}
+
+export async function getShadowVsNifty(): Promise<{
+  points: { date: string; shadow_pct: number; nifty_pct: number }[];
+  excess_pct?: number;
+  days?: number;
+  note: string;
+}> {
+  return apiGet("/api/v1/signals/shadow-vs-nifty");
+}
+
+// ---------------------------------------------------------------------------
+// Live market feed
+// ---------------------------------------------------------------------------
+
+export interface WatchItem {
+  symbol: string;
+  exchange: string;
+}
+
+export interface LiveQuote {
+  symbol: string;
+  exchange: string;
+  close: number; // latest price
+  open?: number | null;
+  high?: number | null;
+  low?: number | null;
+  volume?: number | null;
+  prev_close?: number | null;
+  price_exchange?: string; // the exchange the PRICE comes from, when it differs from the watchlist row
+  exchange_time?: string | null; // the exchange's own 'as on' time
+  data_lag_secs?: number | null; // how far the exchange time trails our clock during market hours
+  change_pct?: number | null;
+  as_of: string;
+  provider: string;
+  stream?: boolean;
+  price_scale_verified?: boolean | null;
+}
+
+export interface FeedStatus {
+  mode: "stream" | "polling" | "idle";
+  source: string;
+  provider?: "angel_one" | "fyers" | "bse_web";
+  market: { state: string; label: string; is_open: boolean; ist_time: string; note: string };
+  stream: {
+    connected: boolean;
+    symbols: number;
+    ticks: number;
+    last_tick_age_secs: number | null;
+    reconnects: number;
+    price_scale_verified: boolean | null;
+    error: string | null;
+    unofficial?: boolean;
+    data_lag_secs?: number | null;
+    poll_secs?: number;
+  } | null;
+  stream_configured: boolean;
+  crypto?: {
+    connected: boolean;
+    source: string;
+    symbols: number;
+    ticks: number;
+    last_tick_age_secs: number | null;
+    error: string | null;
+    window: string;
+  } | null;
+  setup_hint: string | null;
+  unresolved_symbols: string[];
+}
+
+export function getMarketSocketUrl(): string {
+  const wsBase = API_BASE_URL.replace(/^http/, "ws");
+  const key = getApiKey();
+  return `${wsBase}/api/v1/ws/market${key ? `?api_key=${encodeURIComponent(key)}` : ""}`;
+}
+
+export async function getWatchlist(): Promise<{ items: WatchItem[] }> {
+  return apiGet("/api/v1/watchlist");
+}
+
+export async function saveWatchlist(items: WatchItem[]): Promise<{ items: WatchItem[]; unresolved_symbols: string[] }> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/watchlist`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ items }),
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => response.statusText);
+    throw new Error(`API error ${response.status}: ${text}`);
+  }
+  return response.json();
+}
+
+export async function getFeedStatus(): Promise<FeedStatus> {
+  return apiGet("/api/v1/marketdata/feed-status");
+}
+
+export interface CandleResponse {
+  symbol: string;
+  exchange: string;
+  interval: string;
+  candles: { time: number; open: number; high: number; low: number; close: number; volume: number }[];
+  tz_offset_secs: number;
+  source: string;
+  note: string;
+}
+
+export async function getCandles(symbol: string, exchange: string, interval: string): Promise<CandleResponse> {
+  const qs = new URLSearchParams({ symbol, exchange, interval });
+  return apiGet(`/api/v1/marketdata/candles?${qs}`);
+}
+
+export async function fyersStatus(): Promise<{ configured: boolean; logged_in: boolean; redirect_uri: string }> {
+  return apiGet("/api/v1/brokers/fyers/status");
+}
+
+export async function fyersLoginUrl(): Promise<{ url: string; redirect_uri: string }> {
+  return apiGet("/api/v1/brokers/fyers/login-url");
+}

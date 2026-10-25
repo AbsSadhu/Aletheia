@@ -23,6 +23,7 @@ from aletheia.core.models import (
 )
 from aletheia.core.graph_flow import create_agent_graph
 from aletheia.core.config.settings import get_settings
+from aletheia.core.events.bus import Event, EventBus, Topics
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class RunService:
         scribe: ScribeAgent,
         sqlite_store: SQLiteStore,
         duckdb_store: DuckDBStore,
+        bus: EventBus | None = None,
     ) -> None:
         self.collector = collector
         self.oracle = oracle
@@ -48,6 +50,14 @@ class RunService:
         self.settings = get_settings()
         self._events: dict[str, list[AgentEvent]] = {}
         self._active_sockets: dict[str, list[Any]] = {}
+
+        # Run events flow through the bus: persistence and the WebSocket fan-out are plain
+        # subscribers, so anything else (audit log, notifications) can listen without touching
+        # this class. Default is a private bus so independent services never share handlers;
+        # the app passes the global bus (see get_run_service).
+        self.bus = bus or EventBus()
+        self.bus.subscribe(Topics.RUN_EVENT, self._persist_event)
+        self.bus.subscribe(Topics.RUN_EVENT, self._broadcast_event)
 
         # Instantiate new agents and compute client
         from aletheia.extensions.agents.sentiment_agent import SentimentAgent
@@ -81,13 +91,16 @@ class RunService:
                 del self._active_sockets[run_id]
 
     async def record_event(self, event: AgentEvent) -> None:
-        # Persist event to SQLite for run tracing
+        await self.bus.emit(Topics.RUN_EVENT, event, source="run_service")
+
+    async def _persist_event(self, bus_event: Event) -> None:
         try:
-            self.sqlite_store.save_agent_event(event)
+            self.sqlite_store.save_agent_event(bus_event.payload)
         except Exception as db_exc:
             logger.warning("RunService: Failed to save agent event to DB: %s", db_exc)
 
-        # Broadcast to active sockets
+    async def _broadcast_event(self, bus_event: Event) -> None:
+        event: AgentEvent = bus_event.payload
         sockets = self._active_sockets.get(event.run_id, [])
         if sockets:
             payload = event.model_dump(mode="json")
@@ -315,6 +328,8 @@ class RunService:
                 try:
                     # For Oracle
                     for o in oracle_outputs:
+                        if o.data_quality != "ok":
+                            continue  # no real signal was made; nothing to score
                         self.sqlite_store.record_confidence(
                             run_id=summary.run_id,
                             symbol=o.symbol,

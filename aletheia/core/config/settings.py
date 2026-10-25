@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     pm_max_position_size_pct: float = Field(default=20.0)
     pm_max_sector_concentration_pct: float = Field(default=30.0)
     pm_max_portfolio_var_pct: float = Field(default=15.0)
+    pm_min_cash_reserve_pct: float = Field(default=5.0)
+    # Paper/shadow sizing: lose at most this % of equity if the ATR stop is hit; with no
+    # stop available, use a fixed slice of equity instead.
+    risk_per_trade_pct: float = Field(default=1.0, gt=0, le=10)
+    fallback_position_pct: float = Field(default=5.0, gt=0, le=100)
+    paper_starting_cash: float = Field(default=1_000_000.0, gt=0)
 
     # --- LLM Configuration ---
     ollama_base_url: str = "http://127.0.0.1:11434"
@@ -94,7 +100,22 @@ class Settings(BaseSettings):
 
     # --- Live Market Feed ---
     market_feed_enabled: bool = True
-    market_feed_interval_secs: float = 15.0
+    market_feed_interval_secs: float = 15.0  # polling fallback cadence
+    # With Angel One enabled the live feed streams over a WebSocket; each symbol is pushed to
+    # the UI at most this often (seconds).
+    market_feed_emit_interval_secs: float = Field(default=1.0, ge=0.2, le=60)
+    angel_one_stream_enabled: bool = True
+    # "angel_one" or "fyers": which broker supplies the per-second stream.
+    live_feed_provider: str = "angel_one"  # "angel_one" | "fyers" | "bse_web" (free, unofficial)
+    # bse_web polls BSE's public website API; never faster than 1 s, and rate-limited regardless.
+    bse_web_poll_secs: float = Field(default=2.0, ge=1.0, le=60)
+    # Free per-second crypto quotes from Binance's public stream (no account). Only connects
+    # when the watchlist contains a crypto pair.
+    crypto_stream_enabled: bool = True
+
+    # --- Signal track record ---
+    # How often to score past Oracle predictions against realised prices (0 disables).
+    calibration_resolve_interval_secs: float = 21600.0
 
     # --- Rust Compute Engine Sidecar ---
     compute_engine_url: str = "http://127.0.0.1:18899"
@@ -104,10 +125,22 @@ class Settings(BaseSettings):
     execution_mode: str = "simulation"
     execution_observation_days_required: int = 7
 
+    # --- Live broker orders (real money) ---
+    # Off by default. Even when on, an order must pass the execution gate (LIVE mode, not
+    # paused, enough real paper-trading history), require API-key auth to be configured,
+    # and stay inside these hard caps.
+    live_trading_enabled: bool = False
+    live_max_order_value: float = 25000.0  # INR per order
+    live_max_order_qty: int = 500
+    live_max_orders_per_day: int = 10
+
     enable_audit_logs: bool = True
     enable_desktop_bridge: bool = True
     yfinance_enabled: bool = True
     ccxt_enabled: bool = True
+    # Angel One SmartAPI: free live NSE/BSE quotes. Credentials live in ConfigManager.
+    angel_one_enabled: bool = False
+    static_seed_enabled: bool = False  # hardcoded demo prices; offline dev only
     nse_enabled: bool = True
     rbi_enabled: bool = True
 

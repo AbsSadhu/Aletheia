@@ -95,9 +95,44 @@
   --topbar-height: 56px;
 }
 
+/* --- Light theme: same tokens, light values --- */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-root: #f4f6fa;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0f3f9;
+  --bg-elevated: #eaeef6;
+  --bg-input: #ffffff;
+
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-medium: rgba(15, 23, 42, 0.16);
+  --border-accent: rgba(37, 99, 235, 0.35);
+
+  --text-primary: #111827;
+  --text-secondary: #4b5565;
+  --text-muted: #6b7587;
+  --text-inverse: #ffffff;
+
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-muted: rgba(37, 99, 235, 0.10);
+  --accent-glow: rgba(37, 99, 235, 0.18);
+
+  --green: #15803d;
+  --green-muted: rgba(21, 128, 61, 0.10);
+  --red: #b91c1c;
+  --red-muted: rgba(185, 28, 28, 0.10);
+  --amber: #b45309;
+  --amber-muted: rgba(180, 83, 9, 0.10);
+  --teal: #0f766e;
+  --teal-muted: rgba(15, 118, 110, 0.10);
+  --purple: #7e22ce;
+  --purple-muted: rgba(126, 34, 206, 0.10);
+}
 /* --- Global --- */
 html {
-  color-scheme: dark;
+  color-scheme: dark; /* overridden by :root[data-theme="light"] */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

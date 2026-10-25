@@ -1,5 +1,9 @@
 # Aletheia Codebase Handoff & Technical Audit
 
+> **Status is superseded by [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) (2026-10-25).** This file is
+> kept for its architecture and database walkthrough, which is still broadly right. Its sprint status,
+> test counts, "not wired" claims and the 2026-09-03 date are out of date; trust `docs/PROJECT_STATE.md`.
+
 Welcome to Aletheia! This document serves as a single-pass onboarding blueprint for **Claude Code** and developers. It details the system architecture, feature completion status, database models, dependencies, verification status, and the immediate development roadmap.
 
 ---

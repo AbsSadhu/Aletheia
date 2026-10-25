@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Save, Shield, Cpu, Key, Database, Radio, Check, AlertCircle, Eye, EyeOff, Lock } from "lucide-react";
 import TopBar from "../components/TopBar";
-import { fetchHealth, getSystemConfig, updateSystemConfig, getApiKey, setApiKey } from "../lib/api";
+import { fetchHealth, getSystemConfig, updateSystemConfig, getApiKey, setApiKey, zerodhaStatus, zerodhaLoginUrl, fyersStatus, fyersLoginUrl } from "../lib/api";
 import type { HealthData } from "../lib/types";
 
 export default function SettingsPage() {
@@ -15,6 +15,14 @@ export default function SettingsPage() {
     gemini_api_key: "",
     zerodha_api_key: "",
     zerodha_api_secret: "",
+    angel_one_enabled: false,
+    live_feed_provider: "angel_one",
+    fyers_app_id: "",
+    fyers_secret: "",
+    angel_one_api_key: "",
+    angel_one_client_code: "",
+    angel_one_pin: "",
+    angel_one_totp_secret: "",
     tradingview_session: "",
     yfinance_enabled: true,
     ccxt_enabled: true,
@@ -37,6 +45,43 @@ export default function SettingsPage() {
   // only — never sent to the server config endpoint.
   const [localApiKey, setLocalApiKey] = useState(() => getApiKey());
   const [apiKeySaved, setApiKeySaved] = useState(false);
+
+  const [kite, setKite] = useState<{ configured: boolean; logged_in: boolean } | null>(null);
+  const refreshKite = () => zerodhaStatus().then(setKite).catch(() => setKite(null));
+  useEffect(() => {
+    void refreshKite();
+  }, []);
+
+  // Opens Kite's login in a new tab; Kite redirects back to the backend callback, which
+  // stores the daily token. Poll status afterwards so the badge updates without a reload.
+  const handleKiteLogin = async () => {
+    try {
+      const { url } = await zerodhaLoginUrl();
+      window.open(url, "_blank", "noopener");
+      const timer = setInterval(() => void refreshKite(), 3000);
+      setTimeout(() => clearInterval(timer), 120_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start Zerodha login");
+    }
+  };
+
+  const [fy, setFy] = useState<{ configured: boolean; logged_in: boolean; redirect_uri: string } | null>(null);
+  const refreshFy = () => fyersStatus().then(setFy).catch(() => setFy(null));
+  useEffect(() => {
+    void refreshFy();
+  }, []);
+
+  // Same pattern as Zerodha: login happens on Fyers' site, which redirects back to the backend.
+  const handleFyersLogin = async () => {
+    try {
+      const { url } = await fyersLoginUrl();
+      window.open(url, "_blank", "noopener");
+      const timer = setInterval(() => void refreshFy(), 3000);
+      setTimeout(() => clearInterval(timer), 120_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start Fyers login");
+    }
+  };
 
   const handleSaveApiKey = () => {
     setApiKey(localApiKey.trim());
@@ -296,6 +341,38 @@ export default function SettingsPage() {
 
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-4)" }}>
                     <div>
+                      <div style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>Per-second live feed from</div>
+                      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Pick one broker; restart the backend after changing</div>
+                    </div>
+                    <select
+                      className="form-control"
+                      aria-label="Live feed provider"
+                      value={config.live_feed_provider || "angel_one"}
+                      onChange={(e) => handleChange("live_feed_provider", e.target.value)}
+                    >
+                      <option value="angel_one">Angel One</option>
+                      <option value="fyers">Fyers</option>
+                      <option value="bse_web">BSE website (free, unofficial, about 2s)</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-4)" }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>Angel One Live Feed</div>
+                      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Per-second NSE/BSE quotes (needs credentials below; restart the backend after changing)</div>
+                    </div>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={!!config.angel_one_enabled}
+                        onChange={(e) => handleChange("angel_one_enabled", e.target.checked)}
+                      />
+                      <span className="slider round"></span>
+                    </label>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-4)" }}>
+                    <div>
                       <div style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>CCXT Crypto Feed</div>
                       <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Supports international crypto exchanges (Binance, Coinbase)</div>
                     </div>
@@ -384,6 +461,72 @@ export default function SettingsPage() {
                         {showKeys.zerodhaSecret ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                    <button type="button" className="btn btn-ghost" onClick={handleKiteLogin} disabled={!kite?.configured}>
+                      Connect Zerodha
+                    </button>
+                    <span style={{ fontSize: "var(--text-sm)", color: kite?.logged_in ? "var(--green)" : "var(--text-muted)" }}>
+                      {kite?.logged_in ? "Connected (today)" : kite?.configured ? "Not logged in — tokens reset ~6 AM IST" : "Save API key and secret first"}
+                    </span>
+                  </div>
+
+                  <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                    <div className="stat-label">Angel One SmartAPI (free live NSE/BSE quotes)</div>
+                    {([
+                      ["angel_one_api_key", "API key"],
+                      ["angel_one_client_code", "Client code"],
+                      ["angel_one_pin", "PIN"],
+                      ["angel_one_totp_secret", "TOTP secret (base32)"],
+                    ] as const).map(([field, label]) => (
+                      <input
+                        key={field}
+                        type={field === "angel_one_client_code" ? "text" : "password"}
+                        className="form-control"
+                        aria-label={label}
+                        value={config[field] || ""}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        placeholder={config[field] ? "********" : label}
+                        style={{ width: "100%" }}
+                      />
+                    ))}
+                    <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                      Turn on "Angel One Live Feed" above, save, then restart the backend. Check the result on the Live Market page.
+                    </span>
+                  </div>
+
+                  <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                    <div className="stat-label">Fyers (free per-second NSE stream)</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      aria-label="Fyers app ID"
+                      value={config.fyers_app_id || ""}
+                      onChange={(e) => handleChange("fyers_app_id", e.target.value)}
+                      placeholder={config.fyers_app_id ? "********" : "App ID, like ABC123XYZ-100"}
+                      style={{ width: "100%" }}
+                    />
+                    <input
+                      type="password"
+                      className="form-control"
+                      aria-label="Fyers secret"
+                      value={config.fyers_secret || ""}
+                      onChange={(e) => handleChange("fyers_secret", e.target.value)}
+                      placeholder={config.fyers_secret ? "********" : "App secret"}
+                      style={{ width: "100%" }}
+                    />
+                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                      <button type="button" className="btn btn-ghost" onClick={handleFyersLogin} disabled={!fy?.configured}>
+                        Connect Fyers
+                      </button>
+                      <span style={{ fontSize: "var(--text-sm)", color: fy?.logged_in ? "var(--green)" : "var(--text-muted)" }}>
+                        {fy?.logged_in ? "Logged in today" : fy?.configured ? "Not logged in. Tokens reset 06:30 IST daily" : "Save app ID and secret first"}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                      Register this redirect URL in your Fyers app: <code>{fy?.redirect_uri ?? "http://127.0.0.1:8899/api/v1/brokers/fyers/callback"}</code>. One-time helper setup: <code>scripts/fyers_setup.py</code>. See docs/FYERS_SETUP.md.
+                    </span>
                   </div>
 
                   <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-4)" }}>

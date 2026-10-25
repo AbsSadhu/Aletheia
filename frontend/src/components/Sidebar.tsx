@@ -10,17 +10,23 @@ import {
   Ghost,
   LineChart,
   Lightbulb,
+  Sigma,
+  ShieldCheck,
+  Radio,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/runs", icon: Play, label: "Runs" },
+  { to: "/live", icon: Radio, label: "Live Market" },
   { to: "/portfolio", icon: Briefcase, label: "Portfolio" },
   { to: "/paper-trades", icon: TrendingUp, label: "Paper Trades" },
   { to: "/shadow-trader", icon: Ghost, label: "Shadow Trader" },
   { to: "/backtest", icon: LineChart, label: "Backtest" },
   { to: "/hypotheses", icon: Lightbulb, label: "Hypotheses" },
   { to: "/factors", icon: FlaskConical, label: "Factor Explorer" },
+  { to: "/validation", icon: ShieldCheck, label: "Signal Validation" },
+  { to: "/options", icon: Sigma, label: "Options" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 

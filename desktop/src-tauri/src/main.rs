@@ -283,8 +283,22 @@ fn main() {
     // a separate builder call further down the chain and needs its own handle.
     let state_for_window_close = Arc::clone(&shared_state);
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // A second launch (e.g. the OS opening an aletheia:// link) must reach THIS process, not
+    // start a competing backend on the same ports. Registered first, per the plugin docs.
+    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        if let Some(win) = app.get_webview_window("main") {
+            let _ = win.show();
+            let _ = win.set_focus();
+        }
+    }));
+
+    builder
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_deep_link::init())
         .manage(shared_state.clone())
         .invoke_handler(tauri::generate_handler![
             get_desktop_settings,
@@ -292,6 +306,13 @@ fn main() {
             stop_sidecars,
         ])
         .setup(move |app| {
+            // Dev builds on Windows/Linux aren't installed, so register the scheme at runtime.
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let _ = app.deep_link().register_all();
+            }
+
             // ---- Spawn sidecars on startup ----
             let res_dir = app.path().resource_dir().ok();
             let workspace = find_workspace_root(res_dir.as_deref().unwrap_or_else(|| std::path::Path::new(".")));

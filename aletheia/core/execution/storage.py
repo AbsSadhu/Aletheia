@@ -57,6 +57,23 @@ class ExecutionStorage:
             )
             conn.execute(
                 """
+                CREATE TABLE IF NOT EXISTS live_orders (
+                    order_ref TEXT PRIMARY KEY,
+                    timestamp TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    exchange TEXT NOT NULL,
+                    side TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    order_type TEXT NOT NULL,
+                    price REAL,
+                    status TEXT NOT NULL,
+                    broker_order_id TEXT,
+                    detail TEXT
+                )
+                """
+            )
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS execution_state (
                     singleton_id INTEGER PRIMARY KEY CHECK (singleton_id = 1),
                     mode TEXT NOT NULL,
@@ -187,6 +204,64 @@ class ExecutionStorage:
             )
             for row in rows
         ]
+
+    def paper_observation_days(self) -> int:
+        """Distinct calendar days on which a paper trade was recorded — measured here, so a
+        caller can't claim an observation period it never ran."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(DISTINCT substr(timestamp, 1, 10)) FROM paper_trades"
+            ).fetchone()
+        return int(row[0])
+
+    def record_live_order(
+        self,
+        order_ref: str,
+        timestamp: datetime,
+        symbol: str,
+        exchange: str,
+        side: str,
+        quantity: int,
+        order_type: str,
+        price: float | None,
+        status: str,
+        broker_order_id: str | None = None,
+        detail: str | None = None,
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO live_orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    order_ref,
+                    timestamp.isoformat(),
+                    symbol,
+                    exchange,
+                    side,
+                    quantity,
+                    order_type,
+                    price,
+                    status,
+                    broker_order_id,
+                    detail,
+                ),
+            )
+            conn.commit()
+
+    def count_live_orders_since(self, since: datetime) -> int:
+        """Orders actually sent to the broker (rejected-before-send attempts don't count)."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM live_orders WHERE timestamp >= ? AND status = 'submitted'",
+                (since.isoformat(),),
+            ).fetchone()
+        return int(row[0])
+
+    def list_live_orders(self, limit: int = 50) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM live_orders ORDER BY timestamp DESC LIMIT ?", (limit,)
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     def get_state(self) -> ExecutionState:
         with self._connect() as conn:

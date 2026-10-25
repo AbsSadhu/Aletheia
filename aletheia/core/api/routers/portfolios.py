@@ -88,7 +88,8 @@ async def delete_portfolio(name: str) -> dict:
 async def sync_zerodha_holdings(name: str) -> dict:
     """Sync holdings from Zerodha Kite Connect or fallback to mock if credentials are mock/missing."""
     from aletheia.config.config_manager import ConfigManager
-    from aletheia.extensions.brokers.zerodha import ZerodhaKiteConnector
+    from aletheia.extensions.brokers.zerodha import KiteAuthError
+    from aletheia.extensions.brokers.zerodha_session import connector_from_config
 
     service = get_run_service()
     portfolio = service.sqlite_store.get_portfolio(name)
@@ -112,11 +113,10 @@ async def sync_zerodha_holdings(name: str) -> dict:
         logger.info("Zerodha credentials missing or mock. Falling back to mock sync.")
         holdings_to_add = list(_MOCK_ZERODHA_HOLDINGS)
     else:
+        # Real credentials are configured: never substitute mock holdings for a real failure.
         try:
-            # Try connecting with actual Zerodha Kite
-            connector = ZerodhaKiteConnector(api_key=api_key, access_token=api_secret)
-            positions = await connector.get_positions()
-            for pos in positions:
+            connector = await connector_from_config()
+            for pos in await connector.get_holdings():
                 holdings_to_add.append(
                     {
                         "symbol": pos["symbol"],
@@ -127,9 +127,11 @@ async def sync_zerodha_holdings(name: str) -> dict:
                         "tax_profile": "equity",
                     }
                 )
+        except KiteAuthError as e:
+            raise HTTPException(status_code=401, detail=str(e)) from e
         except Exception as e:
-            logger.warning("Zerodha Kite API connection failed: %s. Falling back to mock sync.", e)
-            holdings_to_add = list(_MOCK_ZERODHA_HOLDINGS)
+            logger.warning("Zerodha holdings sync failed: %s", e)
+            raise HTTPException(status_code=502, detail=f"Zerodha sync failed: {e}") from e
 
     # Merge holdings
     current_holdings = {h.symbol: h for h in portfolio.holdings}

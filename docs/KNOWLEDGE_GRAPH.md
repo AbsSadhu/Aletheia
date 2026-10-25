@@ -1,11 +1,66 @@
 # ALETHEIA Knowledge Graph
 
-> **Stale as of 2026-09-12.** This document predates `docs/ROADMAP.md` and
-> `CLAUDE_CODE_HANDOFF.md` (last updated 2026-09-03/04) and still lists several
-> items as "not started" — PDF export, Prometheus metrics, MCP server, Shadow
-> Account API, Tauri sidecar auto-launch — that are now done. Treat
-> `docs/ROADMAP.md` as the current status source; this file is kept for its
-> architecture graph and historical context, not its status claims.
+> **Updated 2026-10-25.** The section directly below is current. Everything after "Complete Architecture
+> Graph (Current State)" is the older (2026-06/09) graph: its architecture is still broadly right, but its
+> status marks (for example "Shadow Account API: not started") are stale. Current status lives in
+> [`PROJECT_STATE.md`](PROJECT_STATE.md).
+
+## Live data, signals and execution layer (current, 2026-10-25)
+
+```mermaid
+graph TD
+    classDef verified fill:#16a34a22,stroke:#16a34a
+    classDef unverified fill:#f59e0b22,stroke:#f59e0b
+    classDef failed fill:#ef444422,stroke:#ef4444
+
+    FM[FeedManager] --> BN[BinanceStream]:::verified
+    FM --> BS[BseWebStream]:::unverified
+    FM --> AO[AngelOneStream]:::unverified
+    FM --> FY[FyersStream]:::unverified
+    FM --> POLL[MarketFeedPoller / Yahoo]:::verified
+    FY --> BR[fyers_bridge.py in ~/.aletheia/fyers-venv]
+    BN & BS & AO & FY & POLL --> BUS[(EventBus: market.quote)]
+    BUS --> WS[/ws/market/] --> LM[Live Market page]:::verified
+    LM --> PC[PriceChart: Lightweight Charts + /marketdata/candles]:::verified
+
+    ORC[OracleAgent] --> QS[quant.py composite]:::failed
+    QS --> SBT[signal_backtest.py vs Nifty]
+    OUT[outcomes.py every 6h] --> ACC[accuracy.py] --> SV[Signal Validation page]
+    ORC --> SCAN[EntryExitScanner] --> GUARD[ExecutionGuard]
+    GUARD --> PT[PaperTrader]
+    GUARD --> SA[ShadowAccount]
+    LB[LiveBroker: 6 gates]:::unverified --> ZK[Zerodha httpx connector]:::unverified
+    GATE[LiveExecutionGate + measured paper days] --> LB
+```
+
+Green = verified against the real service/browser; amber = built but not verified on a real account or in market
+hours; red = the signal failed its backtest (it works as code but has no demonstrated edge).
+
+### Nodes (module -> responsibility)
+
+| Node | Path | Notes |
+|---|---|---|
+| FeedManager | `aletheia/core/marketdata/feed_manager.py` | Owns the crypto stream and one stock stream chosen by `live_feed_provider` (`angel_one` / `fyers` / `bse_web`); poller defers to a connected stream |
+| BinanceStream | `aletheia/extensions/data/binance_stream.py` | Free, no account, ~1 s, 24h rolling stats |
+| BseWebStream | `aletheia/extensions/data/bse_web_stream.py` | Unofficial poll; reports exchange-time lag |
+| AngelOneStream / session | `aletheia/extensions/data/angel_stream.py`, `angel_session.py` | Binary WS, paise scaling self-check |
+| FyersStream / bridge | `aletheia/extensions/data/fyers_stream.py`, `fyers_bridge.py` | Official SDK in an isolated venv over JSON lines |
+| MarketFeedPoller | `aletheia/core/marketdata/live_feed.py` | Delayed fallback; reads the saved watchlist |
+| Watchlist / hours / candles | `core/marketdata/{watchlist,hours,candles}.py` | JSON file; IST session (no holidays); Yahoo OHLCV |
+| Quant signal | `aletheia/core/signals/quant.py` | Composite of `aletheia/factors`; ATR stops |
+| Signal backtest | `aletheia/extensions/backtest/signal_backtest.py` | No look-ahead, costs, tax, OOS, benchmarks |
+| Calibration loop | `aletheia/core/signals/{outcomes,accuracy}.py` | Brier/hit rates from `confidence_calibration` |
+| ExecutionGuard | `aletheia/core/execution/guard.py` | Position cap, cash reserve, ATR sizing, no phantom sells |
+| LiveBroker | `aletheia/core/execution/live_broker.py` | Only path to a real order; off by default |
+| EventBus use | `aletheia/core/events/bus.py`, `core/services.py` | `run.event` subscribers: persist, WebSocket |
+
+### Edges that matter
+
+- `OracleAgent` -> `quant.py` (signal) and -> LLM (commentary only; cannot change the signal).
+- `EntryExitScanner` skips any Oracle output whose `data_quality != "ok"` or confidence < 0.6.
+- `LiveBroker.place` requires `LiveExecutionGate` mode LIVE and `ExecutionStorage.paper_observation_days()` (server-measured), never a client-supplied day count.
+- `FyersStream` marks the stream connected only after the SDK's `{"type":"cn","code":200}` auth ack.
+- `Settings.live_feed_provider` and `crypto_stream_enabled` are read at backend startup.
 
 This document is the current backend-focused handoff graph for forwarding the project into
 Antigravity or another agent/workstream.

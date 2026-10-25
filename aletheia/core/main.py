@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
+from fastapi.encoders import jsonable_encoder
 
 from aletheia import __version__
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +15,7 @@ import sys
 import httpx
 import logging
 
-from aletheia.core.api.routes import router, ws_router
+from aletheia.core.api.routes import callback_router, router, ws_router
 from aletheia.core.api.security import verify_api_key
 from aletheia.core.api.dependencies import get_container
 from aletheia.core.config.settings import get_settings
@@ -136,7 +137,11 @@ def register_exception_handlers(app: FastAPI, settings) -> None:
             content={
                 "code": "VALIDATION_ERROR",
                 "message": "Input validation failed",
-                "detail": exc.errors(),
+                # Custom validators put the raised ValueError itself in `ctx`, which plain
+                # json can't encode (it turned a bad input into a 500).
+                "detail": jsonable_encoder(
+                    exc.errors(), custom_encoder={Exception: lambda e: str(e)}
+                ),
             },
         )
 
@@ -191,14 +196,36 @@ def create_app() -> FastAPI:
         plugins.load_all()
         await scheduler.start()
         if settings.market_feed_enabled:
+            from aletheia.core.api.dependencies import get_feed_manager
+
+            feed = get_feed_manager()
+            await feed.start()  # per-second Angel One stream when configured
             poller = container.resolve("market_feed_poller")
             scheduler.schedule_interval(
                 "market_feed", poller.poll_once, settings.market_feed_interval_secs
+            )
+        if settings.calibration_resolve_interval_secs > 0:
+            from aletheia.core.signals.outcomes import resolve_pending_outcomes
+            from aletheia.extensions.agents.oracle import OracleAgent
+
+            sqlite = container.resolve("sqlite_store")
+
+            async def _resolve_outcomes() -> None:
+                await resolve_pending_outcomes(sqlite, OracleAgent._yfinance_ohlcv)
+
+            scheduler.schedule_interval(
+                "calibration_outcomes",
+                _resolve_outcomes,
+                settings.calibration_resolve_interval_secs,
             )
         metrics.increment("app.startups")
         try:
             yield
         finally:
+            if settings.market_feed_enabled:
+                from aletheia.core.api.dependencies import get_feed_manager
+
+                await get_feed_manager().stop()
             await scheduler.stop()
             metrics.increment("app.shutdowns")
 
@@ -220,6 +247,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(router, dependencies=[Depends(verify_api_key)])
     app.include_router(ws_router)
+    app.include_router(callback_router)
 
     health_registry = container.resolve("health")
     health_registry.register(

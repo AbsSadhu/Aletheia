@@ -1,5 +1,13 @@
 # Agent Instructions
 
+## Start Here
+- **Read `docs/PROJECT_STATE.md` first.** It is the single source of truth for current status: what works, what is verified (and how) versus unverified, the runbook, decisions, and prioritized open items. Update it when you finish significant work. (`CLAUDE_CODE_HANDOFF.md` and `docs/KNOWLEDGE_GRAPH.md` are older.)
+- **Do not commit until the user says so.** They commit everything at once at the end.
+- **Never `pip install` a vendor SDK into `.venv`** (it broke `requests`/`aiohttp`/`ccxt` once). Use an isolated venv, and run `pip check` after any install.
+- **Report verification honestly.** Prefer testing against the real service or a real browser over mocks, and label anything not run on a real account as unverified.
+- Tests must stay isolated from `./data` (see `tests/conftest.py`); never let a test write to the developer's real databases.
+- Signals: the Oracle signal failed its backtest vs Nifty. Do not present BUY/REDUCE as reliable.
+
 ## Environment Setup & Package Manager
 - Python: Use `.venv\Scripts\python.exe` and `.venv\Scripts\pytest` explicitly on Windows.
 - Rust: Cargo inside `aletheia_rust/` and `aletheia_engine/`.

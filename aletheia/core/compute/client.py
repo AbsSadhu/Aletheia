@@ -390,6 +390,55 @@ class ComputeClient:
             }
 
     # ------------------------------------------------------------------
+    # Options pricing (Black-Scholes + Greeks), sync, PyO3-only route
+    # ------------------------------------------------------------------
+
+    def options_pricing(
+        self, spot: float, strike: float, years: float, rate: float, vol: float, is_call: bool
+    ) -> dict[str, float]:
+        """Black-Scholes price and Greeks. Rates/vol are decimals (0.07, 0.25); theta is per
+        year and vega per 1.00 of vol, matching the Rust implementation."""
+        try:
+            from aletheia_rust import options_pricing_rust  # type: ignore[attr-defined]
+
+            return dict(options_pricing_rust(spot, strike, years, rate, vol, is_call))
+        except ImportError:
+            return self._fallback_options_pricing(spot, strike, years, rate, vol, is_call)
+
+    @staticmethod
+    def _fallback_options_pricing(
+        s: float, k: float, t: float, r: float, v: float, is_call: bool
+    ) -> dict[str, float]:
+        import math
+
+        if t <= 0 or v <= 0:
+            price = max(s - k, 0.0) if is_call else max(k - s, 0.0)
+            delta = (1.0 if is_call else -1.0) if price > 0 else 0.0
+            return {"price": price, "delta": delta, "gamma": 0.0, "theta": 0.0, "vega": 0.0}
+
+        def cdf(x: float) -> float:
+            return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+        d1 = (math.log(s / k) + (r + v * v / 2.0) * t) / (v * math.sqrt(t))
+        d2 = d1 - v * math.sqrt(t)
+        pdf = math.exp(-d1 * d1 / 2.0) / math.sqrt(2.0 * math.pi)
+        disc = k * math.exp(-r * t)
+        decay = -(s * v * pdf) / (2.0 * math.sqrt(t))
+        if is_call:
+            price, delta = s * cdf(d1) - disc * cdf(d2), cdf(d1)
+            theta = decay - r * disc * cdf(d2)
+        else:
+            price, delta = disc * cdf(-d2) - s * cdf(-d1), cdf(d1) - 1.0
+            theta = decay + r * disc * cdf(-d2)
+        return {
+            "price": price,
+            "delta": delta,
+            "gamma": pdf / (s * v * math.sqrt(t)),
+            "theta": theta,
+            "vega": s * math.sqrt(t) * pdf,
+        }
+
+    # ------------------------------------------------------------------
     # Intelligence Sprint -- Brier Score (sync)
     # ------------------------------------------------------------------
 
