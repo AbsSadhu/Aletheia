@@ -42,7 +42,7 @@ Multi-agent portfolio analysis, honest backtests, paper trading and live market 
 3. Run the installer. The installer is not yet code-signed, so Windows SmartScreen may show *"Windows protected your PC"*. After you have checked the hash above, choose **More info → Run anyway**.
 4. Launch **ALETHEIA** from the Start menu. It starts its own analysis engine and opens when ready. No account and no API keys are needed.
 
-Everything is stored locally in the app's data folder. Uninstall at any time from *Settings → Apps*.
+Everything is stored locally, in a `data` folder inside the app's install folder (`resources\aletheia-backend\data`). Uninstall at any time from *Settings → Apps*; your data is left in place, so reinstalling to the same folder picks up where you stopped.
 
 **Optional: a local AI model for the chat assistant and written commentary.** Install [Ollama](https://ollama.com), then run `ollama pull mistral:7b`. Without a model, every page and every agent run still works; the assistant simply needs a model (or a cloud key) to chat. You can also point Aletheia at OpenAI, Anthropic or Gemini in **Settings**.
 
