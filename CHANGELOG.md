@@ -7,6 +7,8 @@ between releases.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-07
+
 ### Added
 - **BSE website quote source** (`live_feed_provider=bse_web`, free, no account, UNOFFICIAL): polls BSE's public
   API every ~2 s with an 8 requests/s overall cap and exponential backoff on 403/429/5xx. Each quote carries
@@ -183,5 +185,7 @@ relying on it. Nothing it produces is financial advice.
 - Live broker execution (Zerodha) is a non-functional blueprint; use paper trading.
 - No NSE/BSE real-time data source; the dark theme is the only theme.
 
+[Unreleased]: https://github.com/AbsSadhu/Aletheia/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/AbsSadhu/Aletheia/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/AbsSadhu/Aletheia/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AbsSadhu/Aletheia/releases/tag/v0.1.0
