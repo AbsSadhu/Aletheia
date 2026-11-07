@@ -4,12 +4,13 @@
 
 | Version | Supported |
 | ------- | --------- |
-| 0.1.x   | ✅ Yes     |
-| < 0.1.0 | ❌ No      |
+| 0.2.x   | ✅ Yes     |
+| 0.1.x   | ❌ No, please upgrade |
 
 ## Reporting a Vulnerability
 
-Do **NOT** open a public issue for security vulnerabilities. Email `security@aletheia.local` with:
+Do **NOT** open a public issue for security vulnerabilities. Report it privately through GitHub:
+**Security tab → Report a vulnerability** (private vulnerability reporting). Please include:
 - A detailed description of the vulnerability
 - Steps to reproduce (PoC code or requests)
 - Impact assessment
