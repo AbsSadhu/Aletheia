@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List
+from typing import Any, Dict, List
 
 
 def calculate_sharpe_ratio(returns: List[float], risk_free_rate: float = 0.0) -> float:
@@ -52,3 +52,28 @@ def calculate_profit_factor(trades_pnl: List[float]) -> float:
     if gross_loss == 0:
         return float("inf") if gross_profit > 0 else 0.0
     return float(gross_profit / gross_loss)
+
+
+def split_segments(equity_curve: List[float], earlier_share: float = 0.6) -> List[Dict[str, Any]]:
+    """Return/drawdown/Sharpe for the earlier and later part of an equity curve.
+
+    A strategy that only worked in one stretch of history looks fine in aggregate; this makes the
+    split visible. It is not out-of-sample testing (nothing was fitted), only a consistency check.
+    Needs at least 40 points; otherwise returns nothing.
+    """
+    if len(equity_curve) < 40:
+        return []
+    cut = int(len(equity_curve) * earlier_share)
+    out: List[Dict[str, Any]] = []
+    for label, part in (("earlier", equity_curve[: cut + 1]), ("later", equity_curve[cut:])):
+        rets = [(b - a) / a for a, b in zip(part, part[1:]) if a > 0]
+        out.append(
+            {
+                "label": label,
+                "bars": len(part) - 1,
+                "total_return": (part[-1] - part[0]) / part[0] if part[0] > 0 else 0.0,
+                "max_drawdown": calculate_max_drawdown(part),
+                "sharpe_ratio": calculate_sharpe_ratio(rets),
+            }
+        )
+    return out

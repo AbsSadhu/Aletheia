@@ -16,9 +16,7 @@ from pydantic import BaseModel
 from aletheia.core.models import MarketQuote, Portfolio, SentinelOutput
 
 
-# ---------------------------------------------------------------------------
 # Pydantic Models
-# ---------------------------------------------------------------------------
 
 
 class RiskMetrics(BaseModel):
@@ -49,9 +47,7 @@ class PortfolioConstraints(BaseModel):
     max_drawdown_pct: float = 20.0  # hard stop if drawdown exceeds this
 
 
-# ---------------------------------------------------------------------------
 # Core Computations
-# ---------------------------------------------------------------------------
 
 
 def compute_sharpe(returns: pd.Series, risk_free_rate: float = 0.065 / 252) -> float:
@@ -194,9 +190,7 @@ def compute_full_risk_metrics(
     )
 
 
-# ---------------------------------------------------------------------------
 # Portfolio-level helpers (retain existing interface)
-# ---------------------------------------------------------------------------
 
 
 def portfolio_market_values(

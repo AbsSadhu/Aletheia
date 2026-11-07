@@ -14,6 +14,13 @@ from aletheia.core.marketdata.models import MarketDataRequest
 router = APIRouter(prefix="/api/v1")
 
 
+def _no_data_message(ticker: str, exchange: str) -> str:
+    return (
+        f"No price data found for {ticker.upper()} on {exchange.upper()}. "
+        "Check the ticker (e.g. RELIANCE, not Reliance Industries)."
+    )
+
+
 @router.get("/factors/{ticker}")
 async def compute_factors(
     ticker: str,
@@ -30,7 +37,6 @@ async def compute_factors(
 
     engine = get_market_data_engine()
 
-    # Default: last 90 trading days
     if not start or not end:
         from datetime import date, timedelta
 
@@ -45,12 +51,15 @@ async def compute_factors(
             interval="1d",
         )
     except Exception as exc:
+        if exchange.upper() in ("NSE", "BSE"):
+            # the engine falls through to crypto providers for a symbol no Indian source knows, so
+            # the raw error would talk about Binance; say what is actually wrong
+            raise HTTPException(status_code=404, detail=_no_data_message(ticker, exchange))
         raise HTTPException(status_code=502, detail=f"Failed to fetch OHLCV data: {exc}")
 
     if not candles:
-        raise HTTPException(status_code=404, detail=f"No OHLCV data found for {ticker}")
+        raise HTTPException(status_code=404, detail=_no_data_message(ticker, exchange))
 
-    # Build OHLCV DataFrame
     df = pd.DataFrame(
         [
             {

@@ -58,7 +58,6 @@ class VectorMemoryStore:
             conn.enable_load_extension(True)
             sqlite_vec.load(conn)
             conn.enable_load_extension(False)
-            # Create vector table
             conn.execute(
                 f"""
                 CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec
@@ -75,7 +74,6 @@ class VectorMemoryStore:
             )
             self._use_vector = False
 
-        # Always create text + metadata table
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS memories (
@@ -168,7 +166,6 @@ class VectorMemoryStore:
         if not rows:
             return []
 
-        # Score with Rust BM25 if available, else simple overlap
         try:
             import aletheia_rust
 
@@ -178,7 +175,6 @@ class VectorMemoryStore:
                 score = aletheia_rust.bm25_score_rust(row["text_tokens"], corpus, query)
                 scored.append((score, row))
         except Exception:
-            # Simple TF overlap fallback
             scored = []
             for row in rows:
                 doc_tokens = set((row["text_tokens"] or "").split())

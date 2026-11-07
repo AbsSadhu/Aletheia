@@ -1,14 +1,18 @@
-import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, Minus, Cpu } from "lucide-react";
+import { useState } from "react";
+import { TrendingUp, TrendingDown, Minus, XCircle, FlaskConical } from "lucide-react";
 import TopBar from "../components/TopBar";
+import { toneBadge } from "../lib/tone";
+import PageHero from "../components/PageHero";
+import FactorRadar from "../components/charts/FactorRadar";
+import Gauge3D from "../components/Gauge3D";
 import { computeFactors } from "../lib/api";
 import type { FactorResult, FactorOutput } from "../lib/api";
 
 const CATEGORY_LABELS: Record<string, string> = {
-  momentum: "📈 Momentum Factors",
-  mean_reversion: "🔄 Mean Reversion Factors",
-  volume: "📊 Volume Factors",
-  technicals: "📐 Technical Indicators",
+  momentum: "Momentum Factors",
+  mean_reversion: "Mean Reversion Factors",
+  volume: "Volume Factors",
+  technicals: "Technical Indicators",
 };
 
 export default function FactorExplorer() {
@@ -19,13 +23,14 @@ export default function FactorExplorer() {
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (!ticker.trim()) return;
+  async function handleSearch(e?: React.FormEvent, override?: string) {
+    e?.preventDefault();
+    const symbol = (override ?? ticker).trim();
+    if (!symbol) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await computeFactors(ticker.trim().toUpperCase(), exchange);
+      const data = await computeFactors(symbol.toUpperCase(), exchange);
       setResult(data);
       setSearched(true);
     } catch (err) {
@@ -55,6 +60,7 @@ export default function FactorExplorer() {
     <>
       <TopBar title="Factor Explorer" />
       <div className="page-shell">
+        <PageHero variant="steps" headline="Read the signal behind a stock." sub="RSI, MACD, Bollinger Bands and volume anomalies, scored and combined into one view." />
         <form onSubmit={handleSearch} className="card" style={{ display: "flex", gap: "var(--space-4)", alignItems: "flex-end", marginBottom: "var(--space-5)" }}>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
             <label className="stat-label">Ticker Symbol</label>
@@ -97,15 +103,34 @@ export default function FactorExplorer() {
           </button>
         </form>
 
+        <div className="quick-picks" aria-label="Quick picks">
+          <span className="quick-picks-label">Try</span>
+          {["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC"].map((sym) => (
+            <button
+              key={sym}
+              type="button"
+              className="chip"
+              disabled={loading}
+              onClick={() => {
+                setTicker(sym);
+                setExchange("NSE");
+                void handleSearch(undefined, sym);
+              }}
+            >
+              {sym}
+            </button>
+          ))}
+        </div>
+
         {error && (
           <div className="card" style={{ background: "var(--red-muted)", color: "var(--red)", borderColor: "var(--red)", marginBottom: "var(--space-5)" }}>
-            ❌ {error}
+            <XCircle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />{error}
           </div>
         )}
 
         {!searched && !loading && (
           <div className="card" style={{ textAlign: "center", padding: "var(--space-12) var(--space-6)" }}>
-            <p style={{ fontSize: "var(--text-3xl)", marginBottom: "var(--space-3)" }}>🔬</p>
+            <div className="empty-state-icon" style={{ margin: "0 auto var(--space-3)" }}><FlaskConical size={26} strokeWidth={1.5} /></div>
             <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}>
               Alpha Factor Intelligence
             </h3>
@@ -117,7 +142,6 @@ export default function FactorExplorer() {
 
         {result && (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
-            {/* Composite Signal Banner */}
             {composite && (
               <div className="card" style={{ borderLeft: `4px solid ${composite.signal === "BUY" ? "var(--green)" : composite.signal === "SELL" ? "var(--red)" : "var(--amber)"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
@@ -131,7 +155,7 @@ export default function FactorExplorer() {
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <span className={`badge ${composite.signal === "BUY" ? "badge-buy" : composite.signal === "SELL" ? "badge-reduce" : "badge-hold"}`} style={{ fontSize: "var(--text-sm)", padding: "6px 16px", fontWeight: 700 }}>
+                  <span className={`badge ${toneBadge(composite.signal)}`} style={{ fontSize: "var(--text-sm)", padding: "6px 16px", fontWeight: 700 }}>
                     {composite.signal === "BUY" && <TrendingUp size={14} style={{ marginRight: 6 }} />}
                     {composite.signal === "SELL" && <TrendingDown size={14} style={{ marginRight: 6 }} />}
                     {composite.signal === "HOLD" && <Minus size={14} style={{ marginRight: 6 }} />}
@@ -147,7 +171,24 @@ export default function FactorExplorer() {
               </div>
             )}
 
-            {/* Factor Cards by Category */}
+            <div className="grid-2">
+              <div className="card">
+                <div className="card-header">
+                  <span className="card-title">Factor profile</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>normalised readings, 0 to 1</span>
+                </div>
+                <FactorRadar factors={Object.entries(result.factors).map(([name, fo]) => ({ name, normalized: Number.isFinite(fo.normalized) ? fo.normalized : 0 }))} />
+              </div>
+              {composite && (
+                <div className="card">
+                  <div className="card-header">
+                    <span className="card-title">Composite confidence</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{composite.factor_count} factors</span>
+                  </div>
+                  <Gauge3D value={composite.confidence ?? null} />
+                </div>
+              )}
+            </div>
             {Object.entries(byCategory).map(([category, factors]) => (
               <div key={category} style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                 <h3 className="card-subtitle">{CATEGORY_LABELS[category] ?? category}</h3>
@@ -159,7 +200,7 @@ export default function FactorExplorer() {
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", fontWeight: 600, textTransform: "uppercase", color: "var(--text-secondary)" }}>
                             {factor.name.replace(/_/g, " ")}
                           </span>
-                          <span className={`badge ${factor.signal === "BUY" ? "badge-buy" : factor.signal === "SELL" ? "badge-reduce" : "badge-hold"}`}>
+                          <span className={`badge ${toneBadge(factor.signal)}`}>
                             {factor.signal}
                           </span>
                         </div>
@@ -173,7 +214,6 @@ export default function FactorExplorer() {
                           </div>
                         </div>
 
-                        {/* Normalized bar indicator */}
                         <div>
                           <div className="confidence-bar">
                             <div

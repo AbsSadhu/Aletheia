@@ -14,9 +14,7 @@ from __future__ import annotations
 import json
 
 
-# ─────────────────────────────────────────────────────────────
 # Schema injection helper
-# ─────────────────────────────────────────────────────────────
 
 
 def _json_schema_footer(schema: dict) -> str:
@@ -27,9 +25,7 @@ def _json_schema_footer(schema: dict) -> str:
     )
 
 
-# ─────────────────────────────────────────────────────────────
 # Oracle
-# ─────────────────────────────────────────────────────────────
 
 ORACLE_SCHEMA = {
     "type": "object",
@@ -89,9 +85,7 @@ Market Data (current quote):
 {json.dumps(quote_data, default=str, indent=2)}{tf_section}{factor_section}{schema_footer}"""
 
 
-# ─────────────────────────────────────────────────────────────
 # Sentinel
-# ─────────────────────────────────────────────────────────────
 
 SENTINEL_SCHEMA = {
     "type": "object",
@@ -143,9 +137,7 @@ Oracle analyst signals:
 {oracle_text}{_json_schema_footer(schema)}"""
 
 
-# ─────────────────────────────────────────────────────────────
 # Scribe
-# ─────────────────────────────────────────────────────────────
 
 SCRIBE_SCHEMA = {
     "type": "object",
@@ -210,61 +202,7 @@ Sage Tax & Scenarios:
 {json.dumps(sage_scenarios, default=str, indent=2)}{sentiment_section}{fundamental_section}{options_section}{critic_section}{_json_schema_footer(SCRIBE_SCHEMA)}"""
 
 
-# ─────────────────────────────────────────────────────────────
-# Sentiment Agent
-# ─────────────────────────────────────────────────────────────
-
-SENTIMENT_SCHEMA = {
-    "type": "object",
-    "required": ["sentiment_score", "verdict", "key_themes"],
-    "properties": {
-        "sentiment_score": {"type": "number", "minimum": -1.0, "maximum": 1.0},
-        "verdict": {
-            "type": "string",
-            "enum": ["STRONGLY_POSITIVE", "POSITIVE", "NEUTRAL", "NEGATIVE", "STRONGLY_NEGATIVE"],
-        },
-        "key_themes": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
-    },
-}
-
-
-def build_sentiment_prompt(symbol: str, headlines: list[str]) -> str:
-    headlines_text = "\n".join(f"- {h}" for h in headlines[:20])
-    return f"""You are a financial sentiment analyst specializing in the Indian stock market.
-Analyze these recent news headlines about {symbol} and return a sentiment assessment.
-Score: -1.0 = extremely bearish, 0.0 = neutral, 1.0 = extremely bullish.
-Focus on: earnings, management actions, regulatory news, sector tailwinds/headwinds.
-
-Headlines:
-{headlines_text}{_json_schema_footer(SENTIMENT_SCHEMA)}"""
-
-
-# ─────────────────────────────────────────────────────────────
-# Fundamental Agent
-# ─────────────────────────────────────────────────────────────
-
-FUNDAMENTAL_SCHEMA = {
-    "type": "object",
-    "required": ["valuation_verdict", "valuation_commentary"],
-    "properties": {
-        "valuation_verdict": {"type": "string", "enum": ["OVERVALUED", "FAIR", "UNDERVALUED"]},
-        "valuation_commentary": {"type": "string"},
-    },
-}
-
-
-def build_fundamental_prompt(symbol: str, fundamental_data: dict) -> str:
-    return f"""You are a fundamental analyst covering Indian equities.
-Assess the valuation of {symbol} based on the following data.
-Compare stock P/E vs sector P/E. Consider promoter holding as a governance signal.
-
-Fundamental Data:
-{json.dumps(fundamental_data, indent=2)}{_json_schema_footer(FUNDAMENTAL_SCHEMA)}"""
-
-
-# ─────────────────────────────────────────────────────────────
 # Critic Agent
-# ─────────────────────────────────────────────────────────────
 
 CRITIC_SCHEMA = {
     "type": "object",
@@ -300,9 +238,7 @@ Sage Scenarios:
 {json.dumps(sage_outputs, indent=2)}{_json_schema_footer(CRITIC_SCHEMA)}"""
 
 
-# ─────────────────────────────────────────────────────────────
 # Legacy aliases (kept for backwards compatibility)
-# ─────────────────────────────────────────────────────────────
 
 ORACLE_PROMPT_TEMPLATE = """{holding_data}\n{quote_data}"""  # replaced by build_oracle_prompt
 SCRIBE_PROMPT_TEMPLATE = (

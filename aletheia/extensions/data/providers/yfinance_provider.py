@@ -21,11 +21,13 @@ class YFinanceProvider(MarketDataProvider):
     async def get_quote(self, symbol: str, exchange: str) -> list[MarketQuote]:
         import asyncio
 
+        # imported here: aletheia.core.marketdata imports the providers, so a module-level import
+        # would be circular depending on which side is loaded first
+        from aletheia.core.marketdata.symbols import yahoo_symbol
+
         ticker_symbol = symbol
-        if exchange.upper() == "NSE" and not symbol.endswith(".NS"):
-            ticker_symbol = f"{symbol}.NS"
-        elif exchange.upper() == "BSE" and not symbol.endswith(".BO"):
-            ticker_symbol = f"{symbol}.BO"
+        if exchange.upper() in ("NSE", "BSE", "BINANCE") or "/" in symbol:
+            ticker_symbol = yahoo_symbol(symbol, exchange)
 
         loop = asyncio.get_event_loop()
 

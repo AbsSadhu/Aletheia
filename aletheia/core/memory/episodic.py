@@ -38,10 +38,6 @@ class EpisodicMemory:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    # ------------------------------------------------------------------
-    # Init
-    # ------------------------------------------------------------------
-
     def _init_db(self) -> None:
         with self._conn() as conn:
             conn.execute("""
@@ -56,7 +52,6 @@ class EpisodicMemory:
                     full_text  TEXT DEFAULT ''
                 )
             """)
-            # FTS5 virtual table that shadows episodes
             conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts
                 USING fts5(
@@ -69,7 +64,6 @@ class EpisodicMemory:
                     content_rowid='rowid'
                 )
             """)
-            # Triggers to keep FTS in sync
             conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS episodes_ai
                 AFTER INSERT ON episodes BEGIN
@@ -90,10 +84,6 @@ class EpisodicMemory:
         conn.row_factory = sqlite3.Row
         return conn
 
-    # ------------------------------------------------------------------
-    # Ingest
-    # ------------------------------------------------------------------
-
     def ingest_run_result(self, run_result: Any) -> str:
         """
         Ingest a completed RunResult into episodic memory.
@@ -104,16 +94,13 @@ class EpisodicMemory:
         created_at = run_result.summary.created_at.isoformat()
         insights = "\n".join(run_result.insights or [])
 
-        # Extract symbols from collector output
         symbols_list = [o.symbol for o in (run_result.collector_output or [])]
         symbols = ",".join(symbols_list)
 
-        # Flatten oracle signals to JSON
         signals: dict[str, str] = {}
         for o in run_result.oracle_output or []:
             signals[o.symbol] = o.signal
 
-        # Scribe summary
         scribe_summary = ""
         if run_result.scribe_output:
             scribe_summary = run_result.scribe_output.executive_summary
@@ -144,10 +131,6 @@ class EpisodicMemory:
         logger.info("EpisodicMemory: ingested run %s (symbols: %s)", run_id, symbols)
         return episode_id
 
-    # ------------------------------------------------------------------
-    # Search
-    # ------------------------------------------------------------------
-
     def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
         """
         FTS5 full-text search over run history.
@@ -156,7 +139,6 @@ class EpisodicMemory:
         if not query.strip():
             return []
 
-        # Sanitize query for FTS5 (remove special chars that break FTS5 syntax)
         safe_query = _sanitize_fts_query(query)
 
         try:
@@ -233,11 +215,8 @@ class EpisodicMemory:
 
 def _sanitize_fts_query(query: str) -> str:
     """Strip FTS5-special characters to prevent query parse errors."""
-    # Keep alphanumerics, spaces, dots — remove FTS5 operators
     safe = "".join(c if c.isalnum() or c in " .-_" else " " for c in query)
-    # Collapse whitespace
     parts = safe.split()
     if not parts:
         return '""'
-    # Join with implicit AND
     return " ".join(parts)

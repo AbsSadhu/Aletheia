@@ -6,14 +6,8 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Shield,
-  Cpu,
-  Eye,
-  BookOpen,
-  PenTool,
   AlertTriangle,
   Clock,
-  CheckCircle2,
   Download,
   FileSpreadsheet,
   Newspaper,
@@ -21,15 +15,30 @@ import {
   Activity,
 } from "lucide-react";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8899";
 
-function triggerDownload(url: string): void {
+/** Fetch the file first so a server error is shown instead of silently saving an error page. */
+async function downloadExport(url: string, fallbackName: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      /* body was not JSON */
+    }
+    throw new Error(detail);
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "")?.[1] ?? fallbackName;
+  const href = URL.createObjectURL(await res.blob());
   const a = document.createElement("a");
-  a.href = url;
+  a.href = href;
+  a.download = name;
   a.style.display = "none";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(href), 10_000);
+  return name;
 }
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -37,26 +46,33 @@ import {
 } from "recharts";
 
 import TopBar from "../components/TopBar";
-import { getRun, getRunEvents, getWebSocketUrl } from "../lib/api";
+import { toneBadge } from "../lib/tone";
+import AgentFlow3D from "../components/AgentFlow3D";
+import { API_BASE_URL, getRun, getRunEvents, getWebSocketUrl } from "../lib/api";
 import { notifyRunFinished } from "../lib/desktop";
+import { AGENT_STEPS } from "../lib/agents";
+import { displayStatus, isAgentEvent, parseRunFrame, stepStatusFor } from "../lib/runProgress";
 import type { RunResult, AgentEvent } from "../lib/types";
 
 const TABS = ["Overview", "Oracle Signals", "Risk", "Tax Scenarios", "Extended Signals", "Recommendations", "Live Timeline"] as const;
 type Tab = (typeof TABS)[number];
 
-const AGENT_STEPS = [
-  { key: "collector", label: "Collector", icon: Cpu, desc: "Market Data" },
-  { key: "oracle", label: "Oracle", icon: Eye, desc: "Trend Analysis" },
-  { key: "sentinel", label: "Sentinel", icon: Shield, desc: "Risk Check" },
-  { key: "sage", label: "Sage", icon: BookOpen, desc: "Tax Scenario" },
-  { key: "scribe", label: "Scribe", icon: PenTool, desc: "Synthesis" },
-];
-
 export default function RunDetail() {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
   const [run, setRun] = useState<RunResult | null>(null);
+  const [exportNote, setExportNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [events, setEvents] = useState<AgentEvent[]>([]);
+  const exportAs = async (format: "pdf" | "excel") => {
+    setExportNote({ ok: true, text: `Preparing ${format === "pdf" ? "PDF" : "Excel"}…` });
+    try {
+      const name = await downloadExport(`${API_BASE_URL}/api/v1/runs/${runId}/export?format=${format}`, `aletheia_run.${format === "pdf" ? "pdf" : "xlsx"}`);
+      setExportNote({ ok: true, text: `Saved ${name} to your Downloads folder.` });
+    } catch (e) {
+      setExportNote({ ok: false, text: `Export failed: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  };
+  const [agentStatuses, setAgentStatuses] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<Tab>("Overview");
   const [error, setError] = useState<string | null>(null);
   const [expandedPayloadIndex, setExpandedPayloadIndex] = useState<number | null>(null);
@@ -73,11 +89,12 @@ export default function RunDetail() {
         setError(null);
         const data = await getRun(id);
         setRun(data);
+        setAgentStatuses(data.summary.agent_statuses ?? {});
 
         // Fetch initial events
         try {
           const eventsRes = await getRunEvents(id);
-          setEvents(eventsRes.events);
+          setEvents(eventsRes.events.filter(isAgentEvent));
         } catch {
           // ignore if events fallback endpoint fails
         }
@@ -89,8 +106,13 @@ export default function RunDetail() {
           socket = new WebSocket(wsUrl);
 
           socket.onmessage = (event) => {
-            const parsed = JSON.parse(event.data);
-            if (parsed.message === "stream_complete") {
+            const frame = parseRunFrame(String(event.data));
+            if (frame.kind === "ignore") return;
+            if (frame.kind === "progress") {
+              setAgentStatuses(frame.statuses);
+              return;
+            }
+            if (frame.kind === "complete") {
               // Refresh run data to get the full final result
               getRun(id)
                 .then((finalRun) => {
@@ -101,6 +123,7 @@ export default function RunDetail() {
                 .catch(() => {});
               socket?.close();
             } else {
+              const parsed = frame.event;
               setEvents((prev) => {
                 // Prevent duplicate events
                 if (prev.some((e) => e.timestamp === parsed.timestamp && e.message === parsed.message)) {
@@ -122,9 +145,10 @@ export default function RunDetail() {
               try {
                 const refreshed = await getRun(id);
                 setRun(refreshed);
+                setAgentStatuses(refreshed.summary.agent_statuses ?? {});
 
                 const eventsRes = await getRunEvents(id);
-                setEvents(eventsRes.events);
+                setEvents(eventsRes.events.filter(isAgentEvent));
 
                 if (refreshed.summary.status === "completed" || refreshed.summary.status === "failed") {
                   if (fallbackTimer) clearInterval(fallbackTimer);
@@ -191,39 +215,18 @@ export default function RunDetail() {
   const recs = scribe?.recommendations ?? [];
 
   // Determine active agent pipeline step
-  const getStepStatus = (stepKey: string) => {
-    const status = run.summary.status;
-    if (status === "completed") return "completed";
-    if (status === "failed") return "failed";
-
-    // Trace active agent based on events
-    if (events.length === 0) {
-      return stepKey === "collector" ? "active" : "pending";
-    }
-
-    const lastEvent = events[events.length - 1];
-    const activeAgent = lastEvent.agent.toLowerCase();
-
-    // Map order
-    const stepOrder = ["collector", "oracle", "sentinel", "sage", "scribe"];
-    const targetIdx = stepOrder.indexOf(stepKey);
-    const activeIdx = stepOrder.indexOf(activeAgent);
-
-    if (activeIdx === targetIdx) return "active";
-    if (targetIdx < activeIdx) return "completed";
-    return "pending";
-  };
+  const shownStatus = displayStatus(run.summary.status, events, agentStatuses);
+  const getStepStatus = (stepKey: string) => stepStatusFor(stepKey, run.summary.status, agentStatuses, events);
 
   return (
     <>
       <TopBar title={`Run: ${run.summary.prompt}`} />
       <div className="page-shell">
-        {/* Back + Header Bar */}
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-5)" }}>
           <button className="btn btn-ghost" onClick={() => navigate("/")} style={{ padding: "8px" }}>
             <ArrowLeft size={16} />
           </button>
-          <span className={`badge badge-${run.summary.status}`}>{run.summary.status}</span>
+          <span className={`badge badge-${shownStatus}`}>{shownStatus}</span>
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
             {new Date(run.summary.created_at).toLocaleString()}
           </span>
@@ -238,9 +241,7 @@ export default function RunDetail() {
               className="btn btn-secondary"
               style={{ fontSize: "var(--text-xs)", padding: "6px 12px", gap: 5 }}
               title="Export PDF Report"
-              onClick={() =>
-                triggerDownload(`${API_BASE_URL}/api/v1/runs/${runId}/export?format=pdf`)
-              }
+              onClick={() => void exportAs("pdf")}
             >
               <Download size={13} /> PDF
             </button>
@@ -248,16 +249,18 @@ export default function RunDetail() {
               className="btn btn-secondary"
               style={{ fontSize: "var(--text-xs)", padding: "6px 12px", gap: 5 }}
               title="Export Excel Workbook"
-              onClick={() =>
-                triggerDownload(`${API_BASE_URL}/api/v1/runs/${runId}/export?format=excel`)
-              }
+              onClick={() => void exportAs("excel")}
             >
               <FileSpreadsheet size={13} /> Excel
             </button>
           </div>
+          {exportNote && (
+            <div role="status" style={{ width: "100%", fontSize: "var(--text-xs)", color: exportNote.ok ? "var(--text-secondary)" : "var(--red, #ef4444)" }}>
+              {exportNote.text}
+            </div>
+          )}
         </div>
 
-        {/* Live Execution Steps Progress Bar */}
         {(run.summary.status === "running" || run.summary.status === "pending") && (
           <div className="card" style={{ marginBottom: "var(--space-5)", background: "var(--bg-surface)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "var(--space-4)" }}>
@@ -266,73 +269,12 @@ export default function RunDetail() {
                 Agent Orchestrator Pipeline Executing...
               </div>
             </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(5, 1fr)",
-                gap: "var(--space-2)",
-                position: "relative",
-              }}
-            >
-              {AGENT_STEPS.map((step, idx) => {
-                const stepStatus = getStepStatus(step.key);
-                return (
-                  <div
-                    key={step.key}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      padding: "var(--space-3)",
-                      borderRadius: "var(--radius-md)",
-                      background:
-                        stepStatus === "active"
-                          ? "var(--accent-muted)"
-                          : stepStatus === "completed"
-                            ? "var(--green-muted)"
-                            : "var(--bg-elevated)",
-                      border:
-                        stepStatus === "active"
-                          ? "1px solid var(--accent)"
-                          : stepStatus === "completed"
-                            ? "1px solid var(--green)"
-                            : "1px solid var(--border-subtle)",
-                      opacity: stepStatus === "pending" ? 0.5 : 1,
-                      textAlign: "center",
-                      transition: "all var(--transition-base)",
-                    }}
-                    className={stepStatus === "active" ? "pulse" : ""}
-                  >
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "50%",
-                        background:
-                          stepStatus === "completed"
-                            ? "var(--green)"
-                            : stepStatus === "active"
-                              ? "var(--accent)"
-                              : "var(--bg-input)",
-                        color: stepStatus === "completed" || stepStatus === "active" ? "white" : "var(--text-muted)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginBottom: 6,
-                      }}
-                    >
-                      {stepStatus === "completed" ? <CheckCircle2 size={16} /> : <step.icon size={16} />}
-                    </div>
-                    <div style={{ fontSize: "var(--text-xs)", fontWeight: 600 }}>{step.label}</div>
-                    <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{step.desc}</div>
-                  </div>
-                );
-              })}
-            </div>
+            <AgentFlow3D
+              steps={AGENT_STEPS.map((step) => ({ key: step.key, label: step.label, status: getStepStatus(step.key) }))}
+            />
           </div>
         )}
 
-        {/* Executive Summary */}
         {scribe && (
           <div className="card" style={{ marginBottom: "var(--space-5)", borderLeft: "4px solid var(--accent)" }}>
             <div className="card-subtitle" style={{ marginBottom: "var(--space-2)" }}>Executive Summary</div>
@@ -363,7 +305,6 @@ export default function RunDetail() {
           </div>
         )}
 
-        {/* Tabs */}
         <div className="tabs">
           {TABS.map((t) => (
             <button
@@ -376,7 +317,6 @@ export default function RunDetail() {
           ))}
         </div>
 
-        {/* Overview Tab */}
         {tab === "Overview" && (
           <div>
             <DataWarnings warnings={dataWarnings} />
@@ -436,7 +376,6 @@ export default function RunDetail() {
           </div>
         )}
 
-        {/* Oracle Signals Tab */}
         {tab === "Oracle Signals" && (
           <div className="grid-auto">
             {oracleOutputs.map((oracle) => (
@@ -446,9 +385,7 @@ export default function RunDetail() {
                     {oracle.symbol}
                   </span>
                   <span
-                    className={`badge ${
-                      oracle.signal === "BUY" ? "badge-buy" : oracle.signal === "REDUCE" ? "badge-reduce" : "badge-hold"
-                    }`}
+                    className={`badge ${toneBadge(oracle.signal)}`}
                   >
                     {oracle.signal === "BUY" && <TrendingUp size={12} />}
                     {oracle.signal === "REDUCE" && <TrendingDown size={12} />}
@@ -492,7 +429,6 @@ export default function RunDetail() {
           </div>
         )}
 
-        {/* Risk Tab */}
         {tab === "Risk" && sentinel && (
           <div className="grid-2">
             <div className="card">
@@ -565,7 +501,6 @@ export default function RunDetail() {
           </div>
         )}
 
-        {/* Tax Scenarios Tab */}
         {tab === "Tax Scenarios" && (
           <div>
             {sageOutputs.length > 0 && (
@@ -577,9 +512,9 @@ export default function RunDetail() {
                     preTax: s.scenario.projected_return_pct,
                     postTax: s.scenario.projected_post_tax_return_pct,
                   }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis dataKey="symbol" tick={{ fill: "#8b95a8", fontSize: 12 }} />
-                    <YAxis tick={{ fill: "#8b95a8", fontSize: 12 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                    <XAxis dataKey="symbol" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} />
+                    <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 12 }} />
                     <Tooltip
                       contentStyle={{
                         background: "var(--bg-elevated)",
@@ -589,8 +524,8 @@ export default function RunDetail() {
                       }}
                       formatter={(value) => `${Number(value).toFixed(2)}%`}
                     />
-                    <Bar dataKey="preTax" name="Pre-Tax Return" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="postTax" name="Post-Tax Return" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="preTax" name="Pre-Tax Return" fill="var(--accent-2)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="postTax" name="Post-Tax Return" fill="var(--teal)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -638,7 +573,6 @@ export default function RunDetail() {
           </div>
         )}
 
-        {/* Extended Signals Tab */}
         {tab === "Extended Signals" && (
           <div>
             {sentimentOutputs.length === 0 && fundamentalOutputs.length === 0 && optionsFlowOutputs.length === 0 && (
@@ -663,13 +597,7 @@ export default function RunDetail() {
                           {s.symbol}
                         </span>
                         <span
-                          className={`badge ${
-                            s.verdict === "STRONGLY_POSITIVE" || s.verdict === "POSITIVE"
-                              ? "badge-buy"
-                              : s.verdict === "STRONGLY_NEGATIVE" || s.verdict === "NEGATIVE"
-                                ? "badge-reduce"
-                                : "badge-hold"
-                          }`}
+                          className={`badge ${toneBadge(s.verdict)}`}
                         >
                           {s.verdict.replace("_", " ")}
                         </span>
@@ -712,13 +640,7 @@ export default function RunDetail() {
                           {f.symbol}
                         </span>
                         <span
-                          className={`badge ${
-                            f.valuation_verdict === "UNDERVALUED"
-                              ? "badge-buy"
-                              : f.valuation_verdict === "OVERVALUED"
-                                ? "badge-reduce"
-                                : "badge-hold"
-                          }`}
+                          className={`badge ${toneBadge(f.valuation_verdict)}`}
                         >
                           {f.valuation_verdict}
                         </span>
@@ -771,9 +693,7 @@ export default function RunDetail() {
                           {o.symbol}
                         </span>
                         <span
-                          className={`badge ${
-                            o.oi_concentration === "BULLISH_OI" ? "badge-buy" : o.oi_concentration === "BEARISH_OI" ? "badge-reduce" : "badge-hold"
-                          }`}
+                          className={`badge ${toneBadge(o.oi_concentration)}`}
                         >
                           {o.oi_concentration.replace("_", " ")}
                         </span>
@@ -804,7 +724,6 @@ export default function RunDetail() {
           </div>
         )}
 
-        {/* Recommendations Tab */}
         {tab === "Recommendations" && (
           <div className="grid-auto">
             {recs.map((rec) => (
@@ -812,9 +731,7 @@ export default function RunDetail() {
                 <div className="rec-card-header">
                   <span className="rec-card-symbol">{rec.symbol}</span>
                   <span
-                    className={`badge ${
-                      rec.action === "BUY" ? "badge-buy" : rec.action === "REDUCE" ? "badge-reduce" : "badge-hold"
-                    }`}
+                    className={`badge ${toneBadge(rec.action)}`}
                   >
                     {rec.action === "BUY" && <TrendingUp size={12} />}
                     {rec.action === "REDUCE" && <TrendingDown size={12} />}
@@ -844,7 +761,6 @@ export default function RunDetail() {
           </div>
         )}
 
-        {/* Live Timeline Tab */}
         {tab === "Live Timeline" && (
           <div className="card">
             <div className="card-header" style={{ marginBottom: "var(--space-4)" }}>
@@ -895,7 +811,6 @@ export default function RunDetail() {
                         {new Date(evt.timestamp).toLocaleTimeString()}
                       </div>
 
-                      {/* Optional Expandable payload details */}
                       {evt.payload && (
                         <div style={{ marginTop: 8 }}>
                           <button

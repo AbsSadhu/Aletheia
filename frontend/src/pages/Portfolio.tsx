@@ -1,19 +1,10 @@
 import { useEffect, useState, useRef } from "react";
-import {
-  Briefcase,
-  Plus,
-  Trash2,
-  Upload,
-  Edit2,
-  Save,
-  X,
-  Check,
-  FileSpreadsheet,
-  Info,
-  DollarSign,
-  Cpu,
-} from "lucide-react";
+import { Briefcase, Plus, Trash2, Upload, Edit2, X, Check, FileSpreadsheet, Info, Cpu, XCircle } from "lucide-react";
+import HoldingsObject3D from "../components/HoldingsObject3D";
+import SafeLink from "../components/SafeLink";
 import TopBar from "../components/TopBar";
+import { symbolPath } from "../lib/symbols";
+import PageHero from "../components/PageHero";
 
 import {
   listPortfolios,
@@ -78,7 +69,7 @@ export default function Portfolio() {
   const [quantityInput, setQuantityInput] = useState("");
   const [priceInput, setPriceInput] = useState("");
   const [assetTypeInput, setAssetTypeInput] = useState<Holding["asset_type"]>("equity");
-  const [exchangeInput, setExchangeInput] = useState("NSE");
+  const [exchangeInput] = useState("NSE");
   const [taxProfileInput, setTaxProfileInput] = useState<Holding["tax_profile"]>("equity");
   const [symbolSuggestions, setSymbolSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -467,6 +458,7 @@ export default function Portfolio() {
     <>
       <TopBar title="Portfolio Manager" onRefresh={() => void loadData()} loading={loading} />
       <div className="page-shell">
+        <PageHero variant="ridge" headline="Your holdings, priced and weighed." sub="Add positions by hand, paste a CSV, or sync from Zerodha. Everything stays on this machine." />
         {error && (
           <div
             style={{
@@ -479,7 +471,7 @@ export default function Portfolio() {
               whiteSpace: "pre-line",
             }}
           >
-            ❌ {error}
+            <XCircle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />{error}
           </div>
         )}
         {successMsg && (
@@ -501,7 +493,6 @@ export default function Portfolio() {
         )}
 
         <div className="grid-layout-portfolio" style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "var(--space-5)" }}>
-          {/* Left Panel: Portfolio List */}
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
             <div className="card" style={{ padding: "var(--space-4)" }}>
               <div
@@ -637,7 +628,6 @@ export default function Portfolio() {
               </div>
             </div>
 
-            {/* Quick CSV helper info card */}
             <div className="card" style={{ padding: "var(--space-4)", fontSize: "var(--text-xs)", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, color: "var(--text-primary)" }}>
                 <Info size={14} className="text-secondary" /> CSV Format Guide
@@ -654,11 +644,9 @@ export default function Portfolio() {
             </div>
           </div>
 
-          {/* Right Panel: Selected Portfolio Editor */}
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
             {selectedPortfolio ? (
               <>
-                {/* Header Info */}
                 <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--space-4)" }}>
                   <div>
                     <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700 }}>{selectedPortfolio.name}</h2>
@@ -704,7 +692,6 @@ export default function Portfolio() {
                   </div>
                 </div>
 
-                {/* CSV Import Panel */}
                 {showCsvImport && (
                   <div className="card" style={{ background: "var(--bg-elevated)", border: "1px solid var(--accent)" }}>
                     <div className="card-header" style={{ marginBottom: "var(--space-3)" }}>
@@ -746,7 +733,18 @@ export default function Portfolio() {
                   </div>
                 )}
 
-                {/* Holdings Table */}
+                {selectedPortfolio.holdings.length > 0 && (
+                  <div className="card hero-3d" style={{ minHeight: 300 }}>
+                    <div className="hero-3d-title">
+                      <b>Cost allocation</b>
+                      <span>height = share of cost basis</span>
+                    </div>
+                    <HoldingsObject3D
+                      slices={selectedPortfolio.holdings.map((h) => ({ name: h.symbol, value: h.quantity * h.average_price }))}
+                    />
+                  </div>
+                )}
+
                 <div className="card">
                   <div className="card-title" style={{ marginBottom: "var(--space-4)" }}>
                     Holdings ({selectedPortfolio.holdings.length})
@@ -772,7 +770,9 @@ export default function Portfolio() {
                             return (
                               <tr key={index}>
                                 <td style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-primary)" }}>
-                                  {h.symbol}
+                                  <SafeLink to={symbolPath(h.symbol, h.exchange || "NSE")} className="sym-link" title={`Open ${h.symbol}`}>
+                                    {h.symbol}
+                                  </SafeLink>
                                 </td>
                                 <td>
                                   <span className="badge badge-pending" style={{ fontSize: 10 }}>{h.exchange}</span>
@@ -889,11 +889,9 @@ export default function Portfolio() {
                   )}
                 </div>
 
-                {/* Add Holding Form */}
                 <div className="card">
                   <div className="card-title" style={{ marginBottom: "var(--space-4)" }}>Add Holding</div>
                   <form onSubmit={handleAddHolding} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "var(--space-3)", alignItems: "flex-end" }}>
-                    {/* Symbol Input with Autocomplete */}
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)", position: "relative" }}>
                       <label style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>SYMBOL</label>
                       <input

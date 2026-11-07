@@ -13,6 +13,8 @@ class AgentContext:
     ):
         self.portfolio = portfolio
         self.memory_snapshots = memory_snapshots or []
+        # Appended to the system prompt by callers that need extra rules (e.g. the chat panel).
+        self.extra_instructions = ""
 
     @classmethod
     def from_query(cls, query: str, portfolio: Portfolio | None = None) -> "AgentContext":
@@ -68,4 +70,6 @@ class AgentContext:
             "5. If a tool returns an error, try an alternative approach or inform the user.\n"
             "6. Be specific with numbers, percentages, and dates in your final answer.\n"
         )
+        if self.extra_instructions:
+            prompt += f"\n{self.extra_instructions}\n"
         return prompt

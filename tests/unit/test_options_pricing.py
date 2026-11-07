@@ -45,3 +45,64 @@ def test_endpoint_shapes_units() -> None:
         "/api/v1/options/price", params={"spot": -1, "strike": 1, "days": 1, "vol_pct": 1}
     )
     assert bad.status_code == 422
+
+
+# --- surface endpoint ---------------------------------------------------------------------------
+
+
+def _surface(client, **over):
+    params = {"spot": 100, "strike": 100, "vol_pct": 25, "rate_pct": 7, "kind": "call", **over}
+    return client.get("/api/v1/options/surface", params=params)
+
+
+def test_surface_grid_matches_the_point_pricer() -> None:
+    from fastapi.testclient import TestClient
+
+    from aletheia.core.main import app
+
+    client = TestClient(app)
+    body = _surface(client, metric="price", max_days=60, spot_points=11, day_points=7).json()
+    assert len(body["values"]) == 7 and len(body["values"][0]) == 11
+    assert len(body["days"]) == 7 and len(body["spots"]) == 11
+    # Every grid point equals what /options/price says for the same inputs.
+    for i in (0, 3, 6):
+        for j in (0, 5, 10):
+            point = client.get(
+                "/api/v1/options/price",
+                params={
+                    "spot": body["spots"][j],
+                    "strike": 100,
+                    "days": body["days"][i],
+                    "vol_pct": 25,
+                    "rate_pct": 7,
+                    "kind": "call",
+                },
+            ).json()
+            assert body["values"][i][j] == pytest.approx(point["price"], abs=2e-3)
+    assert body["min"] == min(v for row in body["values"] for v in row)
+
+
+def test_surface_call_price_rises_with_spot_and_units_match_the_price_endpoint() -> None:
+    from fastapi.testclient import TestClient
+
+    from aletheia.core.main import app
+
+    client = TestClient(app)
+    row = _surface(client, metric="price", day_points=5).json()["values"][2]
+    assert row == sorted(row)  # a call is worth more as spot rises
+    theta = _surface(client, metric="theta", spot_points=5, day_points=5).json()
+    assert theta["max"] <= 0  # a long call loses value to time decay (per day)
+    delta = _surface(client, metric="delta", kind="put").json()
+    assert -1.0 <= delta["min"] and delta["max"] <= 0.0
+
+
+def test_surface_validates_its_inputs() -> None:
+    from fastapi.testclient import TestClient
+
+    from aletheia.core.main import app
+
+    client = TestClient(app)
+    assert _surface(client, metric="rho").status_code == 422
+    assert _surface(client, spot_range_pct=99).status_code == 422
+    assert _surface(client, max_days=1).status_code == 422
+    assert _surface(client, vol_pct=0).status_code == 422

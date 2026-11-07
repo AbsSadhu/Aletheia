@@ -1,14 +1,8 @@
+import { LineChart, FolderOpen, BarChart3, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
+import { LineArea } from "../components/charts/kit";
 import TopBar from "../components/TopBar";
+import PageHero from "../components/PageHero";
 import {
   getShadowPositions,
   getShadowOrders,
@@ -82,6 +76,7 @@ export default function ShadowTrader() {
     <>
       <TopBar title="Shadow Trader" onRefresh={() => void loadData()} loading={loading} />
       <div className="page-shell">
+        <PageHero variant="ripple" headline="A virtual book that trades on its own." sub="Shadow orders follow the analysis. Compare its curve with Nifty on Signal Validation." />
         {error && (
           <div
             className="card"
@@ -92,14 +87,14 @@ export default function ShadowTrader() {
               marginBottom: "var(--space-5)",
             }}
           >
-            ❌ {error}
+            <XCircle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />{error}
           </div>
         )}
 
         <div className="grid-4" style={{ marginBottom: "var(--space-5)" }}>
           <div className="card" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span className="stat-label">Total Equity</span>
-            <span className="stat-value" style={{ color: "var(--accent)" }}>
+            <span className="stat-value">
               ₹{(latest?.total_equity ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
             </span>
           </div>
@@ -121,7 +116,7 @@ export default function ShadowTrader() {
           </div>
           <div className="card" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span className="stat-label">Open Positions</span>
-            <span className="stat-value" style={{ color: "var(--accent)" }}>
+            <span className="stat-value">
               {positions.length}
             </span>
           </div>
@@ -131,36 +126,16 @@ export default function ShadowTrader() {
           <div className="card-header">
             <span className="card-title">Virtual Equity Curve</span>
           </div>
-          <div style={{ width: "100%", height: 280 }}>
-            <ResponsiveContainer>
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="shadowEquity" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="time" tick={{ fontSize: 11 }} />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  domain={["auto", "auto"]}
-                  tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}k`}
-                />
-                <Tooltip formatter={(v) => `₹${Number(v).toLocaleString("en-IN")}`} />
-                <Area
-                  type="monotone"
-                  dataKey="equity"
-                  stroke="var(--accent)"
-                  fill="url(#shadowEquity)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <LineArea
+            x={chartData.map((c) => c.time)}
+            series={[{ name: "Equity", data: chartData.map((c) => c.equity), tone: "accent", area: true }]}
+            format={(v) => `₹${Math.round(v).toLocaleString("en-IN")}`}
+            height={300}
+            label="Virtual equity curve"
+          />
           {chartData.length === 0 && (
             <div className="empty-state">
-              <div className="empty-state-icon">📈</div>
+              <div className="empty-state-icon"><LineChart size={26} strokeWidth={1.5} /></div>
               <div className="empty-state-title">No equity history yet</div>
               <div className="empty-state-text">
                 Submit a virtual order below to start tracking equity.
@@ -222,7 +197,7 @@ export default function ShadowTrader() {
           </div>
           {positions.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">📂</div>
+              <div className="empty-state-icon"><FolderOpen size={26} strokeWidth={1.5} /></div>
               <div className="empty-state-title">No open virtual positions</div>
             </div>
           ) : (
@@ -278,7 +253,7 @@ export default function ShadowTrader() {
           </div>
           {orders.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">📊</div>
+              <div className="empty-state-icon"><BarChart3 size={26} strokeWidth={1.5} /></div>
               <div className="empty-state-title">No virtual orders yet</div>
             </div>
           ) : (

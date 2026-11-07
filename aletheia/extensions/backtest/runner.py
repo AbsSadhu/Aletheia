@@ -1,8 +1,11 @@
+import math
 import uuid
 import logging
 from typing import List, Dict, Any
+from aletheia.extensions.backtest.execution_costs import ExecutionCosts
 from aletheia.extensions.backtest.models import BacktestResult, Order, Position
 from aletheia.extensions.backtest.metrics import (
+    split_segments,
     calculate_sharpe_ratio,
     calculate_max_drawdown,
     calculate_win_rate,
@@ -12,11 +15,17 @@ from aletheia.extensions.backtest.metrics import (
 logger = logging.getLogger(__name__)
 
 
+def _finite_or_none(value: float) -> float | None:
+    return value if math.isfinite(value) else None
+
+
 class BacktestRunner:
     """Event-driven backtest execution engine."""
 
-    def __init__(self, initial_capital: float = 100000.0):
+    def __init__(self, initial_capital: float = 100000.0, costs: ExecutionCosts | None = None):
         self.initial_capital = initial_capital
+        self.costs = costs
+        self.total_costs_paid = 0.0
         self.current_capital = initial_capital
         self.orders: List[Order] = []
         self.positions: Dict[str, Position] = {}
@@ -49,12 +58,23 @@ class BacktestRunner:
                 if current_price is None:
                     continue
 
-                order.filled_price = current_price
+                fill_price = current_price
+                if self.costs is not None:
+                    fill_price = (
+                        self.costs.apply_to_buy(current_price)
+                        if order.action == "buy"
+                        else self.costs.apply_to_sell(current_price)
+                    )
+                order.filled_price = fill_price
                 order.status = "filled"
 
                 if order.action == "buy":
-                    cost = order.quantity * current_price
-                    if self.current_capital >= cost:
+                    cost = order.quantity * fill_price
+                    if self.current_capital < cost:
+                        order.status = "rejected"
+                        order.filled_price = None
+                    else:
+                        self.total_costs_paid += order.quantity * (fill_price - current_price)
                         self.current_capital -= cost
                         if order.symbol in self.positions:
                             pos = self.positions[order.symbol]
@@ -65,7 +85,7 @@ class BacktestRunner:
                             self.positions[order.symbol] = Position(
                                 symbol=order.symbol,
                                 quantity=order.quantity,
-                                average_entry_price=current_price,
+                                average_entry_price=fill_price,
                                 current_price=current_price,
                             )
                 elif order.action == "sell":
@@ -74,16 +94,20 @@ class BacktestRunner:
                         and self.positions[order.symbol].quantity >= order.quantity
                     ):
                         pos = self.positions[order.symbol]
-                        revenue = order.quantity * current_price
+                        revenue = order.quantity * fill_price
                         self.current_capital += revenue
+                        self.total_costs_paid += order.quantity * (current_price - fill_price)
 
-                        # Calculate PnL for this trade
-                        pnl = (current_price - pos.average_entry_price) * order.quantity
+                        # Calculate PnL for this trade (net of costs: entry and exit are fill prices)
+                        pnl = (fill_price - pos.average_entry_price) * order.quantity
                         self.trades_pnl.append(pnl)
 
                         pos.quantity -= order.quantity
                         if pos.quantity == 0:
                             del self.positions[order.symbol]
+                    else:
+                        order.status = "rejected"
+                        order.filled_price = None
 
     def update_equity(self, current_data: Dict[str, Any]) -> None:
         """Updates portfolio value based on current prices."""
@@ -110,7 +134,7 @@ class BacktestRunner:
             "sharpe_ratio": calculate_sharpe_ratio(self.daily_returns),
             "max_drawdown": calculate_max_drawdown(self.equity_curve),
             "win_rate": calculate_win_rate(self.trades_pnl),
-            "profit_factor": calculate_profit_factor(self.trades_pnl),
+            "profit_factor": _finite_or_none(calculate_profit_factor(self.trades_pnl)),
             "total_trades": len(self.trades_pnl),
         }
 
@@ -127,4 +151,7 @@ class BacktestRunner:
             metrics=metrics,
             orders=self.orders,
             equity_curve=equity_data,
+            costs_paid=self.total_costs_paid,
+            cost_model=self.costs.asset_class if self.costs else None,
+            segments=split_segments(self.equity_curve),
         )

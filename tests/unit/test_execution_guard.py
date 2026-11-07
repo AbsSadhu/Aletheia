@@ -112,3 +112,20 @@ async def test_scanner_ignores_low_confidence_and_bad_data(tmp_path) -> None:
     weak = OracleOutput(symbol="X", signal="BUY", confidence=0.4)
     nodata = OracleOutput(symbol="Y", signal="BUY", confidence=0.9, data_quality="stale")
     assert await scanner.scan([weak, nodata]) == []
+
+
+async def test_gains_from_a_fully_closed_position_stay_in_the_account(tmp_path) -> None:
+    engine = _Engine(100.0)
+    trader = PaperTrader(
+        ExecutionStorage(tmp_path / "e.sqlite3"),
+        engine,
+        guard=ExecutionGuard(SETTINGS),
+        starting_cash=1_000_000,
+    )
+    await trader.submit_order(OrderRequest(symbol="X", side="BUY", quantity=1000))
+    engine.price = 110.0
+    await trader.submit_order(OrderRequest(symbol="X", side="SELL", quantity=1000))
+
+    equity, cash = trader._account_state()
+    assert equity == 1_010_000  # 1,000 shares x +10, nothing is held any more
+    assert cash == 1_010_000

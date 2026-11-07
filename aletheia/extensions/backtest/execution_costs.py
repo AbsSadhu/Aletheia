@@ -11,6 +11,13 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+# Delivery equity, approximate: STT 0.1% each side, stamp duty 0.015% on the buy, exchange
+# transaction charge about 0.003%. Rates change and DP charges are left out, so treat these as
+# a floor, not a bill. Intraday and F&O are charged differently.
+DELIVERY_STATUTORY_BUY_BPS = 11.8
+DELIVERY_STATUTORY_SELL_BPS = 10.3
+
+
 class ExecutionCosts(BaseModel):
     """Realistic execution cost model for a specific asset class."""
 
@@ -19,6 +26,13 @@ class ExecutionCosts(BaseModel):
     bid_ask_spread_bps: float = Field(1.0, ge=0.0, description="Half-spread in basis points")
     latency_ms: float = Field(50.0, ge=0.0, description="Order submission latency in milliseconds")
     commission_bps: float = Field(2.0, ge=0.0, description="Broker commission in basis points")
+    # Statutory charges differ per side (delivery equity: STT both sides, stamp duty on the buy).
+    statutory_buy_bps: float = Field(
+        default=0.0, ge=0.0, description="Taxes and exchange fees on a buy, in basis points"
+    )
+    statutory_sell_bps: float = Field(
+        default=0.0, ge=0.0, description="Taxes and exchange fees on a sell, in basis points"
+    )
 
     @classmethod
     def for_asset_class(cls, asset_class: str) -> "ExecutionCosts":
@@ -30,6 +44,8 @@ class ExecutionCosts(BaseModel):
                 bid_ask_spread_bps=1.0,
                 latency_ms=50.0,
                 commission_bps=2.0,
+                statutory_buy_bps=DELIVERY_STATUTORY_BUY_BPS,
+                statutory_sell_bps=DELIVERY_STATUTORY_SELL_BPS,
             ),
             "equity_bse": cls(
                 asset_class="equity_bse",
@@ -37,6 +53,8 @@ class ExecutionCosts(BaseModel):
                 bid_ask_spread_bps=2.0,
                 latency_ms=80.0,
                 commission_bps=2.0,
+                statutory_buy_bps=DELIVERY_STATUTORY_BUY_BPS,
+                statutory_sell_bps=DELIVERY_STATUTORY_SELL_BPS,
             ),
             "fno": cls(
                 asset_class="fno",
@@ -64,17 +82,28 @@ class ExecutionCosts(BaseModel):
 
     def apply_to_buy(self, close_price: float) -> float:
         """Compute realistic fill price for a BUY order."""
-        total_bps = self.slippage_bps + self.bid_ask_spread_bps + self.commission_bps
+        total_bps = (
+            self.slippage_bps
+            + self.bid_ask_spread_bps
+            + self.commission_bps
+            + self.statutory_buy_bps
+        )
         return close_price * (1 + total_bps / 10_000)
 
     def apply_to_sell(self, close_price: float) -> float:
         """Compute realistic fill price for a SELL order."""
-        total_bps = self.slippage_bps + self.bid_ask_spread_bps + self.commission_bps
+        total_bps = (
+            self.slippage_bps
+            + self.bid_ask_spread_bps
+            + self.commission_bps
+            + self.statutory_sell_bps
+        )
         return close_price * (1 - total_bps / 10_000)
 
     def total_round_trip_cost_bps(self) -> float:
         """Total cost for a buy + sell round trip in basis points."""
-        return 2 * (self.slippage_bps + self.bid_ask_spread_bps + self.commission_bps)
+        one_way = self.slippage_bps + self.bid_ask_spread_bps + self.commission_bps
+        return 2 * one_way + self.statutory_buy_bps + self.statutory_sell_bps
 
     def latency_bars_delay(self, bar_duration_seconds: float = 86400.0) -> int:
         """

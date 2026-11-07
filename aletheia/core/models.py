@@ -21,7 +21,6 @@ def coerce_none_and_nan(cls, data: Any) -> Any:
                 val = data[field_name]
                 ann_str = str(annotation)
 
-                # Check for strict float vs optional float
                 is_strict_float = annotation is float or annotation == "float"
 
                 if is_strict_float:
@@ -32,7 +31,6 @@ def coerce_none_and_nan(cls, data: Any) -> Any:
                 elif isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
                     data[field_name] = 0.0
 
-                # Check if it is a dictionary of floats
                 if "dict[str, float]" in ann_str or "Dict[str, float]" in ann_str:
                     if isinstance(val, dict):
                         cleaned = {}
@@ -150,6 +148,11 @@ class RunStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
 
+    @property
+    def is_terminal(self) -> bool:
+        """True once the run has stopped for good (a partial run is finished, with some agents failed)."""
+        return self in (RunStatus.PARTIAL, RunStatus.COMPLETED, RunStatus.FAILED)
+
 
 class AssetType(str, Enum):
     EQUITY = "equity"
@@ -165,25 +168,6 @@ class TaxProfile(str, Enum):
     FNO = "fno"
     CRYPTO = "crypto"
     MUTUAL_FUND = "mutual_fund"
-
-
-class DesktopSettings(BaseModel):
-    backend_url: str = "http://127.0.0.1:8899"
-    offline_mode: bool = True
-    ollama_endpoint: str = "http://127.0.0.1:11434"
-    export_permissions: list[str] = Field(default_factory=lambda: ["reports", "csv", "json"])
-
-
-class SecureCredentialRef(BaseModel):
-    key: str
-    provider: str
-    scope: str = "local_machine"
-
-
-class DesktopRunBridge(BaseModel):
-    run_id: str
-    status: RunStatus
-    websocket_url: str
 
 
 class Holding(BaseModel):

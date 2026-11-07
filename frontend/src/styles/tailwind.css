@@ -1,0 +1,43 @@
+/*
+  CSS entry: Tailwind v4 + the Astryx design system, coexisting with the legacy hand-written CSS
+  while pages migrate.
+
+  Cascade layers decide who wins, not specificity. Lowest to highest:
+    reset          Astryx's reset (it only fills gaps; every layer above it overrides it)
+    theme          Tailwind's design tokens
+    base           (Tailwind's preflight is deliberately NOT imported; Astryx's reset covers it)
+    legacy         app.css, chat.css, chart.css (each file wraps itself in `@layer legacy`)
+    astryx-base    Astryx component styles
+    astryx-theme   the active Astryx theme's token overrides
+    components
+    utilities      Tailwind utilities
+
+  `legacy` sits BELOW `astryx-base` on purpose: legacy has a global `* { margin: 0; padding: 0 }`
+  that would otherwise cancel the spacing inside every Astryx component.
+
+  Token names: Tailwind's `--text-*` / `--radius-*` scales share names with the legacy tokens.
+  `legacy` is above `theme`, so the app's own values win for those.
+*/
+@layer reset, theme, base, legacy, astryx-base, astryx-theme, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "@astryxdesign/core/reset.css";
+@import "@astryxdesign/core/astryx.css";
+@import "@astryxdesign/theme-neutral/theme.css";
+/* Astryx tokens as Tailwind utilities: bg-surface, text-secondary, border-border, rounded-md... */
+@import "@astryxdesign/core/tailwind-theme.css";
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* `dark:` follows the app's data-theme attribute (which Astryx's <Theme> keeps in sync). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+  Legacy compatibility. <Theme> renders a wrapper <div> that sets its own font family/size/line
+  height, which every legacy element would inherit instead of body's. Make the root wrapper
+  transparent to layout and typography (unlayered, so it beats the layered Astryx styles).
+  Astryx components set their own type via tokens, so they are unaffected.
+*/
+#root > [data-astryx-theme] {
+  display: contents;
+  font: inherit;
+}

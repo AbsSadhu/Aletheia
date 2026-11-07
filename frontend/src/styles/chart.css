@@ -1,0 +1,79 @@
+@layer legacy {
+/* Live Market candlestick chart: flat and data-first, matching the chat chart widget. */
+
+.pc { margin: 0; border: 1px solid var(--border-medium); border-radius: 3px; background: var(--bg-surface); overflow: hidden; }
+
+.pc-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+}
+.pc-sym { font-family: var(--font-mono); font-weight: 700; font-size: var(--text-sm); color: var(--text-primary); }
+.pc-muted { color: var(--text-muted); }
+.pc-live {
+  align-self: center;
+  padding: 0 6px;
+  border-radius: 2px;
+  background: var(--green-muted);
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.pc-last { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+.pc-intervals { margin-left: auto; display: inline-flex; align-self: center; border: 1px solid var(--border-medium); border-radius: 3px; overflow: hidden; }
+.pc-intervals button {
+  padding: 3px 9px;
+  border: none;
+  border-right: 1px solid var(--border-medium);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.pc-intervals button:last-child { border-right: none; }
+.pc-intervals button:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+.pc-intervals button.active { background: var(--accent-muted); color: var(--accent); font-weight: 700; }
+
+.pc-body { position: relative; }
+.pc-canvas { position: absolute; inset: 0; }
+.pc-legend {
+  position: absolute; top: 4px; left: 8px; right: 70px; z-index: 2; pointer-events: none;
+  display: flex; flex-wrap: wrap; gap: 2px 12px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.pc-legend b { color: var(--text-primary); font-weight: 600; }
+.pc-legend b.pos { color: var(--green); }
+.pc-legend b.neg { color: var(--red); }
+
+.pc-overlay {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.pc-overlay.error { color: var(--red); }
+
+.pc-note { margin: 0; padding: 5px var(--space-3); border-top: 1px solid var(--border-subtle); color: var(--text-muted); font-size: var(--text-xs); }
+
+/* --- 3D surface (options) --- */
+.surface3d { position: relative; border: 1px solid var(--border-medium); border-radius: 3px; background: var(--bg-surface); overflow: hidden; }
+.surface3d-canvas { height: 380px; width: 100%; cursor: grab; }
+.surface3d-canvas:active { cursor: grabbing; }
+.surface3d-readout { position: absolute; left: 10px; bottom: 8px; padding: 3px 8px; border-radius: 3px; background: color-mix(in srgb, var(--bg-surface) 70%, transparent); backdrop-filter: blur(6px); font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); pointer-events: none; }
+.surface3d-readout b { color: var(--text-primary); font-weight: 600; }
+.surface3d-fallback { padding: var(--space-6); text-align: center; color: var(--text-muted); font-size: var(--text-sm); border: 1px dashed var(--border-medium); border-radius: 3px; }
+}
+.corr3d .surface3d-canvas { height: 300px; }
+.corr-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+.corr-table th, .corr-table td { padding: 4px 6px; text-align: center; color: var(--text-secondary); }
+.corr-table td { color: var(--text-primary); }

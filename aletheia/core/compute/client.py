@@ -37,9 +37,7 @@ class ComputeClient:
         self._settings = get_settings()
         self._base_url = self._settings.compute_engine_url.rstrip("/")
 
-    # ------------------------------------------------------------------
     # Technical Indicators
-    # ------------------------------------------------------------------
 
     async def indicators(
         self,
@@ -77,9 +75,7 @@ class ComputeClient:
                 return res
         return self._fallback_indicators(closes, sma_window)
 
-    # ------------------------------------------------------------------
     # Portfolio Metrics
-    # ------------------------------------------------------------------
 
     async def portfolio_metrics(
         self,
@@ -107,9 +103,7 @@ class ComputeClient:
                 return res
         return self._fallback_portfolio_metrics(returns, risk_free_rate, periods_per_year)
 
-    # ------------------------------------------------------------------
     # Monte Carlo
-    # ------------------------------------------------------------------
 
     async def monte_carlo(
         self,
@@ -133,9 +127,7 @@ class ComputeClient:
                 return res
         return self._fallback_monte_carlo(initial_value, daily_vol, n_paths, n_days)
 
-    # ------------------------------------------------------------------
     # Correlation Matrix
-    # ------------------------------------------------------------------
 
     async def correlation(
         self,
@@ -152,9 +144,7 @@ class ComputeClient:
                 return res
         return self._fallback_correlation(returns_matrix, labels)
 
-    # ------------------------------------------------------------------
     # Health check
-    # ------------------------------------------------------------------
 
     async def is_engine_available(self) -> bool:
         """Check if the Rust sidecar is reachable."""
@@ -165,9 +155,7 @@ class ComputeClient:
         except Exception:
             return False
 
-    # ------------------------------------------------------------------
     # Internal
-    # ------------------------------------------------------------------
 
     def _use_sidecar(self) -> bool:
         return self._settings.compute_engine_enabled
@@ -185,9 +173,7 @@ class ComputeClient:
             )
             return {}
 
-    # ------------------------------------------------------------------
     # PyO3 fallbacks (used when sidecar is not running)
-    # ------------------------------------------------------------------
 
     def _fallback_indicators(self, closes: list[float], window: int) -> dict[str, Any]:
         try:
@@ -262,9 +248,7 @@ class ComputeClient:
                 "n_assets": n,
             }
 
-    # ------------------------------------------------------------------
     # Intelligence Sprint -- Regime Detection
-    # ------------------------------------------------------------------
 
     async def regime_detection(self, returns: list, n_regimes: int = 3) -> dict:
         """Detect market regime from return series."""
@@ -283,9 +267,7 @@ class ComputeClient:
         except ImportError:
             return {"current_regime": "unknown", "regime_sequence": [], "regime_labels": []}
 
-    # ------------------------------------------------------------------
     # Intelligence Sprint -- Fama-French Factor Model
-    # ------------------------------------------------------------------
 
     async def factor_model(
         self, returns: list, market_returns: list, smb: list = None, hml: list = None
@@ -331,9 +313,7 @@ class ComputeClient:
                 "r_squared": 0.0,
             }
 
-    # ------------------------------------------------------------------
     # Intelligence Sprint -- Options Flow
-    # ------------------------------------------------------------------
 
     async def options_flow(
         self,
@@ -389,9 +369,7 @@ class ComputeClient:
                 "iv_signal": "NEUTRAL",
             }
 
-    # ------------------------------------------------------------------
     # Options pricing (Black-Scholes + Greeks), sync, PyO3-only route
-    # ------------------------------------------------------------------
 
     def options_pricing(
         self, spot: float, strike: float, years: float, rate: float, vol: float, is_call: bool
@@ -438,9 +416,7 @@ class ComputeClient:
             "vega": s * math.sqrt(t) * pdf,
         }
 
-    # ------------------------------------------------------------------
     # Intelligence Sprint -- Brier Score (sync)
-    # ------------------------------------------------------------------
 
     def brier_score(self, predictions: list, outcomes: list) -> float:
         """Compute Brier score for confidence calibration."""
@@ -453,9 +429,7 @@ class ComputeClient:
                 return 0.0
             return sum((p - o) ** 2 for p, o in zip(predictions, outcomes)) / len(predictions)
 
-    # ------------------------------------------------------------------
     # Portfolio Risk Assessment (sync, PyO3-only — no sidecar route yet)
-    # ------------------------------------------------------------------
 
     def assess_portfolio_risk(self, portfolio: Any, quotes_by_symbol: dict) -> dict[str, Any]:
         """VaR/concentration/regime assessment for the Sentinel agent."""

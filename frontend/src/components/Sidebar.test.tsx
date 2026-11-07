@@ -34,6 +34,20 @@ describe("Sidebar", () => {
     }
   });
 
+  it("groups pages into sections and marks the current page", () => {
+    render(
+      <MemoryRouter initialEntries={["/runs/abc123"]}>
+        <Sidebar backendOnline />
+      </MemoryRouter>,
+    );
+    for (const title of ["Overview", "Markets", "Trading", "Research", "System"]) {
+      expect(screen.getByText(title)).toBeTruthy();
+    }
+    // A nested route (a single run) still highlights its parent page.
+    expect(screen.getByRole("link", { name: "Runs" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "Dashboard" }).getAttribute("aria-current")).toBeNull();
+  });
+
   it("reflects backend connectivity", () => {
     renderSidebar(false);
     expect(screen.getByText("Backend offline")).toBeTruthy();

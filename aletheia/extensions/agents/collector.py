@@ -34,7 +34,6 @@ class CollectorAgent:
                         attempt,
                         attempts,
                     )
-                    # Enforce timeout per request
                     quotes = await asyncio.wait_for(
                         provider.get_quote(normalized.symbol, normalized.exchange),
                         timeout=timeout_secs,
@@ -50,7 +49,6 @@ class CollectorAgent:
                         attempt,
                         attempts,
                     )
-                    # continue retrying
                 except Exception as exc:
                     logger.warning(
                         "CollectorAgent: Error fetching quote for %s from %s on attempt %d/%d: %s",
@@ -61,7 +59,6 @@ class CollectorAgent:
                         exc,
                         exc_info=True,
                     )
-                    # continue retrying
 
                 if attempt < attempts:
                     await asyncio.sleep(0.5)
@@ -92,7 +89,6 @@ class CollectorAgent:
                 warnings.append(msg)
                 provenance.append({"provider": provider.name, "error": "Max retries exceeded"})
 
-                # Log the fallback if there's another provider in the list
                 next_index = self.providers.index(provider) + 1
                 if next_index < len(self.providers):
                     next_provider = self.providers[next_index]

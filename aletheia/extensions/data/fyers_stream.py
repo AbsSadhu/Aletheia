@@ -141,8 +141,6 @@ class FyersStream:
         self.reconnects = 0
         self.last_quotes: dict[tuple[str, str], dict[str, Any]] = {}
 
-    # -- public ---------------------------------------------------------------
-
     def status(self) -> dict[str, Any]:
         age = None if self.last_tick_at is None else round(time.time() - self.last_tick_at, 1)
         return {
@@ -203,8 +201,6 @@ class FyersStream:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await flusher
             await self._kill()
-
-    # -- helper process ------------------------------------------------------------
 
     async def _sleep(self, secs: float) -> None:
         with contextlib.suppress(asyncio.TimeoutError):
@@ -292,8 +288,6 @@ class FyersStream:
                     proc.terminate()
                 return
 
-    # -- inbound --------------------------------------------------------------------
-
     def _on_line(self, line: str, token: str) -> None:
         try:
             msg = json.loads(line)
@@ -343,8 +337,6 @@ class FyersStream:
                 self.needs_login = True
                 self.connected = False
                 self.last_error = "Fyers login expired or invalid; log in again."
-
-    # -- outbound -------------------------------------------------------------------
 
     async def _flush_loop(self) -> None:
         while True:

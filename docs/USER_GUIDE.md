@@ -96,23 +96,6 @@ Located in [zerodha.py](file:///c:/Aletheia/aletheia/extensions/brokers/zerodha.
    balance = await connector.get_account_balance()
    ```
 
-### B. TradingView Webhooks
-Located in [tradingview.py](file:///c:/Aletheia/aletheia/extensions/brokers/tradingview.py), the `TradingViewSignalRouter` listens for incoming JSON webhook alerts from TradingView charts.
-
-#### Webhook Alert Schema:
-Set your TradingView alert message body to the following JSON format:
-```json
-{
-  "passphrase": "your_secure_passphrase_configured_in_env",
-  "symbol": "RELIANCE",
-  "action": "buy",
-  "quantity": 10,
-  "price": 2500.50,
-  "strategy": "RSI-Crossover"
-}
-```
-The signal router verifies the passphrase, runs basic risk bounds (e.g. max order quantity), and executes the order through the configured broker connector.
-
 ---
 
 ## 5. Running Natural Language Tasks via CLI (`aletheia run`)
@@ -133,7 +116,7 @@ The `run` command allows you to write natural language queries directly. The age
 
 ## 6. Development & Workarounds (Windows Guidelines)
 
-When writing code or running compilers in this workspace, follow the rules defined in [.agents/AGENTS.md](file:///c:/Aletheia/.agents/AGENTS.md):
+Tips for building and developing on Windows:
 1. **Windows Defender Lockups**: Windows Defender may lock temporary compilation files in the Rust cargo target folder (`aletheia_engine/target`). If a build fails with `os error 32`, delete the target folder manually.
 2. **PyO3 Site-Packages Overwrite**: If Maturin is locked, kill running Python processes before rebuilding.
 3. **Explicit Python Execution**: Always prefix commands with `.venv\Scripts\python.exe` or `.venv\Scripts\pytest` to keep within the workspace virtual environment.

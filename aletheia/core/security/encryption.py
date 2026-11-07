@@ -15,7 +15,6 @@ class DatabaseEncryptor:
     def __init__(self, raw_key: Optional[str]) -> None:
         self.fernet: Optional[Fernet] = None
         if raw_key:
-            # Derive a secure 32-byte Fernet key from any string key using SHA-256
             hashed = hashlib.sha256(raw_key.encode("utf-8")).digest()
             base64_key = base64.urlsafe_b64encode(hashed)
             self.fernet = Fernet(base64_key)
@@ -30,7 +29,6 @@ class DatabaseEncryptor:
             return None
         if not self.fernet:
             return plain_text
-        # Encrypt and prefix with __enc__: to identify encrypted values
         token = self.fernet.encrypt(plain_text.encode("utf-8")).decode("utf-8")
         return f"__enc__:{token}"
 

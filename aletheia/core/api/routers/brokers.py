@@ -72,9 +72,6 @@ async def zerodha_callback(
     return _page("Zerodha connected.", True)
 
 
-# -- Fyers ---------------------------------------------------------------------
-
-
 def _fyers_redirect_uri() -> str:
     from aletheia.core.config.settings import get_settings
 

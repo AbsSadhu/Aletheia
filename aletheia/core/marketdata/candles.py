@@ -11,6 +11,8 @@ from typing import Any
 
 import pandas as pd
 
+from aletheia.core.marketdata.symbols import yahoo_symbol
+
 # our interval -> (yfinance interval, lookback period)
 INTERVALS: dict[str, tuple[str, str]] = {
     "1m": ("1m", "5d"),
@@ -22,16 +24,6 @@ INTERVALS: dict[str, tuple[str, str]] = {
 IST_OFFSET_SECS = 19_800
 CACHE_TTL_SECS = 20.0
 _cache: dict[tuple[str, str, str], tuple[float, dict[str, Any]]] = {}
-
-
-def yahoo_symbol(symbol: str, exchange: str) -> str:
-    s, e = symbol.upper(), exchange.upper()
-    if "/" in s or e == "BINANCE":
-        base, _, quote = s.partition("/")
-        return f"{base}-{'USD' if quote in ('USDT', 'USD', '') else quote}"
-    if s.startswith("^") or s.endswith((".NS", ".BO")):
-        return s
-    return f"{s}.{'BO' if e == 'BSE' else 'NS'}"
 
 
 def frame_to_candles(df: pd.DataFrame, daily: bool) -> list[dict[str, float | int]]:

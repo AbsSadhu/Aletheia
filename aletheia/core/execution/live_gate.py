@@ -13,18 +13,12 @@ class LiveExecutionGate:
     def get_state(self) -> ExecutionState:
         return self.storage.get_state()
 
-    def set_mode(
-        self,
-        mode: ExecutionMode,
-        *,
-        confirm: bool = False,
-        paper_observation_days: int = 0,
-    ) -> ExecutionState:
+    def set_mode(self, mode: ExecutionMode, *, confirm: bool = False) -> ExecutionState:
         state = self.storage.get_state()
         if mode == ExecutionMode.LIVE:
             if not confirm:
                 raise PermissionError("Live mode requires explicit confirmation.")
-            if paper_observation_days < state.observation_days_required:
+            if self.storage.paper_observation_days() < state.observation_days_required:
                 raise PermissionError(
                     f"Live mode requires at least {state.observation_days_required} paper-trading days."
                 )

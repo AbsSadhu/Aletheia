@@ -15,6 +15,11 @@ class BaseTool:
     name: ClassVar[str] = ""
     description: ClassVar[str] = ""
     parameters: ClassVar[dict[str, Any]] = {"type": "object", "properties": {}}
+    # True while the tool only returns placeholder data. build_registry(include_stubs=False) skips
+    # these so an agent never presents fake numbers as real.
+    is_stub: ClassVar[bool] = False
+    # False for tools that need per-request state (built by hand, not by `cls()`).
+    auto_register: ClassVar[bool] = True
 
     @classmethod
     def check_available(cls) -> bool:
@@ -35,6 +40,14 @@ class BaseTool:
                 "parameters": self.parameters,
             },
         }
+
+
+def split_display(result: Any) -> tuple[Any, Any]:
+    """Separate a tool's optional `_display` payload (for the UI) from what the model sees."""
+    if isinstance(result, dict) and "_display" in result:
+        rest = {k: v for k, v in result.items() if k != "_display"}
+        return rest, result["_display"]
+    return result, None
 
 
 class ToolRegistry:
@@ -88,11 +101,16 @@ def _discover_subclasses() -> list[type[BaseTool]]:
     return classes
 
 
-def build_registry() -> ToolRegistry:
-    """Build the tool registry via auto-discovery."""
+def build_registry(include_stubs: bool = False) -> ToolRegistry:
+    """Build the tool registry via auto-discovery.
+
+    Stub tools return placeholder data, so no agent (chat, swarm, MCP, CLI) gets them unless asked.
+    """
     registry = ToolRegistry()
     for cls in _discover_subclasses():
         try:
+            if not cls.auto_register or (cls.is_stub and not include_stubs):
+                continue
             if not cls.check_available():
                 logger.info("Tool %s unavailable, skipping", cls.name)
                 continue

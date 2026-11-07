@@ -1,0 +1,209 @@
+@layer legacy {
+/* ============================================================
+   System pass: the Departure Board applied to every page.
+   Terminal density, flat black, label-type headings, tabular figures.
+   ============================================================ */
+
+body { font-variant-numeric: tabular-nums; letter-spacing: -0.003em; }
+.page-shell { padding: var(--space-5) var(--space-6) var(--space-10); }
+
+/* --- Surfaces: tighter, flatter --- */
+.card { border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); box-shadow: none; }
+:root[data-theme="light"] .card { box-shadow: none; }
+.card:hover { box-shadow: none; border-color: var(--border-medium); }
+
+/* Card headers read as board headers: label type over a hairline. */
+.card-header {
+  margin: calc(var(--space-4) * -1) calc(var(--space-5) * -1) var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.card-title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.card-title::before { content: ""; width: 6px; height: 6px; background: var(--accent-2); border-radius: 1px; }
+.card-subtitle { letter-spacing: 0.1em; }
+/* a card's first block, when it has no header, still gets breathing room */
+.card > .card-subtitle:first-child { margin-bottom: var(--space-2); }
+
+/* --- Tiles: stat cards float apart and have depth --- */
+.grid-4, .grid-3 { gap: var(--space-4); perspective: 1400px; }
+.grid-4 .stat-value, .grid-3 .stat-value { font-size: var(--text-2xl); letter-spacing: -0.02em; }
+.grid-4 > .card, .grid-3 > .card { position: relative; }
+.grid-4 > .card::before, .grid-3 > .card::before {
+  content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 2px;
+  background: var(--accent-2); transform: scaleY(0); transform-origin: top;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.grid-4 > .card:hover::before, .grid-3 > .card:hover::before { transform: scaleY(1); }
+
+/* Entrance: tiles fold up out of the page, staggered. Fill is "backwards" so the tilt transform
+   (set by lib/tilt.ts) takes over once the animation ends. */
+.page-shell .card { animation: tile-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.page-shell .card:nth-child(2) { animation-delay: 0.06s; }
+.page-shell .card:nth-child(3) { animation-delay: 0.12s; }
+.page-shell .card:nth-child(4) { animation-delay: 0.18s; }
+.page-shell .card:nth-child(5) { animation-delay: 0.24s; }
+.page-shell .card:nth-child(n + 6) { animation-delay: 0.3s; }
+@keyframes tile-in {
+  from { opacity: 0; transform: perspective(900px) translateY(34px) rotateX(-18deg) scale(0.96); }
+  to { opacity: 1; transform: perspective(900px) none; }
+}
+
+/* Tilting tiles: layered children sit at different depths so the face parallaxes as it turns. */
+.card[data-tilt] { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(0); }
+.card[data-tilt]:hover { border-color: var(--accent-2); box-shadow: 0 22px 44px rgba(0, 0, 0, 0.7); }
+.card[data-tilt] > * { transform: translateZ(10px); }
+.card[data-tilt] .stat-value, .card[data-tilt] .card-title { transform: translateZ(34px); }
+.card[data-tilt] .stat-label, .card[data-tilt] .card-subtitle { transform: translateZ(18px); }
+.pass[data-tilt] > * { transform: translateZ(12px); }
+.pass[data-tilt] .pass-symbol { transform: translateZ(34px); }
+
+/* The 3D dial tile */
+.gauge3d { width: 100%; height: 190px; }
+.gauge-read { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: calc(var(--space-2) * -1); }
+
+.grid-2 { gap: var(--space-4); }
+
+.stat-label { letter-spacing: 0.1em; }
+.stat-change { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+/* --- Buttons --- */
+.btn { border-radius: var(--radius-sm); font-size: var(--text-sm); letter-spacing: 0.005em; }
+.btn-primary { padding: var(--space-2) var(--space-4); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6); }
+.btn-secondary { background: transparent; }
+.btn-secondary:hover { border-color: var(--accent-2); }
+:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+/* --- Badges: small mono tags --- */
+.badge {
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+}
+
+/* --- Tabs: label-type, a flat orange rule --- */
+.tabs { gap: var(--space-5); margin-bottom: var(--space-5); }
+.tab {
+  padding: var(--space-3) 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  position: relative;
+  border-bottom: 2px solid transparent;
+}
+.tab:hover { color: var(--text-primary); }
+.tab.active { color: var(--text-primary); border-bottom-color: var(--accent-2); }
+
+/* --- Tables: sticky label header, tabular figures, a row marker on hover --- */
+.table-wrap { border-radius: var(--radius-sm); }
+th {
+  position: sticky; top: 0;
+  background: var(--bg-card);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  padding: var(--space-3) var(--space-3);
+  white-space: nowrap;
+  z-index: 1;
+}
+td { padding: 10px var(--space-3); font-variant-numeric: tabular-nums; }
+tbody tr { transition: background var(--transition-fast); }
+tbody tr:hover td { background: var(--bg-card-hover); }
+tbody tr:hover td:first-child { box-shadow: inset 2px 0 0 var(--accent-2); }
+tbody tr:last-child td { border-bottom: none; }
+
+/* --- Inputs: wells that light an orange edge on focus (no glow) --- */
+.form-control {
+  border-radius: var(--radius-sm);
+  border-color: var(--border-medium);
+  font-variant-numeric: tabular-nums;
+}
+.form-control:hover { border-color: var(--text-muted); }
+.form-control:focus { border-color: var(--accent-2); box-shadow: 0 0 0 1px var(--accent-2); }
+input[type="number"], .form-control[inputmode="decimal"] { font-family: var(--font-mono); }
+
+/* --- Empty states: left-aligned, the icon in an outlined square --- */
+.empty-state {
+  text-align: left;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-4);
+  align-items: center;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-6);
+}
+.empty-state-icon {
+  grid-row: 1 / span 2;
+  width: 52px; height: 52px;
+  display: grid; place-items: center;
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--accent-2);
+  opacity: 1;
+  margin: 0;
+}
+.empty-state-title { font-size: var(--text-base); margin: 0 0 2px; color: var(--text-primary); }
+.empty-state-text { margin: 0; max-width: 48ch; }
+.empty-state:not(:has(.empty-state-icon)) { display: block; text-align: center; }
+.empty-state:not(:has(.empty-state-icon)) .empty-state-text { margin: 0 auto; }
+
+/* --- Top bar: command pill, board header --- */
+.topbar { height: var(--topbar-height); position: sticky; top: 0; z-index: 5; }
+.topbar-title { font-size: var(--text-base); font-weight: 600; letter-spacing: 0.01em; display: inline-flex; align-items: center; gap: var(--space-3); }
+.topbar-title::before { content: ""; width: 3px; height: 18px; background: var(--accent); border-radius: 1px; }
+.cmd-pill {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  min-width: 220px;
+  padding: 6px var(--space-3);
+  background: var(--bg-input);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.cmd-pill:hover { border-color: var(--accent-2); color: var(--text-primary); }
+.cmd-pill kbd {
+  margin-left: auto;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em;
+  padding: 1px 5px; border: 1px solid var(--border-medium); border-radius: 3px; color: var(--text-secondary);
+}
+@media (max-width: 1180px) { .cmd-pill { min-width: 0; } .cmd-pill span { display: none; } .cmd-pill kbd { margin-left: 0; } }
+
+/* --- Live ticks: a price cell flashes its direction, then settles --- */
+.tick-up { animation: tick-up 0.9s ease-out; }
+.tick-down { animation: tick-down 0.9s ease-out; }
+@keyframes tick-up { from { background: var(--green-muted); box-shadow: inset 0 0 0 1px var(--green); } to { background: transparent; box-shadow: inset 0 0 0 1px transparent; } }
+@keyframes tick-down { from { background: var(--red-muted); box-shadow: inset 0 0 0 1px var(--red); } to { background: transparent; box-shadow: inset 0 0 0 1px transparent; } }
+@media (prefers-reduced-motion: reduce) { .tick-up, .tick-down { animation: none; } }
+
+/* --- Ticker tape (watchlist), text drawn from data attributes --- */
+.ticker { overflow: hidden; border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface); height: 34px; display: flex; align-items: center; position: sticky; top: var(--topbar-height); z-index: 4; }
+.ticker-track { display: flex; width: max-content; animation: ticker-run calc(var(--count, 4) * 6s) linear infinite; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+.tk { display: inline-flex; gap: 10px; padding: 0 26px; font-family: var(--font-mono); font-size: var(--text-xs); white-space: nowrap; border-right: 1px solid var(--border-subtle); }
+.tk::before { content: attr(data-s) "  " attr(data-p); color: var(--text-primary); font-weight: 600; }
+.tk::after { content: attr(data-c); color: var(--text-muted); }
+.tk[data-dir="up"]::after { color: var(--green); }
+.tk[data-dir="down"]::after { color: var(--red); }
+@keyframes ticker-run { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
+
+/* --- Scroll: pages rise in once; sub-views do not repeat the entrance --- */
+@media (prefers-reduced-motion: reduce) { .btn-primary:hover { transform: none; } }
+}

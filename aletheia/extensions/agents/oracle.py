@@ -40,9 +40,9 @@ class OracleAgent:
         def _fetch() -> pd.DataFrame | None:
             import yfinance as yf
 
-            sym = symbol.upper()
-            if not sym.startswith("^") and not sym.endswith((".NS", ".BO")):
-                sym = f"{sym}.NS"
+            from aletheia.core.marketdata.symbols import yahoo_symbol
+
+            sym = yahoo_symbol(symbol, "NSE")
             # auto_adjust folds splits/dividends into OHLC so factors see a clean series.
             return yf.Ticker(sym).history(period="2y", interval="1d", auto_adjust=True)
 

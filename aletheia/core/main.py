@@ -43,7 +43,6 @@ def run_preflight_checks(settings) -> None:
     if os.getenv("ALETHEIA_SKIP_PREFLIGHT") == "true" or "pytest" in sys.modules:
         return
 
-    # 1. Verify SQLite is reachable
     try:
         settings.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(settings.sqlite_path) as conn:
@@ -54,7 +53,6 @@ def run_preflight_checks(settings) -> None:
             f"Error: {exc}"
         ) from exc
 
-    # 2. Verify DuckDB is reachable
     try:
         settings.duckdb_path.parent.mkdir(parents=True, exist_ok=True)
         config = {}
@@ -165,10 +163,8 @@ def create_app() -> FastAPI:
     configure_logging(settings.log_dir, settings.log_level)
     container = get_container()
 
-    # Run fail-fast startup preflight checks
     run_preflight_checks(settings)
 
-    # Run automatic pruning if enabled
     if settings.retention_days is not None and settings.retention_days > 0:
         try:
             from aletheia.core.db.sqlite_store import SQLiteStore
@@ -268,9 +264,6 @@ def create_app() -> FastAPI:
             "docs": "/docs",
         }
 
-    # ------------------------------------------------------------------
-    # Prometheus /metrics scraping endpoint
-    # ------------------------------------------------------------------
     if _PROMETHEUS_AVAILABLE:
         # Define application-level metrics (idempotent — no-op if already registered)
         def _safe_counter(name: str, doc: str, labels: list[str] | None = None) -> "Counter":

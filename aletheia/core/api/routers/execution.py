@@ -27,9 +27,6 @@ router = APIRouter(prefix="/api/v1")
 class ExecutionModeRequest(BaseModel):
     mode: ExecutionMode
     confirm: bool = False
-    # Accepted for backwards compatibility but ignored: the observation period is measured
-    # from recorded paper trades, never taken on the caller's word.
-    paper_observation_days: int = 0
 
 
 class LiveOrderRequest(BaseModel):
@@ -71,11 +68,7 @@ async def get_execution_state() -> dict:
 
 @router.post("/execution/mode")
 async def set_execution_mode(request: ExecutionModeRequest) -> dict:
-    state = get_live_gate().set_mode(
-        request.mode,
-        confirm=request.confirm,
-        paper_observation_days=get_live_gate().storage.paper_observation_days(),
-    )
+    state = get_live_gate().set_mode(request.mode, confirm=request.confirm)
     return {"state": state.model_dump(mode="json")}
 
 

@@ -26,7 +26,7 @@ class PaperTrader:
         """(equity, cash) at cost: starting cash + realised P&L, less capital tied up in positions."""
         positions = self.storage.list_positions()
         invested = sum(p.quantity * p.average_price for p in positions)
-        equity = self.starting_cash + sum(p.realized_pnl for p in positions) + 0.0
+        equity = self.starting_cash + self.storage.realized_pnl_total()
         return equity, equity - invested
 
     async def submit_order(
@@ -120,7 +120,6 @@ class PaperTrader:
         actual_pnl = (actual_close - trade.simulated_fill_price) * trade.simulated_qty
         trade.simulated_pnl = round(actual_pnl, 2)
         trade.status = "settled"
-        # Store actual close in metadata via storage update
         self.storage.update_trade_settlement(trade_id, actual_close, actual_pnl)
         return trade
 

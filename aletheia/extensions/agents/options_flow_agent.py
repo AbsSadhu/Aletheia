@@ -110,7 +110,6 @@ class OptionsFlowAgent:
         if not calls_oi or not puts_oi:
             return self._empty_output(symbol)
 
-        # Try sidecar compute, fall back to Python
         try:
             metrics = await self._rust_compute(calls_oi, puts_oi, calls_iv, puts_iv)
         except Exception:
@@ -121,7 +120,6 @@ class OptionsFlowAgent:
         oi_conc = metrics.get("oi_concentration", "NEUTRAL")
         iv_sig = metrics.get("iv_signal", "NEUTRAL")
 
-        # Combine OI + IV signals into a single hint
         if oi_conc == "BULLISH_OI" and iv_sig in ("NEUTRAL", "CONTRARIAN_BUY"):
             signal_hint = "BULLISH"
         elif oi_conc == "BEARISH_OI" and iv_sig in ("NEUTRAL", "CONTRARIAN_SELL"):
@@ -211,9 +209,9 @@ class OptionsFlowAgent:
             return None
 
     def _is_nse_equity(self, symbol: str) -> bool:
-        s = symbol.upper()
-        crypto_markers = {"BTC", "ETH", "USDT", "SOL", "ADA", "-USD", "-INR"}
-        return not any(c in s for c in crypto_markers)
+        from aletheia.core.marketdata.symbols import is_crypto
+
+        return not is_crypto(symbol)
 
     def _empty_output(self, symbol: str) -> OptionsFlowOutput:
         return OptionsFlowOutput(

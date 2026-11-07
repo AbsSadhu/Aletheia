@@ -58,8 +58,6 @@ class FeedManager:
     def provider(self) -> str:
         return str(getattr(self.settings, "live_feed_provider", "angel_one") or "angel_one")
 
-    # -- lifecycle ------------------------------------------------------------
-
     async def start(self) -> None:
         await self._start_crypto()
         if self.stream is None:
@@ -196,8 +194,6 @@ class FeedManager:
             if (exch, sym) in self._scrips
         }
         await self.stream.set_symbols(tokens)
-
-    # -- read side ---------------------------------------------------------------
 
     def unresolved_symbols(self) -> list[str]:
         """Equity watchlist symbols the active broker can't stream (typo, wrong exchange...)."""

@@ -224,7 +224,6 @@ class SQLiteStore:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_agent_events_timestamp ON agent_events(timestamp)"
             )
-            # ── Confidence Calibration ──────────────────────────────────────
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS confidence_calibration (
@@ -244,7 +243,6 @@ class SQLiteStore:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_calibration_symbol ON confidence_calibration(symbol, agent)"
             )
-            # ── SEBI Compliance Log (append-only) ───────────────────────────
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS compliance_log (
@@ -502,8 +500,6 @@ class SQLiteStore:
             cursor = conn.execute("DELETE FROM agent_events WHERE timestamp < ?", (cutoff,))
             return cursor.rowcount
 
-    # ── Confidence Calibration ─────────────────────────────────────────────
-
     def record_confidence(
         self,
         run_id: str,
@@ -619,8 +615,6 @@ class SQLiteStore:
                 (cutoff,),
             ).fetchall()
         return [dict(r) for r in rows]
-
-    # ── SEBI Compliance Log ────────────────────────────────────────────────
 
     # Genesis marker for the hash chain's first entry — no real hash output
     # can be all zeros, so this is unambiguous as "chain start", not a value

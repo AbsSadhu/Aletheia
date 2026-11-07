@@ -1,15 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { LineArea } from "../components/charts/kit";
 import TopBar from "../components/TopBar";
+import PageHero from "../components/PageHero";
 import {
   getLatestSignalBacktest,
   getShadowVsNifty,
@@ -154,24 +146,17 @@ function BacktestSection() {
             {inr(result.trading.post_tax_final_equity)} after tax.
           </p>
 
-          <div style={{ width: "100%", height: 280 }}>
-            <ResponsiveContainer>
-              <LineChart data={result.equity_curve}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={40} />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  domain={["auto", "auto"]}
-                  tickFormatter={(v: number) => `₹${(v / 100000).toFixed(0)}L`}
-                />
-                <Tooltip formatter={(v) => inr(Number(v))} />
-                <Legend />
-                <Line dataKey="strategy" name="Signal" stroke="var(--accent)" dot={false} strokeWidth={2} />
-                <Line dataKey="nifty" name="Nifty" stroke="var(--amber)" dot={false} />
-                <Line dataKey="equal_weight" name="Equal-weight" stroke="var(--teal)" dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <LineArea
+            x={result.equity_curve.map((p) => p.date.slice(0, 10))}
+            series={[
+              { name: "Signal", data: result.equity_curve.map((p) => p.strategy), tone: "accent", area: true },
+              { name: "Nifty", data: result.equity_curve.map((p) => p.nifty), tone: "amber" },
+              { name: "Equal-weight", data: result.equity_curve.map((p) => p.equal_weight ?? NaN), tone: "teal" },
+            ]}
+            format={(v) => `₹${(v / 100000).toFixed(1)}L`}
+            height={320}
+            label="Signal backtest versus Nifty and equal-weight"
+          />
 
           <details style={{ marginTop: "var(--space-3)" }}>
             <summary style={{ cursor: "pointer" }}>What this test can't tell you</summary>
@@ -302,19 +287,16 @@ function AccuracySection() {
             {shadow?.note ?? "Run analyses and let the Shadow Trader trade to build a curve."}
           </p>
         ) : (
-          <div style={{ width: "100%", height: 260 }}>
-            <ResponsiveContainer>
-              <LineChart data={shadow.points}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d: string) => d.slice(0, 10)} minTickGap={40} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v}%`} />
-                <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
-                <Legend />
-                <Line dataKey="shadow_pct" name="Shadow Trader" stroke="var(--accent)" dot={false} strokeWidth={2} />
-                <Line dataKey="nifty_pct" name="Nifty" stroke="var(--amber)" dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <LineArea
+            x={shadow.points.map((p) => p.date.slice(0, 10))}
+            series={[
+              { name: "Shadow Trader", data: shadow.points.map((p) => p.shadow_pct), tone: "accent", area: true },
+              { name: "Nifty", data: shadow.points.map((p) => p.nifty_pct), tone: "amber" },
+            ]}
+            format={(v) => `${v.toFixed(1)}%`}
+            height={280}
+            label="Shadow Trader versus Nifty"
+          />
         )}
       </div>
     </>
@@ -326,6 +308,7 @@ export default function SignalValidation() {
     <>
       <TopBar title="Signal Validation" />
       <div className="page-shell">
+        <PageHero variant="bars" headline="Does the signal beat simply holding Nifty?" sub="A walk-forward test with real costs and Indian capital-gains tax, plus the live track record." />
         <BacktestSection />
         <AccuracySection />
       </div>

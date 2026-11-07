@@ -77,11 +77,9 @@ class SentimentAgent:
 
     def __init__(
         self,
-        llm_client=None,
         timeout: float = 8.0,
         enable_reddit: bool = False,
     ) -> None:
-        self._llm = llm_client
         self._timeout = timeout
         self._enable_reddit = enable_reddit
 
@@ -109,16 +107,8 @@ class SentimentAgent:
                 confidence=0.2,
             )
 
-        # Try LLM classification first, fall back to keyword scoring
-        try:
-            score, verdict = await self._classify_with_llm(symbol, headlines)
-            confidence = 0.75
-        except Exception as exc:
-            logger.debug(
-                "SentimentAgent: LLM classification failed, using keyword fallback: %s", exc
-            )
-            score, verdict = self._keyword_classify(headlines)
-            confidence = 0.5
+        score, verdict = self._keyword_classify(headlines)
+        confidence = 0.5  # a handful of keywords is a rough read; the UI says so
 
         return SentimentOutput(
             symbol=symbol,
@@ -183,11 +173,9 @@ class SentimentAgent:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.get(_MONEYCONTROL_RSS, headers={"User-Agent": "Mozilla/5.0"})
                 resp.raise_for_status()
-                # Parse RSS — find <title> tags in items
                 titles = re.findall(r"<title><!\[CDATA\[(.*?)\]\]></title>", resp.text)
                 if not titles:
                     titles = re.findall(r"<title>(.*?)</title>", resp.text)
-                # Filter by symbol mention
                 symbol_lower = symbol.lower()
                 filtered = [t for t in titles if symbol_lower in t.lower()][:10]
                 return ("moneycontrol", filtered)
@@ -232,29 +220,8 @@ class SentimentAgent:
         except Exception:
             return []
 
-    async def _classify_with_llm(self, symbol: str, headlines: list[str]) -> tuple[float, str]:
-        """Use LLM to classify sentiment. Returns (score, verdict)."""
-        from aletheia.core.llm.prompts import build_sentiment_prompt
-        import json
-
-        if self._llm is None:
-            raise RuntimeError("No LLM client configured")
-
-        prompt = build_sentiment_prompt(symbol, headlines)
-        response_text = await self._llm.generate(prompt)
-        # Parse JSON response
-        text = str(response_text)
-        # Extract JSON from possible markdown wrapping
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            data = json.loads(match.group())
-            score = float(data.get("sentiment_score", 0.0))
-            verdict = str(data.get("verdict", "NEUTRAL"))
-            return score, verdict
-        raise ValueError(f"LLM returned non-JSON: {text[:200]}")
-
     def _keyword_classify(self, headlines: list[str]) -> tuple[float, str]:
-        """Fallback keyword-based sentiment scoring."""
+        """Score headlines by counting bullish and bearish keywords."""
         total_score = 0.0
         for headline in headlines:
             words = set(re.findall(r"\b\w+\b", headline.lower()))

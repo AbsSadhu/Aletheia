@@ -1,0 +1,96 @@
+@layer legacy {
+/* ============================================================
+   Journal, correlation regimes and the Sharpe check. Flat colour; tone colours only mean tone.
+   ============================================================ */
+
+/* --- Journal: drop zone --- */
+.dropzone {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-5);
+  padding: var(--space-6);
+  border: 1px dashed var(--border-medium); border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dropzone svg { color: var(--accent-2); }
+.dropzone.over { border-color: var(--accent-2); background: var(--bg-card-hover); transform: scale(1.005); }
+.dropzone.busy { opacity: 0.7; pointer-events: none; }
+.dz-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dz-copy b { font-family: var(--font-display); font-size: var(--text-lg); color: var(--text-primary); letter-spacing: -0.01em; }
+.dz-copy span { font-size: var(--text-sm); line-height: 1.5; max-width: 62ch; }
+.dz-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 900px) { .dropzone { grid-template-columns: 1fr; } .dz-actions { justify-content: flex-start; } }
+.journal-error { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 0; font-size: var(--text-sm); color: var(--red); }
+.journal-file { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); margin-bottom: var(--space-4); font-size: var(--text-xs); color: var(--text-muted); }
+
+/* stat tiles stack their label, figure and note */
+.grid-4 > .card, .grid-3 > .card { display: flex; flex-direction: column; gap: 4px; }
+.grid-3 > .card.regime-card { gap: var(--space-2); }
+
+/* --- findings and behaviour checks --- */
+.finding-list { list-style: none; margin: 0; padding: 0; }
+.finding-list li { display: grid; grid-template-columns: 72px 1fr; gap: var(--space-4); padding: 14px 0; border-bottom: 1px solid var(--border-subtle); }
+.finding-list li:last-child { border-bottom: none; }
+.finding-list b { font-family: var(--font-display); font-size: var(--text-base); }
+.finding-list p { margin: 4px 0 0; font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.55; }
+.behavior-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); perspective: 1400px; }
+@media (max-width: 1280px) { .behavior-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .behavior-grid { grid-template-columns: 1fr; } }
+.behavior header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-2); }
+.behavior h3 { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; letter-spacing: -0.01em; }
+.behavior-q { margin: 0 0 var(--space-3); font-size: var(--text-xs); color: var(--text-muted); }
+.behavior-ev { margin: 0; font-size: var(--text-sm); line-height: 1.55; color: var(--text-secondary); }
+.behavior-metric { margin: var(--space-3) 0 0; padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-primary); }
+.behavior.sev-high { border-color: var(--red); }
+.behavior.sev-medium { border-color: var(--amber); }
+.cat-list { list-style: none; margin: 0; padding: 0; }
+.cat-list li { display: grid; grid-template-columns: 1fr auto auto auto; gap: var(--space-4); align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-subtle); font-size: var(--text-sm); }
+.cat-list li:last-child { border-bottom: none; }
+.cat-list i { display: block; font-style: normal; font-size: var(--text-xs); color: var(--text-muted); }
+.cat-num { font-family: var(--font-mono); text-align: right; }
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+
+/* --- correlation page --- */
+.corr-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-4); }
+.regime-card { display: flex; flex-direction: column; gap: var(--space-2); }
+.regime-state { font-family: var(--font-display); font-weight: 800; font-size: var(--text-4xl); letter-spacing: -0.03em; line-height: 1; }
+.regime-card.fused { border-color: var(--accent); }
+.regime-card.fused .regime-state { color: var(--accent); }
+.regime-card.normal .regime-state { color: var(--text-primary); }
+.regime-explain { margin: 0; font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.55; }
+.legend-row { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-3); font-size: var(--text-xs); color: var(--text-muted); }
+.legend-row i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
+.mini-h { margin: var(--space-4) 0 var(--space-2); font-size: var(--text-xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+.mini-h:first-of-type { margin-top: 0; }
+.pair-list { list-style: none; margin: 0; padding: 0; }
+.pair-list li { display: flex; justify-content: space-between; gap: var(--space-3); padding: 7px 0; border-bottom: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-secondary); }
+.pair-list li:last-child { border-bottom: none; }
+.pair-list b { color: var(--text-primary); }
+
+/* --- Sharpe check --- */
+.trials-field { display: inline-flex; align-items: center; gap: var(--space-3); font-size: var(--text-xs); color: var(--text-muted); text-transform: none; letter-spacing: 0; }
+.trials-field .form-control { width: 90px; padding: 6px 10px; font-family: var(--font-mono); }
+.verdict { margin: 0 0 var(--space-4); padding: var(--space-3) var(--space-4); border: 1px solid var(--border-medium); border-radius: var(--radius-sm); font-size: var(--text-sm); line-height: 1.5; }
+.verdict.likely_real { border-color: var(--green); color: var(--text-primary); }
+.verdict.suggestive { border-color: var(--amber); }
+.verdict.indistinguishable { border-color: var(--red); }
+.sharpe-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-3); }
+.sharpe-grid > div { display: flex; flex-direction: column; gap: 4px; }
+.sharpe-grid .stat-label { margin-top: 0; }
+.sharpe-grid b { font-family: var(--font-display); font-size: var(--text-xl); letter-spacing: -0.02em; }
+
+/* --- Backtest assumptions and cost toggle --- */
+.costs-check { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 42px; font-size: var(--text-sm); color: var(--text-secondary); }
+.costs-check input { accent-color: var(--accent-2); width: 16px; height: 16px; }
+.assume-line { margin: 0 0 var(--space-3); font-size: var(--text-sm); line-height: 1.55; color: var(--text-secondary); }
+.assume-warn { margin: 0 0 var(--space-2); padding: var(--space-2) var(--space-3); border-left: 2px solid var(--amber); font-size: var(--text-sm); color: var(--text-primary); }
+.segment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin: var(--space-4) 0; }
+.segment-grid > div { display: flex; flex-direction: column; gap: 4px; }
+.segment-grid .stat-label { margin-top: 0; }
+.segment-grid b { font-family: var(--font-display); font-size: var(--text-2xl); letter-spacing: -0.02em; }
+.segment-grid i { font-style: normal; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+
+/* --- Backend unreachable --- */
+.offline-banner { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); z-index: 90; display: flex; align-items: center; gap: var(--space-3); max-width: min(720px, calc(100vw - 32px)); padding: 12px 18px; background: var(--bg-card); border: 1px solid var(--red); border-radius: var(--radius-md); color: var(--text-primary); font-size: var(--text-sm); line-height: 1.45; }
+.offline-banner svg { flex: none; color: var(--red); }
+}

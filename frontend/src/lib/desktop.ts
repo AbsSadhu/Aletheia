@@ -37,6 +37,20 @@ export async function notifyRunFinished(runId: string, status: string): Promise<
   }
 }
 
+/** Native "sentiment flipped" notification for a watched symbol; skipped when the window is focused. */
+export async function notifySentimentFlip(symbol: string, from: string, to: string, why?: string): Promise<void> {
+  if (!isDesktop() || document.hasFocus()) return;
+  try {
+    const n = await import("@tauri-apps/plugin-notification");
+    let granted = await n.isPermissionGranted();
+    if (!granted) granted = (await n.requestPermission()) === "granted";
+    if (!granted) return;
+    n.sendNotification({ title: `${symbol} turned ${to}`, body: why ? `${from} to ${to}. ${why}` : `${from} to ${to}.` });
+  } catch (err) {
+    console.warn("Desktop notification failed", err);
+  }
+}
+
 /** Route `aletheia://` links (cold start and while running) through `navigate`. Returns a cleanup. */
 export async function initDeepLinks(navigate: (path: string) => void): Promise<() => void> {
   if (!isDesktop()) return () => {};

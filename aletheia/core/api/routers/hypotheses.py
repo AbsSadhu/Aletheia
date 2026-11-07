@@ -109,7 +109,7 @@ async def link_hypothesis_backtest(hypo_id: str, request: LinkBacktestRequest) -
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
-    sharpe = result.metrics.get("sharpe_ratio", 0.0)
+    sharpe = float(result.metrics.get("sharpe_ratio") or 0.0)
     hypo = reg.evaluate_against_backtest(
         hypo_id, sharpe, settings.hypothesis_validation_sharpe_threshold
     )

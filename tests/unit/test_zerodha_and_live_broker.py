@@ -138,9 +138,7 @@ def _go_live(gate, storage) -> None:
                 timestamp=ts,
             )
         )
-    gate.set_mode(
-        ExecutionMode.LIVE, confirm=True, paper_observation_days=storage.paper_observation_days()
-    )
+    gate.set_mode(ExecutionMode.LIVE, confirm=True)
 
 
 def _order(**kw) -> OrderRequest:
@@ -216,8 +214,4 @@ def test_observation_days_are_measured_not_claimed(tmp_path) -> None:
     gate = LiveExecutionGate(storage)
     assert storage.paper_observation_days() == 0
     with pytest.raises(PermissionError):
-        gate.set_mode(
-            ExecutionMode.LIVE,
-            confirm=True,
-            paper_observation_days=storage.paper_observation_days(),
-        )
+        gate.set_mode(ExecutionMode.LIVE, confirm=True)

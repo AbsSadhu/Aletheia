@@ -15,7 +15,7 @@ def get_investment_team() -> List[SwarmWorker]:
             role_description="an expert fundamental analyst focused on earnings, valuations, and balance sheets.",
             llm=llm,
             tool_registry=registry,
-            allowed_tools=["fundamental_data", "sec_filings", "sector_peers"],
+            allowed_tools=["fundamental_data"],
         ),
         SwarmWorker(
             name="Technical Analyst",
@@ -45,14 +45,14 @@ def get_due_diligence_team() -> List[SwarmWorker]:
             role_description="an investigative financial journalist tracking market sentiment and breaking news.",
             llm=llm,
             tool_registry=registry,
-            allowed_tools=["news_search", "web_search", "web_reader"],
+            allowed_tools=["news_search", "web_search"],
         ),
         SwarmWorker(
             name="SEC Analyst",
             role_description="a forensic accountant scouring EDGAR filings for red flags and forward-looking statements.",
             llm=llm,
             tool_registry=registry,
-            allowed_tools=["sec_filings", "fundamental_data"],
+            allowed_tools=["fundamental_data"],
         ),
     ]
 
@@ -113,7 +113,7 @@ def get_crypto_team() -> List[SwarmWorker]:
                 "Crypto News Analyst",
                 "a crypto news analyst tracking exchange listings, protocol upgrades, regulation "
                 "and hacks. Distinguish confirmed reports from rumours.",
-                ["news_search", "web_search", "web_reader"],
+                ["news_search", "web_search"],
             ),
             (
                 "Crypto Risk Manager",
@@ -134,13 +134,13 @@ def get_macro_team() -> List[SwarmWorker]:
                 "Macro Economist",
                 "a macro economist covering RBI policy, inflation, INR/USD, crude and FII/DII "
                 "flows, and how each transmits to Indian equity sectors.",
-                ["news_search", "web_search", "web_reader"],
+                ["news_search", "web_search"],
             ),
             (
                 "Sector Strategist",
                 "a sector strategist deciding which NSE sectors benefit from the current macro "
                 "regime, using peer comparisons rather than single-stock stories.",
-                ["sector_peers", "fundamental_data", "market_data"],
+                ["fundamental_data", "market_data"],
             ),
             (
                 "Portfolio Risk Manager",
@@ -161,7 +161,7 @@ def get_smallcap_team() -> List[SwarmWorker]:
                 "a forensic accountant for small caps. Look for promoter pledging, related-party "
                 "transactions, auditor changes and cash flow that does not match profit. Any "
                 "unexplained red flag outweighs a cheap valuation.",
-                ["sec_filings", "fundamental_data", "web_reader"],
+                ["fundamental_data"],
             ),
             (
                 "Liquidity Analyst",

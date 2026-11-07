@@ -116,8 +116,6 @@ class AngelOneStream:
         self.reconnects = 0
         self.last_quotes: dict[tuple[str, str], dict[str, Any]] = {}
 
-    # -- public ---------------------------------------------------------------
-
     def status(self) -> dict[str, Any]:
         age = None if self.last_tick_at is None else round(time.time() - self.last_tick_at, 1)
         return {
@@ -177,8 +175,6 @@ class AngelOneStream:
 
     def stop(self) -> None:
         self._stop.set()
-
-    # -- connection -------------------------------------------------------------
 
     async def _open(self) -> Any:
         creds = self.session.credentials()
@@ -281,8 +277,6 @@ class AngelOneStream:
                     )
         self._subscribed = set(self._wanted)
 
-    # -- inbound ------------------------------------------------------------------
-
     def _on_text(self, text: str) -> None:
         if text.strip().lower() == "pong":
             return
@@ -305,8 +299,6 @@ class AngelOneStream:
         self._dirty.add(key)
         self.ticks_total += 1
         self.last_tick_at = time.time()
-
-    # -- outbound -------------------------------------------------------------------
 
     async def _flush_loop(self) -> None:
         while True:

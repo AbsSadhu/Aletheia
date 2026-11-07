@@ -6,6 +6,7 @@ class WebReaderTool(BaseTool):
     """Fetches text content from a URL."""
 
     name: ClassVar[str] = "web_reader"
+    is_stub: ClassVar[bool] = True  # returns placeholder data; hidden from the chat agent
     description: ClassVar[str] = "Fetch and extract text content from a given URL."
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",

@@ -42,15 +42,11 @@ class PersistentMemory:
         self.semantic_dir.mkdir(parents=True, exist_ok=True)
         self.index_file = self.memory_dir / "MEMORY.md"
 
-        # Tier 1
         self._working: dict[str, Any] = {}
 
-        # Tier 2
         self.episodic = EpisodicMemory(db_path=self.memory_dir / "episodic.db")
 
-    # ------------------------------------------------------------------
     # Tier 1 — Working Memory
-    # ------------------------------------------------------------------
 
     def set_working(self, key: str, value: Any) -> None:
         """Store a value in working memory for the current session."""
@@ -63,9 +59,7 @@ class PersistentMemory:
         """Clear working memory (call at start of each run)."""
         self._working.clear()
 
-    # ------------------------------------------------------------------
     # Tier 3 — Semantic Memory (.md files with YAML frontmatter)
-    # ------------------------------------------------------------------
 
     def store_semantic(
         self,
@@ -113,17 +107,11 @@ class PersistentMemory:
             if hits > 0:
                 candidates.append((fp.name, text[:300], hits))
 
-        # Sort by hit count descending (poor-man's relevance)
         candidates.sort(key=lambda x: x[2], reverse=True)
 
-        # Try Rust BM25 if available
         candidates = _rerank_with_rust_bm25(query, candidates)
 
         return [{"file": f, "content_snippet": s} for f, s, _ in candidates]
-
-    # ------------------------------------------------------------------
-    # Combined search across all tiers
-    # ------------------------------------------------------------------
 
     def search(self, query: str, limit: int = 8) -> dict[str, Any]:
         """
@@ -147,12 +135,10 @@ class PersistentMemory:
         """
         blocks: list[str] = []
 
-        # Episodic snapshot
         ep_snapshot = self.episodic.get_snapshot_for_prompt(query, max_episodes=3)
         if ep_snapshot:
             blocks.append(ep_snapshot)
 
-        # Semantic facts relevant to query
         sem_results = self.search_semantic(query)[:2]
         if sem_results:
             blocks.append("## Relevant Facts\n")
@@ -161,10 +147,6 @@ class PersistentMemory:
             blocks.append("")
 
         return "\n".join(blocks) if blocks else ""
-
-    # ------------------------------------------------------------------
-    # Housekeeping
-    # ------------------------------------------------------------------
 
     def _rebuild_index(self) -> None:
         """Rebuild the human-readable MEMORY.md index."""
@@ -182,10 +164,6 @@ class PersistentMemory:
             lines.append(f"- `{fp.name}`")
 
         self.index_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-    # ------------------------------------------------------------------
-    # Legacy compatibility shim
-    # ------------------------------------------------------------------
 
     def store(self, memory_type: str, content: str, memory_id: str | None = None) -> str:
         """Backward-compat: store semantic memory (previously was in root memory_dir)."""

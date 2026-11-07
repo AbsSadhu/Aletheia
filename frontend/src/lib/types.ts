@@ -15,6 +15,8 @@ export interface RunSummary {
   created_at: string;
   updated_at: string;
   error_message: string | null;
+  /** per-agent progress: pending | running | completed | failed | skipped */
+  agent_statuses?: Record<string, string>;
 }
 
 export interface MarketQuote {
@@ -181,10 +183,16 @@ export interface BacktestResult {
     sharpe_ratio: number;
     max_drawdown: number;
     win_rate: number;
-    profit_factor: number;
+    /** null when no trade lost money (the ratio is undefined). */
+    profit_factor: number | null;
     total_trades: number;
   };
   orders: BacktestOrder[];
+  costs_paid?: number;
+  cost_model?: string | null;
+  data_as_of?: string | null;
+  warnings?: string[];
+  segments?: { label: "earlier" | "later"; bars: number; total_return: number; max_drawdown: number; sharpe_ratio: number }[];
   equity_curve: BacktestEquityPoint[];
 }
 

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { FlaskConical } from "lucide-react";
+import { FlaskConical, XCircle } from "lucide-react";
 
 import TopBar from "../components/TopBar";
+import PageHero from "../components/PageHero";
+import HypothesisPipeline from "../components/HypothesisPipeline";
 import {
   listHypotheses,
   proposeHypothesis,
@@ -139,6 +141,7 @@ export default function Hypotheses() {
     <>
       <TopBar title="Hypotheses" onRefresh={() => void refresh()} loading={loading} />
       <div className="page-shell">
+        <PageHero variant="ridge" headline="Turn hunches into evidence." sub="Propose a hypothesis, attach evidence, and move it from proposed to validated or rejected." />
         {error && (
           <div
             className="card"
@@ -149,9 +152,11 @@ export default function Hypotheses() {
               marginBottom: "var(--space-5)",
             }}
           >
-            ❌ {error}
+            <XCircle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />{error}
           </div>
         )}
+
+        {statusFilter === "" && <HypothesisPipeline statuses={hypotheses.map((h) => h.status)} />}
 
         <div className="card" style={{ marginBottom: "var(--space-5)" }}>
           <div className="card-header">
@@ -209,7 +214,7 @@ export default function Hypotheses() {
 
             {hypotheses.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">🧪</div>
+                <div className="empty-state-icon"><FlaskConical size={26} strokeWidth={1.5} /></div>
                 <div className="empty-state-title">No hypotheses yet</div>
                 <div className="empty-state-text">Propose one above to start tracking it.</div>
               </div>

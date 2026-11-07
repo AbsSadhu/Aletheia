@@ -1,0 +1,130 @@
+@layer legacy {
+/* ============================================================
+   Side rail: icon keys that open into a labelled panel. Flat, with real 3D in the brand cube
+   and the raised active key.
+   ============================================================ */
+:root { --rail-w: 76px; --rail-open: 252px; }
+
+.sidebar-slot {
+  grid-row: 1 / -1;
+  position: sticky; top: 0;
+  height: 100vh;
+  width: var(--rail-w);
+  display: block;
+  z-index: 30;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar-slot[data-pinned="true"] { width: var(--rail-open); }
+
+.rail {
+  position: absolute; inset: 0 auto 0 0;
+  width: 100%;
+  display: flex; flex-direction: column;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
+}
+.sidebar-slot[data-pinned="false"] .rail:hover,
+.sidebar-slot[data-pinned="false"] .rail:focus-within {
+  width: var(--rail-open);
+  box-shadow: 24px 0 48px rgba(0, 0, 0, 0.7);
+}
+
+/* labels: hidden collapsed, fade in when open */
+.rail-label, .rail-word, .rail-group-title {
+  opacity: 0; transform: translateX(-8px);
+  white-space: nowrap;
+  transition: opacity 0.2s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar-slot[data-pinned="true"] .rail-label, .sidebar-slot[data-pinned="true"] .rail-word, .sidebar-slot[data-pinned="true"] .rail-group-title,
+.sidebar-slot[data-pinned="false"] .rail:hover .rail-label, .sidebar-slot[data-pinned="false"] .rail:hover .rail-word, .sidebar-slot[data-pinned="false"] .rail:hover .rail-group-title,
+.sidebar-slot[data-pinned="false"] .rail:focus-within .rail-label, .sidebar-slot[data-pinned="false"] .rail:focus-within .rail-word, .sidebar-slot[data-pinned="false"] .rail:focus-within .rail-group-title {
+  opacity: 1; transform: none; transition-delay: 0.08s;
+}
+
+/* brand */
+.rail-brand {
+  display: flex; align-items: center; gap: var(--space-3);
+  height: var(--topbar-height);
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+.rail-word { font-weight: 700; letter-spacing: 0.14em; font-size: var(--text-sm); }
+.cube-stage { width: 28px; height: 28px; perspective: 140px; flex-shrink: 0; display: grid; place-items: center; }
+.cube { position: relative; width: 22px; height: 22px; transform-style: preserve-3d; animation: cube-spin 16s linear infinite; }
+.rail-brand:hover .cube { animation-duration: 3s; }
+.cube i {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-style: normal; font-weight: 800; font-size: 12px; font-family: var(--font-mono); color: #fff;
+}
+.cube .f1 { transform: translateZ(11px); background: var(--accent); }
+.cube .f2 { transform: rotateY(90deg) translateZ(11px); background: var(--accent-2); }
+.cube .f3 { transform: rotateY(180deg) translateZ(11px); background: #2b2b2b; }
+.cube .f4 { transform: rotateY(-90deg) translateZ(11px); background: var(--accent-2); }
+.cube .f5 { transform: rotateX(90deg) translateZ(11px); background: #1a1a1a; }
+.cube .f6 { transform: rotateX(-90deg) translateZ(11px); background: #1a1a1a; }
+@keyframes cube-spin { from { transform: rotateX(-24deg) rotateY(0deg); } to { transform: rotateX(-24deg) rotateY(360deg); } }
+
+/* groups and keys */
+.rail-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: var(--space-3) 16px; display: flex; flex-direction: column; gap: var(--space-2); scrollbar-width: none; perspective: 700px; }
+.rail-scroll::-webkit-scrollbar { display: none; }
+.rail-group { display: flex; flex-direction: column; gap: 2px; padding-bottom: var(--space-2); border-bottom: 1px solid var(--border-subtle); }
+.rail-group:last-child { border-bottom: none; }
+.rail-group-title {
+  height: 22px; padding: 6px 0 0 12px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted);
+}
+
+.rail-item {
+  position: relative;
+  display: flex; align-items: center; gap: var(--space-3);
+  height: 44px; width: 100%;
+  padding: 0 12px;
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm); font-weight: 500;
+  cursor: pointer;
+  animation: key-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--n, 0) * 35ms);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+.rail-icon { display: grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.rail-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+.rail-item:hover .rail-icon { transform: scale(1.18) translateY(-1px); }
+.rail-item:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+.rail-item.active {
+  background: var(--accent);
+  color: #fff;
+  transform: translateZ(18px) translateX(2px);
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.rail-item.active .rail-label { font-weight: 600; }
+@keyframes key-in { from { opacity: 0; transform: translateX(-14px) rotateY(-50deg); } to { opacity: 1; transform: none; } }
+
+/* footer */
+.rail-foot { padding: var(--space-3) 16px var(--space-4); border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.rail-status { display: flex; align-items: center; gap: var(--space-3); padding: 0 16px; height: 22px; font-size: var(--text-xs); color: var(--text-muted); }
+.rail-status svg, .rail-status .status-dot { flex-shrink: 0; }
+.rail-pin {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 32px; margin-top: var(--space-1);
+  background: transparent; border: 1px solid var(--border-medium); border-radius: 8px;
+  color: var(--text-secondary); cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.rail-pin:hover { border-color: var(--accent-2); color: var(--text-primary); }
+.rail-pin[aria-pressed="true"] { color: var(--accent-2); border-color: var(--accent-2); }
+
+/* status dots lose the old glow */
+.status-dot { box-shadow: none; }
+.status-dot.offline { box-shadow: none; }
+
+@media (max-width: 640px) { .sidebar-slot { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .cube, .rail-item { animation: none !important; }
+  .sidebar-slot, .rail, .rail-label, .rail-word, .rail-group-title, .rail-icon { transition: none !important; }
+}
+}

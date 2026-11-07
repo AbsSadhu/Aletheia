@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from aletheia.core.api.routers import (
+    analytics,
     backtest,
     brokers,
     chat,
@@ -20,8 +21,10 @@ from aletheia.core.api.routers import (
     factors,
     health,
     hypotheses,
+    journal,
     marketdata,
     memory,
+    news,
     options,
     portfolios,
     risk,
@@ -29,11 +32,13 @@ from aletheia.core.api.routers import (
     shadow,
     signals,
     swarm,
+    validation,
     websocket,
 )
 
 router = APIRouter()
 for _module in (
+    analytics,
     brokers,
     feed,
     health,
@@ -44,7 +49,9 @@ for _module in (
     execution,
     shadow,
     hypotheses,
+    journal,
     memory,
+    news,
     options,
     factors,
     risk,
@@ -52,6 +59,7 @@ for _module in (
     chat,
     signals,
     swarm,
+    validation,
 ):
     router.include_router(_module.router)
 

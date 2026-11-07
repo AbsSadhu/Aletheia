@@ -117,7 +117,6 @@ async def export_run(run_id: str, format: str = "pdf") -> StreamingResponse:
         media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         filename = f"aletheia_run_{run_id[:8]}.xlsx"
     else:
-        # Default to PDF
         try:
             data, is_pdf = export_pdf(run_dict)
         except Exception as exc:

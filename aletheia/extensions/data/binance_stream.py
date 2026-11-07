@@ -114,8 +114,6 @@ class BinanceStream:
         self.reconnects = 0
         self.last_quotes: dict[tuple[str, str], dict[str, Any]] = {}
 
-    # -- public ---------------------------------------------------------------
-
     def status(self) -> dict[str, Any]:
         age = None if self.last_tick_at is None else round(time.time() - self.last_tick_at, 1)
         return {
@@ -170,8 +168,6 @@ class BinanceStream:
                 await asyncio.wait_for(self._stop.wait(), timeout=delay)
             delay = min(delay * 2, self.backoff_max)
 
-    # -- connection -------------------------------------------------------------
-
     async def _session(self, endpoint: str) -> None:
         connect = self._connect
         if connect is None:
@@ -223,8 +219,6 @@ class BinanceStream:
                     )
                 )
         self._subscribed = set(self._wanted)
-
-    # -- inbound ------------------------------------------------------------------
 
     async def _on_message(self, raw: Any) -> None:
         try:
