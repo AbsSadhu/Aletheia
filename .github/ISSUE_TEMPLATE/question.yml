@@ -1,0 +1,11 @@
+name: Question or help
+description: Ask how to use or set up Aletheia
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What are you trying to do?
+      description: Please check the README and docs/USER_GUIDE.md first. Never paste keys or tokens.
+    validations:
+      required: true

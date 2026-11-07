@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/AbsSadhu/Aletheia/security/advisories/new
+    about: Please report security problems privately, not in a public issue.
+  - name: Read the user guide
+    url: https://github.com/AbsSadhu/Aletheia/blob/main/docs/USER_GUIDE.md
+    about: Step-by-step help for every page of the app.
