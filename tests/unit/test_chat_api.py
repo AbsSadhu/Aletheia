@@ -11,6 +11,7 @@ from aletheia.core.db.chat_store import ChatStore
 from aletheia.core.llm.chat_llm import (
     ChatMessage,
     ChatResponse,
+    OllamaChatLLM,
     _to_anthropic_messages,
     _to_ollama_messages,
     build_chat_llm,
@@ -209,13 +210,37 @@ def test_stream_is_multi_turn_and_reports_model(client, monkeypatch) -> None:
     assert client.delete(f"/api/v1/chat/threads/{tid}").status_code == 204
 
 
-def test_stream_explains_uninstalled_ollama_model(client) -> None:
+def _fake_ollama(monkeypatch, *, running: bool, models: list[str]) -> None:
+    """Stand in for a local Ollama so the test does not depend on one being installed."""
+
+    async def is_available(self) -> bool:
+        return running
+
+    async def list_models(base_url: str):
+        return [{"model": m} for m in models], None
+
+    monkeypatch.setattr(OllamaChatLLM, "is_available", is_available)
+    monkeypatch.setattr(chat_router, "list_ollama_models", list_models)
+
+
+def test_stream_explains_uninstalled_ollama_model(client, monkeypatch) -> None:
+    _fake_ollama(monkeypatch, running=True, models=["llama3:8b"])
     resp = client.post(
         "/api/v1/chat/stream",
         json={"prompt": "hi", "provider": "ollama", "model": "not-pulled:1b"},
     )
     errors = [d for e, d in _events(resp) if e == "error"]
-    assert errors and "isn't installed" in errors[0]["message"]
+    assert errors and "'not-pulled:1b' isn't installed in Ollama" in errors[0]["message"]
+
+
+def test_stream_explains_when_ollama_is_not_running(client, monkeypatch) -> None:
+    _fake_ollama(monkeypatch, running=False, models=[])
+    resp = client.post(
+        "/api/v1/chat/stream",
+        json={"prompt": "hi", "provider": "ollama", "model": "llama3:8b"},
+    )
+    errors = [d for e, d in _events(resp) if e == "error"]
+    assert errors and "Ollama isn't reachable" in errors[0]["message"]
 
 
 def test_stream_unknown_thread_is_404(client) -> None:
