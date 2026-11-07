@@ -18,6 +18,14 @@
 <p align="center"><strong>A private research desk for Indian stocks and crypto.</strong><br>
 Multi-agent portfolio analysis, honest backtests, paper trading and live market views, all running on your own machine.</p>
 
+<p align="center">
+  <a href="https://github.com/AbsSadhu/Aletheia/releases/latest"><b>Download</b></a> &nbsp;·&nbsp;
+  <a href="docs/USER_GUIDE.md">User guide</a> &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">Changelog</a> &nbsp;·&nbsp;
+  <a href="https://github.com/AbsSadhu/Aletheia/issues">Issues</a> &nbsp;·&nbsp;
+  <a href="CONTRIBUTING.md">Contribute</a>
+</p>
+
 <p align="center"><img src="docs/images/demo.gif" alt="A tour of Aletheia: dashboard, a finished analysis, Market Pulse, Live Market, options pricing and the trade journal" width="92%"></p>
 <p align="center"><sub>A real tour of the desktop app: dashboard, a finished run, Market Pulse, Live Market, options and the trade journal.</sub></p>
 
@@ -39,7 +47,7 @@ Multi-agent portfolio analysis, honest backtests, paper trading and live market 
 
 ## Contents
 
-[Install](#install) · [What you can do](#what-you-can-do) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Run from source](#run-from-source) · [Live data & broker orders](#live-data--broker-orders) · [Good to know](#good-to-know) · [FAQ](#faq) · [Developer guide](#developer-guide) · [Contributing](#contributing) · [Security](#security) · [License](#license)
+[Install](#install) · [What you can do](#what-you-can-do) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Run from source](#run-from-source) · [Live data & broker orders](#live-data--broker-orders) · [Good to know](#good-to-know) · [FAQ](#faq) · [Developer guide](#developer-guide) · [Community](#community) · [Contributing](#contributing) · [Security](#security) · [License](#license)
 
 ---
 
@@ -289,6 +297,16 @@ POST /api/v1/backtest                     backtest with Indian costs and tax
 ```
 
 Docs: [User guide](docs/USER_GUIDE.md) · [Threat model](docs/THREAT_MODEL.md) · [Roadmap](docs/ROADMAP.md) · [Architecture decisions](docs/adr) · [Changelog](CHANGELOG.md). CI (`.github/workflows/ci.yml`) runs lint, format, type checks, dependency audits and all test suites.
+
+---
+
+## Community
+
+- **Found a bug or have an idea?** Open an [issue](https://github.com/AbsSadhu/Aletheia/issues/new/choose); there are short templates for bugs, features and questions.
+- **Want to help?** Pick a [good first issue](https://github.com/AbsSadhu/Aletheia/issues?q=is%3Aopen+label%3A%22good+first+issue%22), or read [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Found a vulnerability?** Please [report it privately](https://github.com/AbsSadhu/Aletheia/security/advisories/new); see [SECURITY.md](SECURITY.md).
+- **Be kind.** Everyone is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+- **Like it?** A star on the repo helps other people find Aletheia.
 
 ---
 
