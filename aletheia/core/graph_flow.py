@@ -624,7 +624,6 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                 logger.debug("PM: Failed to query calibration: %s", e)
             new_oracle_outputs.append(o_copy)
 
-        # 1. VaR limit check
         var_pct = 0.0
         if sentinel_output:
             var_pct = abs(sentinel_output.portfolio_var_95) / total_value * 100
@@ -650,7 +649,6 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                             }
                         )
 
-        # 2. Sector concentration check
         sector_values = {}
         for holding in portfolio.holdings:
             symbol = holding.symbol.upper()
@@ -688,7 +686,6 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
                     }
                 )
 
-        # 3. Max position size check
         for idx, o in enumerate(new_oracle_outputs):
             if o.signal != "BUY":
                 continue
@@ -887,10 +884,8 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
 
     active_agent_names = [a for a in agents_list if a in node_map]
 
-    # Setup the StateGraph workflow
     workflow = StateGraph(AgentState)
 
-    # Register active nodes in workflow
     for agent_name in active_agent_names:
         node_name, node_func, fallback = node_map[agent_name]
         resilient_func = make_resilient_node(agent_name, node_func, fallback)
@@ -898,13 +893,11 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
 
     active_node_names = {node_map[a][0] for a in active_agent_names}
 
-    # Connect START to collect
     if "collect" in active_node_names:
         workflow.add_edge(START, "collect")
     else:
         workflow.add_edge(START, "oracle" if "oracle" in active_node_names else "scribe")
 
-    # Connect collect to parallel analysts
     for node in ["oracle", "sentinel", "sentiment", "fundamental", "options_flow"]:
         if "collect" in active_node_names and node in active_node_names:
             workflow.add_edge("collect", node)
@@ -957,7 +950,6 @@ def create_agent_graph(run_service: Any, enabled_agents: List[str] | None = None
         if "sentinel" in active_node_names and "scribe" in active_node_names:
             workflow.add_edge("sentinel", "scribe")
 
-    # Scribe -> Critic -> Scribe loop or END
     def route_critic(state: AgentState):
         verdict = state.get("critic_verdict")
         if verdict and not verdict.passed and verdict.iteration < 2:

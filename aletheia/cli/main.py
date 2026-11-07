@@ -311,14 +311,12 @@ def db_backup(
     settings = get_settings()
     console.print("[bold blue]Starting Aletheia Database Backup[/bold blue]")
 
-    # Create timestamped folder name
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     target_folder = Path(backup_dir) / f"backup_{timestamp}"
 
     try:
         target_folder.mkdir(parents=True, exist_ok=True)
 
-        # 1. SQLite Safe Online Backup
         sqlite_src = settings.sqlite_path
         sqlite_dest = target_folder / sqlite_src.name
 
@@ -333,7 +331,6 @@ def db_backup(
         else:
             console.print("[yellow]SQLite file not found; skipping SQLite backup.[/yellow]")
 
-        # 2. DuckDB safe file copy
         duckdb_src = settings.duckdb_path
         duckdb_dest = target_folder / duckdb_src.name
 
@@ -401,7 +398,6 @@ def db_restore(
         if settings.duckdb_path.exists():
             shutil.copy2(settings.duckdb_path, duckdb_temp)
 
-        # Overwrite active database files
         if sqlite_backup.exists():
             console.print(f"Restoring [green]{settings.sqlite_path}[/green]...")
             settings.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
@@ -412,7 +408,6 @@ def db_restore(
             settings.duckdb_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(duckdb_backup, settings.duckdb_path)
 
-        # Cleanup temp safety folder
         shutil.rmtree(temp_dir)
         console.print("[bold green][OK] Databases successfully restored![/bold green]")
 
@@ -420,7 +415,6 @@ def db_restore(
         console.print(
             f"[bold red][ERROR] Restore failed! Attempting rollback... Error: {exc}[/bold red]"
         )
-        # Rollback
         try:
             if temp_dir.exists():
                 if (

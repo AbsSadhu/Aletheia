@@ -1,11 +1,7 @@
 # Contributing to Aletheia
 
 Thanks for considering a contribution. This guide covers setup, testing, and
-PR expectations for human contributors. If you're an AI coding agent working
-in this repo, read [`AGENTS.md`](AGENTS.md) / [`CLAUDE.md`](CLAUDE.md)
-instead — they cover the same ground plus agent-specific conventions
-(base role contracts, commit attribution, the `ComputeClient` fallback rule)
-that don't need repeating here.
+PR expectations.
 
 ## Prerequisites
 
@@ -101,7 +97,7 @@ rationale) — don't drop coverage below that on a PR.
 ## Where things live
 
 The architecture is documented in the README's Mermaid diagram and in
-[`docs/`](docs/) (`KNOWLEDGE_GRAPH.md`, `THREAT_MODEL.md`, `ROADMAP.md`,
+[`docs/`](docs/) (`THREAT_MODEL.md`, `ROADMAP.md`,
 ADRs). If you're about to add a new API endpoint, put it in the router file
 matching its domain under `aletheia/core/api/routers/` rather than growing
 a new god-file — see that directory's existing modules for the pattern.

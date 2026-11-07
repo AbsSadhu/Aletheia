@@ -59,12 +59,12 @@ def test_paper_trader_buy_and_sell(tmp_path: Path) -> None:
 def test_live_gate_enforces_confirmation(tmp_path: Path) -> None:
     gate = LiveExecutionGate(ExecutionStorage(tmp_path / "execution.sqlite3"))
     with pytest.raises(PermissionError):
-        gate.set_mode(ExecutionMode.LIVE, confirm=False, paper_observation_days=7)
+        gate.set_mode(ExecutionMode.LIVE, confirm=False)
 
     with pytest.raises(PermissionError):
-        gate.set_mode(ExecutionMode.LIVE, confirm=True, paper_observation_days=1)
+        gate.set_mode(ExecutionMode.LIVE, confirm=True)
 
-    state = gate.set_mode(ExecutionMode.PAPER, confirm=False, paper_observation_days=0)
+    state = gate.set_mode(ExecutionMode.PAPER, confirm=False)
     assert state.mode == ExecutionMode.PAPER
 
 

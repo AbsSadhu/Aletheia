@@ -1,8 +1,10 @@
+import { ClipboardList } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import TopBar from "../components/TopBar";
-import { listRuns, createDemoRun } from "../lib/api";
+import PageHero from "../components/PageHero";
+import { createDemoRun, createRun, listPortfolios, listRuns } from "../lib/api";
 import type { RunSummary } from "../lib/types";
 
 export default function RunsList() {
@@ -31,7 +33,9 @@ export default function RunsList() {
     try {
       setLoading(true);
       setError(null);
-      const result = await createDemoRun();
+      // Analyse the user's own saved portfolio; the example holdings are only a fallback for a fresh install.
+      const saved = (await listPortfolios()).portfolios[0];
+      const result = saved ? await createRun(`Analyze portfolio ${saved.name}`, saved) : await createDemoRun();
       await refresh();
       navigate(`/runs/${result.summary.run_id}`);
     } catch (err) {
@@ -50,6 +54,7 @@ export default function RunsList() {
         loading={loading}
       />
       <div className="page-shell">
+        <PageHero variant="wave" headline="Every analysis, on the record." sub="Each run keeps its agents' outputs, warnings and recommendations so you can revisit what was said and when." />
         {error && (
           <p style={{ color: "var(--red)", marginBottom: "var(--space-4)" }}>
             {error}
@@ -120,7 +125,7 @@ export default function RunsList() {
         ) : (
           <div className="card">
             <div className="empty-state">
-              <div className="empty-state-icon">📋</div>
+              <div className="empty-state-icon"><ClipboardList size={26} strokeWidth={1.5} /></div>
               <div className="empty-state-title">No runs yet</div>
               <div className="empty-state-text">
                 Click "New Analysis" to run your first portfolio analysis

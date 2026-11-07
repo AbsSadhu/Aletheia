@@ -182,8 +182,6 @@ class BseWebStream:
         self.max_lag_secs: float | None = None
         self.last_quotes: dict[tuple[str, str], dict[str, Any]] = {}
 
-    # -- public ---------------------------------------------------------------
-
     def status(self) -> dict[str, Any]:
         age = None if self.last_tick_at is None else round(time.time() - self.last_tick_at, 1)
         return {
@@ -222,8 +220,6 @@ class BseWebStream:
             wait = max(interval - (time.monotonic() - started), 0.0) + self._penalty
             with contextlib.suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), timeout=wait)
-
-    # -- polling --------------------------------------------------------------------
 
     async def _http(self) -> httpx.AsyncClient:
         if self._client is None:

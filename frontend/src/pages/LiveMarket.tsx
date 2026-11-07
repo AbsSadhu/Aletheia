@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
 import TopBar from "../components/TopBar";
+import PageHero from "../components/PageHero";
 import { getFeedStatus, getWatchlist, saveWatchlist } from "../lib/api";
 import type { FeedStatus, LiveQuote, WatchItem } from "../lib/api";
+import MarketHeat from "../components/charts/MarketHeat";
+import SafeLink from "../components/SafeLink";
+import Ticker from "../components/Ticker";
+import { symbolPath } from "../lib/symbols";
 import { quoteKey, useMarketFeed } from "../lib/useMarketFeed";
 import { tradingViewUrl } from "../lib/tradingview";
 import PriceChart from "../components/PriceChart";
@@ -65,6 +70,32 @@ export default function LiveMarket() {
   const selectedItem = items.find((i) => quoteKey(i.symbol, i.exchange) === selected) ?? null;
   const selectedQuote = selectedItem ? quotes[quoteKey(selectedItem.symbol, selectedItem.exchange)] : undefined;
 
+  const tape = useMemo(
+    () =>
+      items
+        .map((it) => ({ it, q: quotes[quoteKey(it.symbol, it.exchange)] }))
+        .filter(({ q }) => q?.close != null)
+        .map(({ it, q }) => {
+          const c = q?.change_pct;
+          return {
+            symbol: it.symbol,
+            price: fmt(q?.close),
+            change: c == null ? "" : `${c >= 0 ? "+" : ""}${c.toFixed(2)}%`,
+            dir: c == null || c === 0 ? ("flat" as const) : c > 0 ? ("up" as const) : ("down" as const),
+          };
+        }),
+    [items, quotes],
+  );
+  const heat = useMemo(
+    () =>
+      items.map((it) => {
+        const q = quotes[quoteKey(it.symbol, it.exchange)];
+        const sinceOpen = q?.close != null && q?.open ? ((q.close - q.open) / q.open) * 100 : null;
+        return { name: it.symbol, weight: q?.volume ?? 1, change: q?.change_pct ?? sinceOpen };
+      }),
+    [items, quotes],
+  );
+
   const unresolved = useMemo(() => new Set(status?.unresolved_symbols ?? []), [status]);
   const live = status?.mode === "stream";
   const marketOpen = status?.market.is_open ?? false;
@@ -87,6 +118,8 @@ export default function LiveMarket() {
     <>
       <TopBar title="Live Market" />
       <div className="page-shell">
+        <Ticker items={tape} />
+        <PageHero variant="bars" headline="Every tick on your watchlist, at a glance." sub="Prices come from your own feed. The tape, heat map and table all read the same quotes." />
         <div
           className="card"
           style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-4)", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-4)" }}
@@ -159,6 +192,16 @@ export default function LiveMarket() {
         </form>
         {error && <div className="card" role="alert" style={{ color: "var(--red)", marginBottom: "var(--space-4)" }}>{error}</div>}
 
+        {items.length > 1 && (
+          <div className="card" style={{ marginBottom: "var(--space-4)" }}>
+            <div className="card-header">
+              <span className="card-title">Heat map</span>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>size = volume · colour = change (since the open when no day change is sent)</span>
+            </div>
+            <MarketHeat cells={heat} />
+          </div>
+        )}
+
         <div className="card">
           <div className="table-wrap">
             <table>
@@ -210,11 +253,16 @@ export default function LiveMarket() {
                           {it.symbol}
                         </button>{" "}
                         <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)" }}>{it.exchange}</span>
+                        <SafeLink to={symbolPath(it.symbol, it.exchange)} className="row-open" aria-label={`Open ${it.symbol} details`} title="Open details">
+                          →
+                        </SafeLink>
                         {unresolved.has(`${it.symbol}:${it.exchange}`) && (
-                          <span title="Your live-feed broker can't stream this symbol" style={{ color: "var(--amber)" }}> ⚠ unknown</span>
+                          <span title="Your live-feed broker can't stream this symbol" style={{ color: "var(--amber)" }}> unknown</span>
                         )}
                       </td>
                       <td
+                        key={`${q?.close}`}
+                        className={move ? `tick-${move}` : undefined}
                         style={{
                           textAlign: "right",
                           fontFamily: "var(--font-mono)",

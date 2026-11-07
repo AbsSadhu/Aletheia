@@ -42,9 +42,7 @@ class FactorRegistry:
         if include_custom:
             self._load_custom()
 
-    # ------------------------------------------------------------------
     # Discovery
-    # ------------------------------------------------------------------
 
     def _load_builtins(self) -> None:
         for module_path in _BUILTIN_MODULES:
@@ -78,9 +76,7 @@ class FactorRegistry:
                 except Exception as exc:
                     logger.warning("Failed to instantiate factor %s: %s", cls.__name__, exc)
 
-    # ------------------------------------------------------------------
     # Registration
-    # ------------------------------------------------------------------
 
     def register(self, factor: Factor) -> None:
         """Manually register a factor instance."""
@@ -97,9 +93,7 @@ class FactorRegistry:
             for f in self._factors.values()
         ]
 
-    # ------------------------------------------------------------------
     # Computation
-    # ------------------------------------------------------------------
 
     def compute_all(self, ohlcv: pd.DataFrame) -> dict[str, FactorOutput]:
         """Compute all registered factors for the given OHLCV data."""

@@ -1,0 +1,61 @@
+/*
+  Assistant skin. Unlayered on purpose: the chat library's own styles live in a cascade layer
+  (astryx-base), and unlayered rules beat layered ones, so these overrides apply without !important.
+*/
+.chat-panel,
+.chat-panel .chat-body,
+.chat-panel .astryx-chat-layout {
+  background: var(--bg-surface);
+}
+/* no frosted glass: nothing behind the panel should show through it */
+.chat-panel,
+.chat-panel * {
+  backdrop-filter: none;
+}
+
+.chat-panel {
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(480px, calc(100vw - 24px));
+  border: 1px solid var(--border-medium);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+}
+
+/* your messages: a solid red bubble with a squared tail corner */
+.chat-panel .astryx-chat-message-bubble[data-sender="user"] {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 16px 16px 4px 16px;
+  font-weight: 500;
+}
+
+/* the model's answers: a quiet raised panel, so a reply reads as one object */
+.chat-panel .astryx-chat-message-bubble[data-sender="assistant"] .chat-assistant-body {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px 16px 16px 16px;
+  padding: var(--space-3) var(--space-4);
+}
+
+/* composer: the library draws its box (and its focus ring) on the first child, so that is what
+   gets restyled: a flat well with a hairline that turns orange on focus, one ring and no shadow. */
+.chat-panel .astryx-chat-composer {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+.chat-panel .astryx-chat-composer > div:first-child {
+  background: var(--bg-input);
+  border-radius: 16px;
+  box-shadow: none;
+  outline: 1px solid var(--border-medium);
+  outline-offset: 0;
+  transition: outline-color 0.2s ease;
+}
+.chat-panel .astryx-chat-composer:focus-within > div:first-child {
+  outline: 1px solid var(--accent-2);
+}

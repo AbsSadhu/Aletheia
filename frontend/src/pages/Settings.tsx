@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Save, Shield, Cpu, Key, Database, Radio, Check, AlertCircle, Eye, EyeOff, Lock } from "lucide-react";
 import TopBar from "../components/TopBar";
+import PageHero from "../components/PageHero";
+import { useBrokerLogin } from "../lib/useBrokerLogin";
 import { fetchHealth, getSystemConfig, updateSystemConfig, getApiKey, setApiKey, zerodhaStatus, zerodhaLoginUrl, fyersStatus, fyersLoginUrl } from "../lib/api";
 import type { HealthData } from "../lib/types";
 
@@ -46,42 +48,8 @@ export default function SettingsPage() {
   const [localApiKey, setLocalApiKey] = useState(() => getApiKey());
   const [apiKeySaved, setApiKeySaved] = useState(false);
 
-  const [kite, setKite] = useState<{ configured: boolean; logged_in: boolean } | null>(null);
-  const refreshKite = () => zerodhaStatus().then(setKite).catch(() => setKite(null));
-  useEffect(() => {
-    void refreshKite();
-  }, []);
-
-  // Opens Kite's login in a new tab; Kite redirects back to the backend callback, which
-  // stores the daily token. Poll status afterwards so the badge updates without a reload.
-  const handleKiteLogin = async () => {
-    try {
-      const { url } = await zerodhaLoginUrl();
-      window.open(url, "_blank", "noopener");
-      const timer = setInterval(() => void refreshKite(), 3000);
-      setTimeout(() => clearInterval(timer), 120_000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start Zerodha login");
-    }
-  };
-
-  const [fy, setFy] = useState<{ configured: boolean; logged_in: boolean; redirect_uri: string } | null>(null);
-  const refreshFy = () => fyersStatus().then(setFy).catch(() => setFy(null));
-  useEffect(() => {
-    void refreshFy();
-  }, []);
-
-  // Same pattern as Zerodha: login happens on Fyers' site, which redirects back to the backend.
-  const handleFyersLogin = async () => {
-    try {
-      const { url } = await fyersLoginUrl();
-      window.open(url, "_blank", "noopener");
-      const timer = setInterval(() => void refreshFy(), 3000);
-      setTimeout(() => clearInterval(timer), 120_000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start Fyers login");
-    }
-  };
+  const { status: kite, login: handleKiteLogin } = useBrokerLogin(zerodhaStatus, zerodhaLoginUrl, setError, "Zerodha");
+  const { status: fy, login: handleFyersLogin } = useBrokerLogin(fyersStatus, fyersLoginUrl, setError, "Fyers");
 
   const handleSaveApiKey = () => {
     setApiKey(localApiKey.trim());
@@ -139,12 +107,13 @@ export default function SettingsPage() {
     <>
       <TopBar title="Settings" />
       <div className="page-shell">
+        <PageHero variant="steps" headline="Wire it up your way." sub="Pick the model, the data feeds and the broker. Keys stay on this machine." />
         {loading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "var(--space-12)" }}>
             <div className="spinner" />
           </div>
         ) : (
-          <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", maxWidth: "1000px", margin: "0 auto" }}>
+          <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
             {error && (
               <div className="card" style={{ background: "var(--red-muted)", color: "var(--red)", borderColor: "var(--red)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
@@ -164,7 +133,6 @@ export default function SettingsPage() {
             )}
 
             <div className="grid-2">
-              {/* LLM settings */}
               <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
                 <div className="card-header" style={{ marginBottom: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
@@ -315,7 +283,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Data feeds */}
               <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
                 <div className="card-header" style={{ marginBottom: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
@@ -396,7 +363,7 @@ export default function SettingsPage() {
                   <div className="card-title">Backend API Key</div>
                 </div>
               </div>
-              <p className="stat-label" style={{ margin: 0 }}>
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-secondary)", lineHeight: 1.55 }}>
                 Only needed if this backend was started with <code>ALETHEIA_API_KEYS</code> set.
                 Stored in this browser only — must match one of the configured keys.
               </p>
@@ -417,7 +384,6 @@ export default function SettingsPage() {
             </div>
 
             <div className="grid-2">
-              {/* Broker keys */}
               <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
                 <div className="card-header" style={{ marginBottom: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
@@ -554,7 +520,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Local Paths */}
               <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
                 <div className="card-header" style={{ marginBottom: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
@@ -618,7 +583,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Health Info */}
             <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
               <div className="card-header" style={{ marginBottom: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
@@ -655,7 +619,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Save Button */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "var(--space-2)" }}>
               <button type="submit" className="btn btn-primary" disabled={saving} style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "12px 24px" }}>
                 {saving ? (

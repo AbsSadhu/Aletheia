@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from aletheia.core.api.dependencies import get_run_service, get_shadow_account
 from aletheia.core.config.settings import get_settings
+from aletheia.core.marketdata.symbols import yahoo_symbol
 from aletheia.core.signals.accuracy import summarize
 from aletheia.extensions.backtest.signal_backtest import (
     DEFAULT_UNIVERSE,
@@ -37,7 +38,7 @@ _backtest_lock = asyncio.Lock()
 def _fetch_history(symbol: str, years: int) -> pd.DataFrame | None:
     import yfinance as yf
 
-    sym = symbol if symbol.startswith("^") else f"{symbol.upper().split('.')[0]}.NS"
+    sym = yahoo_symbol(symbol, "NSE")
     try:
         df = yf.Ticker(sym).history(period=f"{years}y", interval="1d", auto_adjust=True)
     except Exception as exc:

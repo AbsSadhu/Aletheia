@@ -45,10 +45,8 @@ def run_tui(base_url: str | None, api_key: str) -> None:
     tui_app.run()
 
 
-# ---------------------------------------------------------------------------
 # Textual app (imports deferred to module scope only when this file is
 # actually imported, which only happens on `aletheia tui`)
-# ---------------------------------------------------------------------------
 
 from textual.app import App, ComposeResult  # noqa: E402
 from textual.containers import Horizontal, VerticalScroll  # noqa: E402

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, Minus, Cpu } from "lucide-react";
+import { BarChart3, FolderOpen, XCircle } from "lucide-react";
 import TopBar from "../components/TopBar";
+import PageHero from "../components/PageHero";
+import { PnlBars } from "../components/charts/PnlBars";
 import { listPaperTrades, getPaperPositions, settlePaperTrade } from "../lib/api";
 import type { PaperTrade, PaperPosition } from "../lib/api";
 
@@ -71,13 +73,13 @@ export default function PaperTrades() {
     <>
       <TopBar title="Paper Trading Dashboard" onRefresh={() => void loadData()} loading={loading} />
       <div className="page-shell">
+        <PageHero variant="wave" headline="What the signals would have done." sub="Simulated fills only. No real orders are ever sent from this page." />
         {error && (
           <div className="card" style={{ background: "var(--red-muted)", color: "var(--red)", borderColor: "var(--red)", marginBottom: "var(--space-5)" }}>
-            ❌ {error}
+            <XCircle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />{error}
           </div>
         )}
 
-        {/* Summary Stats Grid */}
         <div className="grid-4" style={{ marginBottom: "var(--space-5)" }}>
           <div className="card" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span className="stat-label">Total Realized P&L</span>
@@ -87,7 +89,7 @@ export default function PaperTrades() {
           </div>
           <div className="card" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span className="stat-label">Total Trade Executions</span>
-            <span className="stat-value" style={{ color: "var(--accent)" }}>{trades.length}</span>
+            <span className="stat-value">{trades.length}</span>
           </div>
           <div className="card" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span className="stat-label">Win Rate</span>
@@ -104,7 +106,16 @@ export default function PaperTrades() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {trades.some((t) => t.side === "SELL") && (
+          <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+            <div className="card-header">
+              <span className="card-title">Realized P&L by trade</span>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>bars = each sell · line = running total</span>
+            </div>
+            <PnlBars trades={trades.filter((t) => t.side === "SELL").map((t) => ({ label: t.symbol, time: t.timestamp, pnl: t.simulated_pnl }))} />
+          </div>
+        )}
+
         <div className="tabs">
           <button
             className={`tab ${activeTab === "history" ? "active" : ""}`}
@@ -120,12 +131,11 @@ export default function PaperTrades() {
           </button>
         </div>
 
-        {/* Trade History */}
         {activeTab === "history" && (
           <div className="card">
             {trades.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">📊</div>
+                <div className="empty-state-icon"><BarChart3 size={26} strokeWidth={1.5} /></div>
                 <div className="empty-state-title">No paper trades recorded</div>
                 <div className="empty-state-text">
                   Trade signals will populate here automatically once you run portfolio analyses and Sage issues tax-aware recommendations.
@@ -218,12 +228,11 @@ export default function PaperTrades() {
           </div>
         )}
 
-        {/* Open Positions */}
         {activeTab === "positions" && (
           <div className="card">
             {positions.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">📂</div>
+                <div className="empty-state-icon"><FolderOpen size={26} strokeWidth={1.5} /></div>
                 <div className="empty-state-title">No open positions</div>
                 <div className="empty-state-text">
                   Any filled paper buy orders will display here as active open positions until settled with a sell/closing trade.

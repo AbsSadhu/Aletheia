@@ -22,7 +22,8 @@ async def test_resolver_fills_outcomes_and_enables_calibration_score(tmp_path) -
     with store.connect() as conn:
         conn.execute("UPDATE confidence_calibration SET recorded_at = ?", (old,))
 
-    start = pd.Timestamp.now().normalize() - pd.Timedelta(days=40)
+    # UTC, like the recorded_at stamp above; local time made this fail between local and UTC midnight.
+    start = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize() - pd.Timedelta(days=40)
     idx = pd.date_range(start, periods=41, freq="D")
     df = pd.DataFrame({"Close": [100.0 + i for i in range(41)]}, index=idx)
 

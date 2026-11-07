@@ -47,7 +47,6 @@ async def test_sentinel_partial_failure(run_service) -> None:
     assert result.agent_statuses["scribe"] == "completed"
 
     # Verify Scribe output has gap notes
-    assert result.scribe_output is not None
     assert any("sentinel failed" in note.lower() for note in result.scribe_output.notes)
 
 
@@ -87,7 +86,6 @@ async def test_sage_skipped_if_no_tax_jurisdiction(run_service) -> None:
     assert result.agent_statuses["scribe"] == "completed"
 
     # Verify Scribe output has skip notes
-    assert result.scribe_output is not None
     assert any("sage was skipped" in note.lower() for note in result.scribe_output.notes)
 
 

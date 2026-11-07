@@ -58,7 +58,6 @@ def benchmark_run(
         f"\n[bold green]✓ Benchmark complete in {result.runtime_seconds:.1f}s[/bold green]"
     )
 
-    # Print key metrics
     metrics = result.metrics
     if metrics:
         table = Table(title="Results", box=box.SIMPLE_HEAVY)

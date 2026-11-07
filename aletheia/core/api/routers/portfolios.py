@@ -98,7 +98,6 @@ async def sync_zerodha_holdings(name: str) -> dict:
 
     config = ConfigManager().load()
 
-    # Check if credentials exist
     api_key = config.zerodha_api_key
     api_secret = config.zerodha_api_secret
 
@@ -133,7 +132,6 @@ async def sync_zerodha_holdings(name: str) -> dict:
             logger.warning("Zerodha holdings sync failed: %s", e)
             raise HTTPException(status_code=502, detail=f"Zerodha sync failed: {e}") from e
 
-    # Merge holdings
     current_holdings = {h.symbol: h for h in portfolio.holdings}
     for item in holdings_to_add:
         sym = item["symbol"]

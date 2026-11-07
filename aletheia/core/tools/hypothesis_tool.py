@@ -1,37 +1,59 @@
+"""Read-only view of the hypothesis registry (the chat agent cannot create or change entries)."""
+
 from typing import Any, ClassVar
+
 from aletheia.core.tools.registry import BaseTool
 
 
 class HypothesisTool(BaseTool):
-    """Proposes, tracks, or validates a research hypothesis."""
+    """Look up tracked research hypotheses."""
 
     name: ClassVar[str] = "hypothesis"
     description: ClassVar[str] = (
-        "Propose, track, or validate a research hypothesis for backtesting."
+        "List or fetch the user's tracked research hypotheses (title, status, test criteria, "
+        "evidence, linked backtest). Read-only."
     )
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
-            "action": {
+            "action": {"type": "string", "enum": ["list", "get"], "description": "Default list."},
+            "status": {
                 "type": "string",
-                "enum": ["propose", "list", "validate"],
-                "description": "The action to perform.",
+                "enum": ["proposed", "testing", "validated", "rejected"],
+                "description": "Only for list: filter by status.",
             },
-            "title": {
-                "type": "string",
-                "description": "Title of the hypothesis (for propose action).",
-            },
-            "description": {
-                "type": "string",
-                "description": "Detailed description of the hypothesis.",
-            },
+            "id": {"type": "string", "description": "Only for get: the hypothesis id."},
         },
-        "required": ["action"],
     }
 
-    async def execute(self, action: str, **kwargs) -> Any:
+    async def execute(
+        self,
+        action: str = "list",
+        status: str | None = None,
+        id: str | None = None,  # noqa: A002 - matches the tool schema the model sees
+        **kwargs: Any,
+    ) -> Any:
+        from aletheia.core.api.routers.hypotheses import _get_hypothesis_registry
+
+        registry = _get_hypothesis_registry()
+        if action == "get":
+            if not id:
+                return {"error": "Pass the hypothesis id."}
+            hypo = registry.get(id)
+            if hypo is None:
+                return {"error": f"No hypothesis with id {id}."}
+            return hypo.model_dump(mode="json")
+        items = registry.list_all(status=status)
         return {
-            "action": action,
-            "status": "mock",
-            "message": "Hypothesis tracking system pending implementation.",
+            "count": len(items),
+            "hypotheses": [
+                {
+                    "id": h.id,
+                    "title": h.title,
+                    "status": h.status,
+                    "evidence_items": len(h.evidence),
+                    "backtest_run_id": h.backtest_run_id,
+                }
+                for h in items
+            ],
         }

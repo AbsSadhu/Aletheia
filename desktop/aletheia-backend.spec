@@ -16,7 +16,7 @@
 # with zero Python interpreter on the host.
 import os
 
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(SPEC)))
 
@@ -26,11 +26,15 @@ hiddenimports = []
 
 # These packages rely heavily on dynamic imports/plugin discovery that
 # PyInstaller's static analysis misses on its own.
-for pkg in ("duckdb", "langchain", "langgraph", "langsmith", "fastmcp", "pydantic", "yfinance", "ccxt"):
+for pkg in ("duckdb", "langchain", "langgraph", "langsmith", "fastmcp", "pydantic", "yfinance", "ccxt", "reportlab"):
     pkg_datas, pkg_binaries, pkg_hiddenimports = collect_all(pkg)
     datas += pkg_datas
     binaries += pkg_binaries
     hiddenimports += pkg_hiddenimports
+
+# The agent's tools and extensions are discovered at runtime by scanning package folders, which
+# static analysis cannot see. Without this the frozen backend would start with no chat tools.
+hiddenimports += collect_submodules("aletheia")
 
 a = Analysis(
     [os.path.join(REPO_ROOT, "desktop", "backend_entry.py")],

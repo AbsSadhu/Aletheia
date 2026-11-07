@@ -1,7 +1,5 @@
 from fastapi import Request, HTTPException, status
 from fastapi.security import APIKeyHeader
-from starlette.middleware.base import BaseHTTPMiddleware
-import time
 import logging
 from typing import Any
 
@@ -47,40 +45,9 @@ class PyO3RateLimiter:
             logger.debug("aletheia_rust not importable, bypassing RateLimiter")
 
 
-# Initialize rate limiters for run, portfolio and analysis endpoints
 submit_run_limiter = PyO3RateLimiter(rate=2.0, capacity=5.0)
 submit_portfolio_limiter = PyO3RateLimiter(rate=2.0, capacity=5.0)
 portfolio_analysis_limiter = PyO3RateLimiter(rate=2.0, capacity=5.0)
-
-
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, max_requests: int = 100, window_seconds: int = 60):
-        super().__init__(app)
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self.request_counts = {}
-
-    async def dispatch(self, request: Request, call_next):
-        client_ip = request.client.host
-        current_time = time.time()
-
-        # Clean up old entries
-        self.request_counts = {
-            ip: [t for t in times if current_time - t < self.window_seconds]
-            for ip, times in self.request_counts.items()
-        }
-
-        # Check rate limit
-        times = self.request_counts.get(client_ip, [])
-        if len(times) >= self.max_requests:
-            logger.warning(f"Rate limit exceeded for IP {client_ip}")
-            raise HTTPException(status_code=429, detail="Too Many Requests")
-
-        times.append(current_time)
-        self.request_counts[client_ip] = times
-
-        response = await call_next(request)
-        return response
 
 
 def _auth_disabled_warning() -> None:

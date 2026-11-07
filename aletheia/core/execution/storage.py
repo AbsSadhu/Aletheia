@@ -182,6 +182,15 @@ class ExecutionStorage:
             for row in rows
         ]
 
+    def realized_pnl_total(self) -> float:
+        """Profit and loss locked in by sells. Read from the trade ledger, because a position row
+        (and the realised P&L kept on it) is deleted when the position is fully closed."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT COALESCE(SUM(simulated_pnl), 0) AS total FROM paper_trades WHERE side = 'SELL'"
+            ).fetchone()
+        return float(row["total"])
+
     def list_trades(self, limit: int = 50) -> list[PaperTradeResult]:
         with self._connect() as conn:
             rows = conn.execute(

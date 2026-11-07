@@ -1,33 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Shield,
-  Eye,
-  BookOpen,
-  Cpu,
-  PenTool,
-  X,
-  Play,
-  Briefcase,
+  AlertTriangle,
 } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { Button } from "@astryxdesign/core/Button";
+import { Dialog, DialogHeader } from "@astryxdesign/core/Dialog";
+import { ProgressBar } from "@astryxdesign/core/ProgressBar";
+import { Table } from "@astryxdesign/core/Table";
 
+import CountUp from "../components/CountUp";
+import DataWarnings from "../components/DataWarnings";
+import Flap from "../components/Flap";
+import Gauge3D from "../components/Gauge3D";
+import HoldingsObject3D from "../components/HoldingsObject3D";
 import TopBar from "../components/TopBar";
+import { toneBadge } from "../lib/tone";
+import { AGENT_STEPS } from "../lib/agents";
 import { fetchHealth, listRuns, listPortfolios, createRun, getRun } from "../lib/api";
 import type { RunResult, RunSummary, HealthData, PortfolioData } from "../lib/types";
-
-const AGENT_META = [
-  { key: "collector", label: "Collector", icon: Cpu, className: "collector" },
-  { key: "oracle", label: "Oracle", icon: Eye, className: "oracle" },
-  { key: "sentinel", label: "Sentinel", icon: Shield, className: "sentinel" },
-  { key: "sage", label: "Sage", icon: BookOpen, className: "sage" },
-  { key: "scribe", label: "Scribe", icon: PenTool, className: "scribe" },
-];
-
-const PIE_COLORS = ["#3b82f6", "#a855f7", "#22c55e", "#f59e0b", "#14b8a6", "#ef4444"];
 
 function agentPipelineState(key: string, run: RunResult | null): { label: string; active: boolean } {
   if (!run) return { label: "Idle", active: false };
@@ -59,14 +52,30 @@ function agentPipelineState(key: string, run: RunResult | null): { label: string
   return { label: "Last run: skipped", active: false };
 }
 
+/** Ten flat cells, lit in proportion: the board's scannable block. */
+function Cells({ value, warn }: { value: number; warn?: boolean }) {
+  const on = Math.max(0, Math.min(10, Math.round(value * 10)));
+  return (
+    <span className={`cells${warn ? " warn" : ""}`} aria-hidden="true">
+      {Array.from({ length: 10 }, (_, i) => (
+        <i key={i} className={i < on ? "on" : ""} style={{ ["--n" as string]: i } as React.CSSProperties} />
+      ))}
+    </span>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [health, setHealth] = useState<HealthData | null>(null);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [portfolios, setPortfolios] = useState<PortfolioData[]>([]);
-  const [latestRun, setLatestRun] = useState<RunResult | null>(null);
+  const [fetchedRun, setLatestRun] = useState<RunResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const failedOnce = useRef(false);
+  const seededSelection = useRef(false);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // New Analysis Modal State
   const [showModal, setShowModal] = useState(false);
@@ -85,7 +94,10 @@ export default function Dashboard() {
       setRuns(runsData.runs);
       setPortfolios(portData.portfolios);
 
-      if (portData.portfolios.length > 0 && !selectedPortName) {
+      // Pick a default once. `refresh` is captured by the polling interval, so it can't see the
+      // user's later choice in state.
+      if (portData.portfolios.length > 0 && !seededSelection.current) {
+        seededSelection.current = true;
         setSelectedPortName(portData.portfolios[0].name);
         setCustomPrompt(`Analyze portfolio ${portData.portfolios[0].name}`);
       }
@@ -99,15 +111,26 @@ export default function Dashboard() {
           /* ignore – we still show the dashboard */
         }
       }
+      failedOnce.current = false;
     } catch (err) {
+      // The desktop backend takes a few seconds to start; stay quiet on the first miss and retry soon.
+      if (!failedOnce.current) {
+        failedOnce.current = true;
+        retryTimer.current = setTimeout(() => void refresh(), 3000);
+        return;
+      }
       setError(err instanceof Error ? err.message : "Unknown error");
     }
+    setLoaded(true);
   }
 
   useEffect(() => {
     void refresh();
     const interval = setInterval(() => void refresh(), 15_000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(retryTimer.current);
+    };
   }, []);
 
   const handlePortSelect = (name: string) => {
@@ -145,16 +168,21 @@ export default function Dashboard() {
   }
 
   // Compute portfolio stats from latest run
+  // A run priced from the built-in sample prices is not real market data: say so and keep its numbers out.
+  const sampleRun = !!fetchedRun?.warnings?.some((w) => /sample data/i.test(w));
+  const latestRun = sampleRun ? null : fetchedRun;
   const holdings = latestRun?.collector_output ?? [];
-  const totalValue = holdings.reduce((sum, h) => {
-    const quote = h.quotes?.[0];
-    return sum + (quote ? quote.close * (latestRun?.summary?.prompt ? 1 : 1) : 0);
-  }, 0);
-
-  const pieData = holdings.map((h) => ({
-    name: h.symbol,
-    value: h.quotes?.[0]?.close ?? 0,
-  }));
+  // Allocation by market value: the saved portfolio that best matches the run's symbols, at the run's prices.
+  const priceBySymbol = new Map(holdings.map((h) => [h.symbol.toUpperCase(), h.quotes?.[0]?.close ?? 0]));
+  const matched = portfolios
+    .map((p) => ({ p, hits: p.holdings.filter((h) => priceBySymbol.has(h.symbol.toUpperCase())).length }))
+    .sort((a, b) => b.hits - a.hits)[0];
+  const pieData =
+    matched && matched.hits > 0
+      ? matched.p.holdings
+          .filter((h) => priceBySymbol.has(h.symbol.toUpperCase()))
+          .map((h) => ({ name: h.symbol, value: h.quantity * (priceBySymbol.get(h.symbol.toUpperCase()) ?? 0) }))
+      : [];
 
   const recommendations = latestRun?.scribe_output?.recommendations ?? [];
   const sentinelData = latestRun?.sentinel_output;
@@ -169,148 +197,131 @@ export default function Dashboard() {
       />
       <div className="page-shell">
         {error && <p style={{ color: "var(--red)", marginBottom: "var(--space-4)" }}>{error}</p>}
+        {sampleRun && (
+          <DataWarnings
+            warnings={[
+              "The latest run was priced from built-in sample data, not live market prices, so its results are hidden here. Click New Analysis to run on live prices.",
+            ]}
+          />
+        )}
+        <DataWarnings warnings={latestRun?.warnings} />
 
-        {/* Stat Row */}
-        <div className="grid-4" style={{ marginBottom: "var(--space-5)" }}>
-          <div className="card">
-            <div className="card-subtitle">System Status</div>
-            <div className="stat-value" style={{ color: health ? "var(--green)" : "var(--text-muted)" }}>
-              {health ? "Online" : "—"}
+        <div className="board-hero">
+          <div className="card hero-3d">
+            <div className="hero-3d-title">
+              <b>Your book</b>
+              <span>{matched && matched.hits > 0 ? matched.p.name : "No analysis yet"}</span>
             </div>
-            <div className="stat-label">
-              {health ? `v${health.version}` : "Connecting…"}
-            </div>
+            <HoldingsObject3D slices={pieData} />
           </div>
 
-          <div className="card">
-            <div className="card-subtitle">Total Runs</div>
-            <div className="stat-value">{runs.length}</div>
-            <div className="stat-label">portfolio analyses</div>
-          </div>
-
-          <div className="card">
-            <div className="card-subtitle">Agreement Level</div>
-            <div className="stat-value">
-              {latestRun?.scribe_output?.agreement_level ?? "—"}
+          <div className="card departures">
+            <div className="departures-head">
+              <span>Status board</span>
+              <span>Now</span>
             </div>
-            <div className="stat-label">latest cross-agent consensus</div>
-          </div>
-
-          <div className="card">
-            <div className="card-subtitle">Confidence</div>
-            <div className="stat-value">{latestRun?.scribe_output ? `${(latestRun.scribe_output.overall_confidence * 100).toFixed(0)}%` : "—"}</div>
-            <div className="stat-label">overall score</div>
-            {latestRun?.scribe_output && (
-              <div className="confidence-bar" style={{ marginTop: 8 }}>
-                <div
-                  className={`confidence-bar-fill ${
-                    latestRun.scribe_output.overall_confidence > 0.65
-                      ? "high"
-                      : latestRun.scribe_output.overall_confidence > 0.4
-                        ? "medium"
-                        : "low"
-                  }`}
-                  style={{ width: `${latestRun.scribe_output.overall_confidence * 100}%` }}
+            <div className="departure-row" style={{ ["--row" as string]: 0 } as React.CSSProperties}>
+              <span className="departure-label">
+                System
+                <span className="departure-note">{health ? `v${health.version}` : "Connecting…"}</span>
+              </span>
+              <span className="departure-value">
+                <Flap text={!loaded ? "···" : health ? "ONLINE" : "OFFLINE"} />
+              </span>
+            </div>
+            <div className="departure-row" style={{ ["--row" as string]: 1 } as React.CSSProperties}>
+              <span className="departure-label">
+                Analyses run
+                <span className="departure-note">portfolio analyses</span>
+              </span>
+              <span className="departure-value">
+                <Flap text={loaded ? String(runs.length) : "·"} />
+              </span>
+            </div>
+            <div className="departure-row" style={{ ["--row" as string]: 2 } as React.CSSProperties}>
+              <span className="departure-label">
+                Agent agreement
+                <span className="departure-note">latest cross-agent consensus</span>
+              </span>
+              <span className="departure-value">
+                <Flap text={loaded ? String(latestRun?.scribe_output?.agreement_level ?? "—").toUpperCase() : "···"} />
+              </span>
+            </div>
+            <div className="departure-row" style={{ ["--row" as string]: 3 } as React.CSSProperties}>
+              <span className="departure-label">
+                Confidence
+                <span className="departure-note">
+                  {latestRun?.scribe_output ? (
+                    <Cells
+                      value={latestRun.scribe_output.overall_confidence}
+                      warn={latestRun.scribe_output.overall_confidence < 0.4}
+                    />
+                  ) : (
+                    "overall score"
+                  )}
+                </span>
+              </span>
+              <span className="departure-value">
+                <Flap
+                  text={
+                    !loaded
+                      ? "··"
+                      : latestRun?.scribe_output
+                        ? `${(latestRun.scribe_output.overall_confidence * 100).toFixed(0)}%`
+                        : "—"
+                  }
                 />
-              </div>
-            )}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="grid-2" style={{ marginBottom: "var(--space-5)" }}>
-          {/* Agent Status Cards */}
+        <div className="grid-3" style={{ marginBottom: "var(--space-5)" }}>
           <div className="card">
             <div className="card-header">
-              <div className="card-title">Agent Pipeline</div>
+              <div className="card-title">Agent gates</div>
               {latestRun && (
                 <span className={`badge badge-${latestRun.summary.status}`}>
                   {latestRun.summary.status}
                 </span>
               )}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              {AGENT_META.map((agent) => {
-                const { label, active } = agentPipelineState(agent.key, latestRun);
+            <div>
+              {AGENT_STEPS.map((agent, i) => {
+                const { label } = agentPipelineState(agent.key, latestRun);
+                const running = label.includes("in progress");
+                const done = label.includes("completed");
                 return (
-                  <div
-                    key={agent.key}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "var(--space-3)",
-                      padding: "var(--space-2) var(--space-3)",
-                      borderRadius: "var(--radius-md)",
-                      background: "var(--bg-elevated)",
-                    }}
-                  >
-                    <div className={`agent-icon ${agent.className}`}>
-                      <agent.icon size={16} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>
-                        {agent.label}
-                      </div>
-                      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                  <div className="gate" key={agent.key}>
+                    <span className="gate-no">GATE {i + 1}</span>
+                    <div>
+                      <div className="gate-name">{agent.label}</div>
+                      <div className="gate-state" style={{ color: "var(--text-muted)" }}>
                         {label}
                       </div>
                     </div>
-                    <div className="status-dot" style={{ opacity: active ? 1 : 0.3 }} />
+                    <span className={`gate-lamp${running ? " on" : done ? " done" : ""}`} />
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Portfolio Allocation */}
           <div className="card">
             <div className="card-header">
-              <div className="card-title">Portfolio Allocation</div>
+              <div className="card-title">Conviction</div>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>overall confidence</span>
             </div>
-            {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={3}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {pieData.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={PIE_COLORS[index % PIE_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--bg-elevated)",
-                      border: "1px solid var(--border-subtle)",
-                      borderRadius: "var(--radius-md)",
-                      fontSize: "var(--text-sm)",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="empty-state">
-                <div className="empty-state-icon">📊</div>
-                <div className="empty-state-title">No data yet</div>
-                <div className="empty-state-text">
-                  Run an analysis to see portfolio allocation
-                </div>
-              </div>
-            )}
+            <Gauge3D value={latestRun?.scribe_output ? latestRun.scribe_output.overall_confidence : null} />
+            <div className="gauge-read">
+              <span className="departure-value">
+                <Flap
+                  text={latestRun?.scribe_output ? `${(latestRun.scribe_output.overall_confidence * 100).toFixed(0)}%` : "—"}
+                />
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* Risk & Recommendations */}
-        <div className="grid-2" style={{ marginBottom: "var(--space-5)" }}>
-          {/* Risk Summary */}
           <div className="card">
             <div className="card-header">
               <div className="card-title">Risk Assessment</div>
@@ -323,17 +334,26 @@ export default function Dashboard() {
                 <div>
                   <div className="stat-label">VaR (95%)</div>
                   <div className="stat-value" style={{ fontSize: "var(--text-xl)" }}>
-                    ₹{Math.abs(sentinelData.portfolio_var_95).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                    <CountUp
+                      value={Math.abs(sentinelData.portfolio_var_95)}
+                      format={(n) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+                    />
                   </div>
                 </div>
                 <div>
                   <div className="stat-label">Concentration Risk</div>
-                  <div className="confidence-bar" style={{ marginTop: 4 }}>
-                    <div
-                      className={`confidence-bar-fill ${
-                        sentinelData.concentration_risk > 0.4 ? "low" : sentinelData.concentration_risk > 0.25 ? "medium" : "high"
-                      }`}
-                      style={{ width: `${sentinelData.concentration_risk * 100}%` }}
+                  <div style={{ marginTop: 4 }}>
+                    <ProgressBar
+                      label="Concentration risk"
+                      isLabelHidden
+                      value={sentinelData.concentration_risk * 100}
+                      variant={
+                        sentinelData.concentration_risk > 0.4
+                          ? "error"
+                          : sentinelData.concentration_risk > 0.25
+                            ? "warning"
+                            : "success"
+                      }
                     />
                   </div>
                   <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 4 }}>
@@ -346,6 +366,9 @@ export default function Dashboard() {
                       <div
                         key={i}
                         style={{
+                          display: "flex",
+                          gap: "var(--space-2)",
+                          alignItems: "flex-start",
                           fontSize: "var(--text-xs)",
                           padding: "var(--space-2) var(--space-3)",
                           background: "var(--amber-muted)",
@@ -353,7 +376,8 @@ export default function Dashboard() {
                           color: "var(--amber)",
                         }}
                       >
-                        ⚠ {alert}
+                        <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+                        {alert}
                       </div>
                     ))}
                   </div>
@@ -366,26 +390,25 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+        </div>
 
-          {/* Recommendations */}
-          <div className="card">
-            <div className="card-header">
-              <div className="card-title">Recommendations</div>
-            </div>
-            {recommendations.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                {recommendations.map((rec) => (
-                  <div className="rec-card" key={rec.symbol}>
-                    <div className="rec-card-header">
-                      <span className="rec-card-symbol">{rec.symbol}</span>
+        <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+          <div className="card-header">
+            <div className="card-title">Recommendations</div>
+            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+              Research output, not financial advice. Signals are not validated against Nifty.
+            </span>
+          </div>
+          {recommendations.length > 0 ? (
+            <>
+            <div className="pass-grid">
+              {recommendations.map((rec, i) => (
+                <article className="pass" key={rec.symbol} style={{ ["--n" as string]: i } as React.CSSProperties}>
+                  <div className="pass-main">
+                    <div className="pass-top">
+                      <span className="pass-symbol">{rec.symbol}</span>
                       <span
-                        className={`badge ${
-                          rec.action === "BUY"
-                            ? "badge-buy"
-                            : rec.action === "REDUCE"
-                              ? "badge-reduce"
-                              : "badge-hold"
-                        }`}
+                        className={`badge ${toneBadge(rec.action)}`}
                       >
                         {rec.action === "BUY" && <TrendingUp size={12} />}
                         {rec.action === "REDUCE" && <TrendingDown size={12} />}
@@ -393,33 +416,46 @@ export default function Dashboard() {
                         {rec.action}
                       </span>
                     </div>
-                    <div className="rec-card-explanation">{rec.explanation}</div>
-                    <div className="rec-card-metrics">
-                      Confidence: <span>{(rec.confidence * 100).toFixed(0)}%</span>
-                      {rec.stop_loss != null && (
-                        <>
-                          &nbsp;· Stop: <span>{rec.stop_loss}</span>
-                        </>
-                      )}
-                      {rec.target_price != null && (
-                        <>
-                          &nbsp;· Target: <span>{rec.target_price}</span>
-                        </>
-                      )}
-                    </div>
+                    <p className="pass-why">{rec.explanation}</p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                <div className="empty-state-title">No recommendations</div>
-                <div className="empty-state-text">Run an analysis to see signals</div>
-              </div>
-            )}
-          </div>
+                  <div className="pass-stub">
+                    <div className="pass-field">
+                      <span>Confidence</span>
+                      <b>{(rec.confidence * 100).toFixed(0)}%</b>
+                      <div style={{ marginTop: 6 }}>
+                        <Cells value={rec.confidence} warn={rec.confidence < 0.4} />
+                      </div>
+                    </div>
+                    {rec.stop_loss != null && (
+                      <div className="pass-field">
+                        <span>Stop</span>
+                        <b>{rec.stop_loss}</b>
+                      </div>
+                    )}
+                    {rec.target_price != null && (
+                      <div className="pass-field">
+                        <span>Target</span>
+                        <b>{rec.target_price}</b>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <p className="pulse-note" style={{ marginTop: "var(--space-4)" }}>
+              Confidence is a rough score averaged from the agents, not a calibrated chance of profit. Treat each pass as a hypothesis to check, and see how past signals held up in{" "}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate("/validation")}>Signal Validation</button> and{" "}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate("/shadow-trader")}>Shadow Trader</button>.
+            </p>
+            </>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-state-title">No recommendations</div>
+              <div className="empty-state-text">Run an analysis to see signals</div>
+            </div>
+          )}
         </div>
 
-        {/* Recent Runs */}
         <div className="card">
           <div className="card-header">
             <div className="card-title">Recent Runs</div>
@@ -428,46 +464,39 @@ export default function Dashboard() {
             </span>
           </div>
           {runs.length > 0 ? (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Status</th>
-                    <th>Prompt</th>
-                    <th>Created</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {runs.slice(0, 10).map((run) => (
-                    <tr key={run.run_id}>
-                      <td>
-                        <span className={`badge badge-${run.status}`}>
-                          {run.status}
-                        </span>
-                      </td>
-                      <td style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {run.prompt}
-                      </td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>
-                        {new Date(run.created_at).toLocaleString()}
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => navigate(`/runs/${run.run_id}`)}
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table
+              data={runs.slice(0, 10).map((r) => ({ ...r }))}
+              columns={[
+                {
+                  key: "status",
+                  header: "Status",
+                  renderCell: (r) => <span className={`badge badge-${String(r.status)}`}>{String(r.status)}</span>,
+                },
+                {
+                  key: "prompt",
+                  header: "Prompt",
+                  renderCell: (r) => <span className="runs-prompt">{String(r.prompt)}</span>,
+                },
+                {
+                  key: "created_at",
+                  header: "Created",
+                  renderCell: (r) => (
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>
+                      {new Date(String(r.created_at)).toLocaleString()}
+                    </span>
+                  ),
+                },
+                {
+                  key: "run_id",
+                  header: "",
+                  renderCell: (r) => (
+                    <Button label="View" variant="secondary" size="sm" onClick={() => navigate(`/runs/${String(r.run_id)}`)} />
+                  ),
+                },
+              ]}
+            />
           ) : (
             <div className="empty-state">
-              <div className="empty-state-icon">🔍</div>
               <div className="empty-state-title">No runs yet</div>
               <div className="empty-state-text">
                 Click "New Analysis" to run your first portfolio analysis
@@ -477,49 +506,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* New Run Modal Overlay */}
-      {showModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(11, 14, 20, 0.8)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 999,
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              width: "100%",
-              maxWidth: 500,
-              background: "var(--bg-surface)",
-              boxShadow: "var(--shadow-lg)",
-              border: "1px solid var(--border-medium)",
-              padding: "var(--space-6)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "var(--space-5)",
-              }}
-            >
-              <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700 }}>Run Multi-Agent Analysis</h3>
-              <button className="btn btn-ghost" onClick={() => setShowModal(false)} style={{ padding: 4 }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleStartAnalysis} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+      <Dialog
+        isOpen={showModal}
+        onOpenChange={setShowModal}
+        width={500}
+      >
+        <div style={{ padding: "var(--space-5)" }}>
+        <DialogHeader title="Run multi-agent analysis" onOpenChange={setShowModal} />
+        <form onSubmit={handleStartAnalysis} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                 <label style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-secondary)" }}>
                   Select Portfolio
@@ -557,7 +551,7 @@ export default function Dashboard() {
                       gap: 8,
                     }}
                   >
-                    <span>⚠️ No saved portfolios found. You must create a portfolio first.</span>
+                    <span>No saved portfolios found. Create a portfolio first.</span>
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
@@ -605,38 +599,16 @@ export default function Dashboard() {
                   borderRadius: "var(--radius-sm)",
                 }}
               >
-                <span>ℹ️ Running this analysis will start the multi-agent pipeline asynchronously. You will be redirected to watch the live progress.</span>
+                <span>Running this analysis will start the multi-agent pipeline asynchronously. You will be redirected to watch the live progress.</span>
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "var(--space-3)",
-                  marginTop: "var(--space-2)",
-                }}
-              >
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={loading || portfolios.length === 0}
-                  style={{ display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  <Play size={14} fill="white" />
-                  Start Run
-                </button>
-              </div>
-            </form>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-3)" }}>
+            <Button type="button" label="Cancel" variant="secondary" onClick={() => setShowModal(false)} />
+            <Button type="submit" label="Start run" variant="primary" isDisabled={loading || portfolios.length === 0} />
           </div>
+        </form>
         </div>
-      )}
+      </Dialog>
     </>
   );
 }

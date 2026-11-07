@@ -73,10 +73,6 @@ class WorkingMemory:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    # ------------------------------------------------------------------
-    # Init
-    # ------------------------------------------------------------------
-
     def _init_db(self) -> None:
         with self._conn() as conn:
             conn.execute("""
@@ -109,10 +105,6 @@ class WorkingMemory:
         conn.row_factory = sqlite3.Row
         return conn
 
-    # ------------------------------------------------------------------
-    # Write
-    # ------------------------------------------------------------------
-
     def store_observation(
         self,
         agent_name: str,
@@ -144,10 +136,6 @@ class WorkingMemory:
                 (agent_name, critique, ts),
             )
             return cur.lastrowid or 0
-
-    # ------------------------------------------------------------------
-    # Read
-    # ------------------------------------------------------------------
 
     def retrieve_for_ticker(
         self,
@@ -221,10 +209,6 @@ class WorkingMemory:
             rows = conn.execute(query, params).fetchall()
         return [dict(r) for r in rows]
 
-    # ------------------------------------------------------------------
-    # Inject memory into agent prompt
-    # ------------------------------------------------------------------
-
     def build_memory_context(
         self,
         agent_name: str,
@@ -247,10 +231,6 @@ class WorkingMemory:
             parts.append("Apply these insights to your current analysis.")
 
         return "\n".join(parts) if parts else ""
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     def _row_to_obs(self, row: sqlite3.Row) -> AgentObservation:
         ts_str = row["timestamp"]

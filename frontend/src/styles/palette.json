@@ -1,0 +1,155 @@
+{
+  "_comment": "Single source of the palette. Each color is [dark, light]. Run `npm run palette` after editing.",
+  "colors": {
+    "bg-root": [
+      "#000000",
+      "#f6f2ef"
+    ],
+    "bg-surface": [
+      "#070707",
+      "#ffffff"
+    ],
+    "bg-card": [
+      "#0d0d0d",
+      "#ffffff"
+    ],
+    "bg-card-hover": [
+      "#151515",
+      "#f3eeea"
+    ],
+    "bg-elevated": [
+      "#1a1a1a",
+      "#eee8e3"
+    ],
+    "bg-input": [
+      "#050505",
+      "#ffffff"
+    ],
+    "border-subtle": [
+      "rgba(255, 255, 255, 0.07)",
+      "rgba(30, 15, 10, 0.08)"
+    ],
+    "border-medium": [
+      "rgba(255, 255, 255, 0.14)",
+      "rgba(30, 15, 10, 0.16)"
+    ],
+    "border-accent": [
+      "rgba(255, 43, 28, 0.55)",
+      "rgba(224, 40, 27, 0.45)"
+    ],
+    "text-primary": [
+      "#f4f1ee",
+      "#1a1412"
+    ],
+    "text-secondary": [
+      "#a39d98",
+      "#5b514b"
+    ],
+    "text-muted": [
+      "#6d6762",
+      "#7d726b"
+    ],
+    "text-inverse": [
+      "#050506",
+      "#ffffff"
+    ],
+    "accent": [
+      "#ff2b1c",
+      "#e0281b"
+    ],
+    "accent-hover": [
+      "#ff5a47",
+      "#bf1d12"
+    ],
+    "accent-muted": [
+      "rgba(255, 43, 28, 0.14)",
+      "rgba(224, 40, 27, 0.10)"
+    ],
+    "accent-glow": [
+      "rgba(255, 43, 28, 0.22)",
+      "rgba(224, 40, 27, 0.20)"
+    ],
+    "accent-2": [
+      "#ff7a00",
+      "#d96a00"
+    ],
+    "brand-gradient": [
+      "#ff2b1c",
+      "#e0281b"
+    ],
+    "green": [
+      "#1fd68a",
+      "#0f9d63"
+    ],
+    "green-muted": [
+      "rgba(31, 214, 138, 0.12)",
+      "rgba(15, 157, 99, 0.10)"
+    ],
+    "red": [
+      "#ff5470",
+      "#d6204a"
+    ],
+    "red-muted": [
+      "rgba(255, 84, 112, 0.13)",
+      "rgba(214, 32, 74, 0.10)"
+    ],
+    "amber": [
+      "#ffb020",
+      "#b86a00"
+    ],
+    "amber-muted": [
+      "rgba(255, 176, 32, 0.13)",
+      "rgba(184, 106, 0, 0.10)"
+    ],
+    "teal": [
+      "#2bd4c0",
+      "#0f766e"
+    ],
+    "teal-muted": [
+      "rgba(43, 212, 192, 0.12)",
+      "rgba(15, 118, 110, 0.10)"
+    ],
+    "purple": [
+      "#b57bff",
+      "#7e22ce"
+    ],
+    "purple-muted": [
+      "rgba(181, 123, 255, 0.13)",
+      "rgba(126, 34, 206, 0.10)"
+    ]
+  },
+  "astryxRefs": {
+    "--color-accent": "accent",
+    "--color-icon-accent": "accent",
+    "--color-border-blue": "accent",
+    "--color-background-body": "bg-root",
+    "--color-background-surface": "bg-surface",
+    "--color-background-card": "bg-card",
+    "--color-background-popover": "bg-elevated",
+    "--color-text-primary": "text-primary",
+    "--color-text-secondary": "text-secondary",
+    "--color-icon-primary": "text-primary",
+    "--color-icon-secondary": "text-secondary",
+    "--color-success": "green",
+    "--color-error": "red",
+    "--color-warning": "amber"
+  },
+  "astryxExplicit": {
+    "--color-text-accent": [
+      "#ff5a47",
+      "#c4200f"
+    ],
+    "--color-text-disabled": [
+      "#6e6862",
+      "#a39992"
+    ],
+    "--color-border": [
+      "rgba(255, 255, 255, 0.11)",
+      "rgba(30, 15, 10, 0.10)"
+    ],
+    "--color-border-emphasized": [
+      "rgba(255, 255, 255, 0.18)",
+      "rgba(30, 15, 10, 0.18)"
+    ]
+  }
+}

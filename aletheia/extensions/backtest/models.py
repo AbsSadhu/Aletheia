@@ -32,6 +32,14 @@ class BacktestResult(BaseModel):
     initial_capital: float
     final_capital: float
     total_return: float
-    metrics: Dict[str, float]
+    # None means undefined (profit factor with no losing trade), never infinity: JSON cannot carry it.
+    metrics: Dict[str, Optional[float]]
     orders: List[Order]
     equity_curve: List[Dict[str, Any]]
+    # Honesty fields: what the run assumed and what it could not see.
+    costs_paid: float = 0.0
+    cost_model: Optional[str] = None
+    data_as_of: Optional[str] = None
+    warnings: List[str] = Field(default_factory=list)
+    # Earlier vs later part of the run, so a result that only holds in one stretch shows up.
+    segments: List[Dict[str, Any]] = Field(default_factory=list)

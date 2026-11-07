@@ -59,7 +59,6 @@ class RunService:
         self.bus.subscribe(Topics.RUN_EVENT, self._persist_event)
         self.bus.subscribe(Topics.RUN_EVENT, self._broadcast_event)
 
-        # Instantiate new agents and compute client
         from aletheia.extensions.agents.sentiment_agent import SentimentAgent
         from aletheia.extensions.agents.fundamental_agent import FundamentalAgent
         from aletheia.extensions.agents.options_flow_agent import OptionsFlowAgent
@@ -67,8 +66,8 @@ class RunService:
         from aletheia.core.compute.client import ComputeClient
 
         self.compute_client = ComputeClient()
-        self.sentiment = SentimentAgent(llm_client=self.scribe.llm_client)
-        self.fundamental = FundamentalAgent(llm_client=self.scribe.llm_client)
+        self.sentiment = SentimentAgent()
+        self.fundamental = FundamentalAgent()
         self.options_flow = OptionsFlowAgent(compute_client=self.compute_client)
         self.critic = CriticAgent(llm_client=self.scribe.llm_client)
 
@@ -187,6 +186,10 @@ class RunService:
         return await self.execute_run(summary, request)
 
     async def execute_run(self, summary: RunSummary, request: RunRequest) -> RunResult:
+        if summary.status == RunStatus.PENDING:
+            # a background run is queued as PENDING; it is running from the moment it starts
+            summary.status = RunStatus.RUNNING
+            self.sqlite_store.upsert_run(summary)
         try:
             # H5. Macro context pre-injection step
             macro_context_text = ""
@@ -206,7 +209,6 @@ class RunService:
             if "sage" in active_agent_names and not self.settings.tax_jurisdiction:
                 active_agent_names.remove("sage")
 
-            # Initialize agent statuses
             all_agent_names = [
                 "collector",
                 "oracle",
@@ -248,10 +250,8 @@ class RunService:
                 "portfolio_manager_overrides": [],
             }
 
-            # Save initial progress
             await self.update_run_progress(summary.run_id, initial_state, status=RunStatus.RUNNING)
 
-            # Compile dynamic graph
             graph = create_agent_graph(self, enabled_agents=active_agent_names)
 
             config = {"configurable": {"thread_id": summary.run_id}}

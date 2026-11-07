@@ -2,7 +2,7 @@
 Dedicated unit tests for the ICScorer.
 
 These tests exercise Spearman IC computation, persistence, history retrieval,
-and factor status classification. They require scipy (pip install scipy).
+and factor status classification. scipy is a declared dependency of the project.
 """
 
 from __future__ import annotations
@@ -51,43 +51,35 @@ def random_data():
 
 class TestICComputation:
     def test_perfect_correlation_ic_positive(self, scorer, perfect_data):
-        pytest.importorskip("scipy")  # skip gracefully if not installed
         values, returns = perfect_data
         result = scorer.compute_ic("test_factor", values, returns)
         assert result.ic > 0.9, f"Expected IC close to 1, got {result.ic}"
 
     def test_anti_correlation_ic_negative(self, scorer, anti_data):
-        pytest.importorskip("scipy")
         values, returns = anti_data
         result = scorer.compute_ic("test_factor_rev", values, returns)
         assert result.ic < -0.9, f"Expected IC close to -1, got {result.ic}"
 
     def test_uncorrelated_ic_near_zero(self, scorer, random_data):
-        pytest.importorskip("scipy")
         values, returns = random_data
         result = scorer.compute_ic("random_factor", values, returns)
-        assert abs(result.ic) < 0.4, f"Expected IC near 0, got {result.ic}"
+        assert abs(result.ic) < 0.2, f"Expected IC near 0, got {result.ic}"
+        assert result.p_value > 0.05  # indistinguishable from noise
 
-    def test_result_has_required_fields(self, scorer, perfect_data):
-        pytest.importorskip("scipy")
+    def test_result_reports_the_sample_and_a_valid_p_value(self, scorer, perfect_data):
         values, returns = perfect_data
         result = scorer.compute_ic("test_fields", values, returns)
-        assert hasattr(result, "ic")
-        assert hasattr(result, "ic_std")
-        assert hasattr(result, "icir")
-        assert hasattr(result, "t_stat")
-        assert hasattr(result, "p_value")
-        assert hasattr(result, "n_observations")
-        assert hasattr(result, "status")
+        assert result.n_observations == 60
+        assert 0.0 <= result.p_value <= 1.0
+        assert result.p_value < 0.01  # a perfect rank correlation over 60 points is not luck
+        assert result.ic_std >= 0.0
 
     def test_positive_ic_status_alive(self, scorer, perfect_data):
-        pytest.importorskip("scipy")
         values, returns = perfect_data
         result = scorer.compute_ic("status_test", values, returns)
         assert result.status == "alive"
 
     def test_negative_ic_status_reversed(self, scorer, anti_data):
-        pytest.importorskip("scipy")
         values, returns = anti_data
         result = scorer.compute_ic("reversed_test", values, returns)
         assert result.status == "reversed"
@@ -101,38 +93,42 @@ class TestICComputation:
         assert result.ic == 0.0
 
     def test_ic_persisted_to_db(self, scorer, perfect_data):
-        pytest.importorskip("scipy")
         values, returns = perfect_data
-        scorer.compute_ic("persist_test", values, returns)
+        stored = scorer.compute_ic("persist_test", values, returns)
         history = scorer.get_history("persist_test", limit=5)
-        assert len(history) >= 1
+        assert len(history) == 1
         assert history[0].factor_name == "persist_test"
+        assert history[0].ic == pytest.approx(stored.ic)
 
     def test_history_respects_limit(self, scorer, perfect_data):
-        pytest.importorskip("scipy")
         values, returns = perfect_data
         for _ in range(5):
             scorer.compute_ic("repeated", values, returns)
         history = scorer.get_history("repeated", limit=3)
-        assert len(history) <= 3
+        assert len(history) == 3
 
-    def test_icir_is_ic_over_std(self, scorer, perfect_data):
-        pytest.importorskip("scipy")
-        values, returns = perfect_data
-        result = scorer.compute_ic("icir_test", values, returns)
-        if result.ic_std > 0:
-            expected_icir = result.ic / result.ic_std
-            assert abs(result.icir - expected_icir) < 0.01
+    def test_icir_has_the_sign_of_the_ic_when_the_ic_varies(self, scorer):
+        # Perfect rank correlation has zero IC spread, so ICIR is undefined there; add noise.
+        rng = np.random.default_rng(7)
+        n = 100
+        signal = np.arange(n, dtype=float)
+        values = pd.Series(signal + rng.normal(0, 20, n))
+        up = pd.Series(signal * 0.001 + rng.normal(0, 0.03, n))
+        down = pd.Series(-signal * 0.001 + rng.normal(0, 0.03, n))
+
+        pos = scorer.compute_ic("icir_pos", values, up)
+        neg = scorer.compute_ic("icir_neg", values, down)
+
+        assert pos.ic_std > 0 and neg.ic_std > 0
+        assert pos.icir > 0 > neg.icir
 
     def test_n_observations_matches_data(self, scorer, perfect_data):
-        pytest.importorskip("scipy")
         values, returns = perfect_data
         result = scorer.compute_ic("obs_test", values, returns)
         assert result.n_observations == len(values)
 
     def test_factor_ranking(self, scorer, perfect_data, anti_data, random_data):
         """Positive factor should rank higher than anti-correlated or random."""
-        pytest.importorskip("scipy")
         v_pos, r_pos = perfect_data
         v_neg, r_neg = anti_data
         v_rand, r_rand = random_data
@@ -143,5 +139,6 @@ class TestICComputation:
 
         ranking = scorer.get_factor_ranking()
         names = [r.factor_name for r in ranking]
-        # pos_factor should appear before neg_factor in ranking by absolute IC
-        assert "pos_factor" in names
+        # Ranked by absolute IC: the two near-perfect factors come before pure noise.
+        assert set(names[:2]) == {"pos_factor", "neg_factor"}
+        assert names[-1] == "rand_factor"

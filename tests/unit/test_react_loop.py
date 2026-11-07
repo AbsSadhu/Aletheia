@@ -110,3 +110,24 @@ async def test_loop_emits_error_event_on_llm_exception() -> None:
     assert len(events) == 1
     assert events[0].event_type == "error"
     assert "connection refused" in events[0].data["message"]
+
+
+async def test_answer_on_the_last_allowed_iteration_is_not_reported_as_exhausted() -> None:
+    llm = _ScriptedLLM([_tool_call_response("echo", {"text": "hi"}), _final_answer("just in time")])
+    loop = ReActLoop(llm=llm, tool_registry=_registry(), max_iterations=2)
+
+    events = [e async for e in loop.run("hello", AgentContext())]
+
+    assert [e.event_type for e in events if e.event_type in ("final_answer", "error")] == [
+        "final_answer"
+    ]
+
+
+async def test_running_out_of_iterations_is_reported() -> None:
+    llm = _ScriptedLLM([_tool_call_response("echo", {"text": "again"})] * 2)
+    loop = ReActLoop(llm=llm, tool_registry=_registry(), max_iterations=2)
+
+    events = [e async for e in loop.run("hello", AgentContext())]
+
+    assert events[-1].event_type == "error"
+    assert "Max iterations (2)" in events[-1].data["message"]

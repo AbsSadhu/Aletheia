@@ -77,7 +77,6 @@ class PositionSizer:
 
         kelly_pct = (p * b - q) / b
 
-        # Guard against negative Kelly (no edge)
         if kelly_pct <= 0:
             return 0.0
 
@@ -139,7 +138,6 @@ class PositionSizer:
         """
         violations: list[str] = []
 
-        # Max position size
         max_size = portfolio_value * (max_position_pct / 100.0)
         if position_size_currency > max_size:
             violations.append(
@@ -148,7 +146,6 @@ class PositionSizer:
             )
             position_size_currency = max_size
 
-        # Minimum cash reserve
         available_pct = 100.0 - current_invested_pct - min_cash_reserve_pct
         max_from_cash = portfolio_value * (available_pct / 100.0)
         if position_size_currency > max_from_cash:

@@ -8,6 +8,8 @@ GET /memory/{agent_name}/critique
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from fastapi import APIRouter, HTTPException
 
 from aletheia.core.config.settings import get_settings
@@ -38,9 +40,9 @@ async def vector_search(q: str, limit: int = 5) -> dict:
     try:
         from aletheia.core.memory.vector_store import VectorMemoryStore
 
-        store = VectorMemoryStore()
-        results = store.search(q, k=limit)
-        return {"results": results}
+        store = VectorMemoryStore(get_settings().data_dir / "vector_memory.db")
+        results = await store.search(q, k=limit)
+        return {"results": [asdict(r) for r in results]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Vector search failed: {e}")
 

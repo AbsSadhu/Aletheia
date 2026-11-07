@@ -92,7 +92,6 @@ class PortfolioManagerConstraintChecker:
         violations: list[str] = []
         proposed_value = quantity * price
 
-        # 1. Position size check
         if portfolio_value > 0:
             new_position_value = current_position_value + proposed_value
             position_pct = (new_position_value / portfolio_value) * 100
@@ -101,7 +100,6 @@ class PortfolioManagerConstraintChecker:
                     f"Position size {position_pct:.1f}% > max {self.constraints.max_position_size_pct:.1f}%"
                 )
 
-        # 2. Sector concentration check
         if portfolio_value > 0:
             new_sector_pct = (
                 (sector_exposure * portfolio_value + proposed_value) / portfolio_value
@@ -111,19 +109,16 @@ class PortfolioManagerConstraintChecker:
                     f"Sector '{sector}' concentration {new_sector_pct:.1f}% > max {self.constraints.max_sector_concentration_pct:.1f}%"
                 )
 
-        # 3. VaR check
         if portfolio_var_95 > self.constraints.max_portfolio_var:
             violations.append(
                 f"Portfolio VaR {portfolio_var_95:.2%} > max {self.constraints.max_portfolio_var:.2%}"
             )
 
-        # 4. Leverage check
         if current_leverage > self.constraints.max_leverage:
             violations.append(
                 f"Leverage {current_leverage:.2f}x > max {self.constraints.max_leverage:.2f}x"
             )
 
-        # 5. Cash reserve check
         if action == "BUY" and portfolio_value > 0:
             min_cash = portfolio_value * (self.constraints.min_cash_reserve_pct / 100)
             cash_after = current_cash - proposed_value
@@ -184,7 +179,6 @@ class PortfolioManagerConstraintChecker:
                 current_cash=current_cash,
             )
             results.append((candidate, decision))
-            # Update cash for subsequent checks (greedy)
             if decision.decision in ("EXECUTE", "REDUCE") and candidate.get("action") == "BUY":
                 used_qty = decision.approved_qty or 0
                 current_cash -= used_qty * candidate.get("price", 0.0)

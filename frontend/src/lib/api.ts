@@ -1,3 +1,4 @@
+import type { SurfaceData, SurfaceMetric } from "./surface";
 import type {
   AgentEvent,
   BacktestResult,
@@ -7,14 +8,12 @@ import type {
   RunSummary,
 } from "./types";
 
-const API_BASE_URL =
+export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8899";
 
-// ---------------------------------------------------------------------------
 // API key (paired with the backend's ALETHEIA_API_KEYS — see SECURITY.md).
 // Stored client-side only; the backend stays open by default and this is a
 // no-op until the user sets both sides.
-// ---------------------------------------------------------------------------
 
 const API_KEY_STORAGE_KEY = "aletheia_api_key";
 
@@ -38,14 +37,24 @@ export function setApiKey(key: string): void {
   }
 }
 
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   const key = getApiKey();
   return key ? { "X-API-Key": key } : {};
 }
 
-// ---------------------------------------------------------------------------
 // Helper
-// ---------------------------------------------------------------------------
+
+/** The backend answers errors as {"code","message","detail"}; show the message, not the JSON. */
+export function apiErrorMessage(status: number, body: string): string {
+  try {
+    const j = JSON.parse(body) as { message?: unknown; detail?: unknown };
+    if (typeof j.message === "string" && j.message) return j.message;
+    if (typeof j.detail === "string" && j.detail) return j.detail;
+  } catch {
+    /* not JSON: fall through */
+  }
+  return `API error ${status}: ${body}`;
+}
 
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -53,7 +62,7 @@ async function apiGet<T>(path: string): Promise<T> {
   });
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText);
-    throw new Error(`API error ${response.status}: ${text}`);
+    throw new Error(apiErrorMessage(response.status, text));
   }
   return response.json();
 }
@@ -66,30 +75,18 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
   });
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText);
-    throw new Error(`API error ${response.status}: ${text}`);
+    throw new Error(apiErrorMessage(response.status, text));
   }
   return response.json();
 }
 
-// ---------------------------------------------------------------------------
 // Health
-// ---------------------------------------------------------------------------
 
 export async function fetchHealth(): Promise<HealthData> {
   return apiGet<HealthData>("/api/v1/health");
 }
 
-export async function fetchReadiness(): Promise<{ ready: boolean }> {
-  return apiGet<{ ready: boolean }>("/api/v1/health/ready");
-}
-
-export async function fetchHealthDetails(): Promise<{ checks: { name: string; ok: boolean; details: string }[] }> {
-  return apiGet("/api/v1/health/details");
-}
-
-// ---------------------------------------------------------------------------
 // Runs
-// ---------------------------------------------------------------------------
 
 export async function listRuns(limit = 20): Promise<{ runs: RunSummary[] }> {
   return apiGet<{ runs: RunSummary[] }>(`/api/v1/runs?limit=${limit}`);
@@ -131,16 +128,10 @@ export function getWebSocketUrl(runId: string): string {
   return `${wsBase}/api/v1/ws/runs/${runId}${qs}`;
 }
 
-// ---------------------------------------------------------------------------
 // Portfolios
-// ---------------------------------------------------------------------------
 
 export async function listPortfolios(): Promise<{ portfolios: PortfolioData[] }> {
   return apiGet<{ portfolios: PortfolioData[] }>("/api/v1/portfolios");
-}
-
-export async function getPortfolio(name: string): Promise<PortfolioData> {
-  return apiGet<PortfolioData>(`/api/v1/portfolios/${encodeURIComponent(name)}`);
 }
 
 export async function savePortfolio(portfolio: PortfolioData): Promise<PortfolioData> {
@@ -159,9 +150,7 @@ export async function syncZerodha(name: string): Promise<{ status: string; synce
   return apiPost(`/api/v1/portfolios/${encodeURIComponent(name)}/sync-zerodha`, {});
 }
 
-// ---------------------------------------------------------------------------
 // Paper Trades
-// ---------------------------------------------------------------------------
 
 export interface PaperTrade {
   trade_id: string;
@@ -240,6 +229,15 @@ export async function submitShadowOrder(
   return apiPost<{ trade: ShadowOrder }>("/api/v1/shadow/orders", { symbol, exchange, action, quantity });
 }
 
+export interface ExecutionState {
+  mode: "simulation" | "paper" | "live";
+  paused: boolean;
+}
+
+export async function getExecutionState(): Promise<{ state: ExecutionState }> {
+  return apiGet("/api/v1/execution/state");
+}
+
 export async function getPaperPositions(): Promise<{ positions: PaperPosition[] }> {
   return apiGet<{ positions: PaperPosition[] }>("/api/v1/execution/positions");
 }
@@ -251,9 +249,7 @@ export async function settlePaperTrade(tradeId: string, actualClose: number): Pr
   );
 }
 
-// ---------------------------------------------------------------------------
 // Factors
-// ---------------------------------------------------------------------------
 
 export interface FactorOutput {
   name: string;
@@ -284,13 +280,7 @@ export async function computeFactors(ticker: string, exchange = "NSE"): Promise<
   return apiGet<FactorResult>(`/api/v1/factors/${encodeURIComponent(ticker)}?exchange=${exchange}`);
 }
 
-export async function getICScores(ticker: string): Promise<{ ticker: string; ic_scores: any[] }> {
-  return apiGet(`/api/v1/factors/${encodeURIComponent(ticker)}/ic-scores`);
-}
-
-// ---------------------------------------------------------------------------
 // Agent Memory
-// ---------------------------------------------------------------------------
 
 export interface AgentObservation {
   id: number;
@@ -302,22 +292,7 @@ export interface AgentObservation {
   run_id: string | null;
 }
 
-export async function getAgentMemory(
-  agentName: string,
-  ticker?: string,
-  limit = 20
-): Promise<{ agent: string; observations: AgentObservation[] }> {
-  const qs = `?limit=${limit}${ticker ? `&ticker=${encodeURIComponent(ticker)}` : ""}`;
-  return apiGet(`/api/v1/memory/${agentName}${qs}`);
-}
-
-export async function getAgentCritique(agentName: string): Promise<{ agent: string; latest_critique: string | null; history: any[] }> {
-  return apiGet(`/api/v1/memory/${agentName}/critique`);
-}
-
-// ---------------------------------------------------------------------------
 // Risk Metrics
-// ---------------------------------------------------------------------------
 
 export interface RiskMetrics {
   sharpe: number;
@@ -334,13 +309,7 @@ export interface RiskMetrics {
   comment: string;
 }
 
-export async function getRiskMetrics(): Promise<{ metrics: RiskMetrics | null; message?: string }> {
-  return apiGet("/api/v1/risk/metrics");
-}
-
-// ---------------------------------------------------------------------------
 // Backtest
-// ---------------------------------------------------------------------------
 
 export async function runBacktest(config: {
   symbols: string[];
@@ -348,13 +317,12 @@ export async function runBacktest(config: {
   end_date: string;
   strategy?: string;
   initial_capital?: number;
+  cost_model?: string;
 }): Promise<BacktestResult> {
   return apiPost<BacktestResult>("/api/v1/backtest", config);
 }
 
-// ---------------------------------------------------------------------------
 // Hypotheses
-// ---------------------------------------------------------------------------
 
 export interface Evidence {
   source: string;
@@ -378,10 +346,6 @@ export interface Hypothesis {
 export async function listHypotheses(status?: string): Promise<{ hypotheses: Hypothesis[] }> {
   const qs = status ? `?status=${encodeURIComponent(status)}` : "";
   return apiGet<{ hypotheses: Hypothesis[] }>(`/api/v1/hypotheses${qs}`);
-}
-
-export async function getHypothesis(id: string): Promise<Hypothesis> {
-  return apiGet<Hypothesis>(`/api/v1/hypotheses/${encodeURIComponent(id)}`);
 }
 
 export async function proposeHypothesis(
@@ -429,17 +393,9 @@ export async function linkHypothesisToBacktest(
   });
 }
 
-// ---------------------------------------------------------------------------
 // Memory Search
-// ---------------------------------------------------------------------------
 
-export async function searchMemory(q: string, limit = 8): Promise<any> {
-  return apiGet(`/api/v1/memory/search?q=${encodeURIComponent(q)}&limit=${limit}`);
-}
-
-// ---------------------------------------------------------------------------
 // Configuration / Settings
-// ---------------------------------------------------------------------------
 
 export async function getSystemConfig(): Promise<any> {
   return apiGet("/api/v1/config");
@@ -449,9 +405,7 @@ export async function updateSystemConfig(config: Record<string, any>): Promise<a
   return apiPost("/api/v1/config", config);
 }
 
-// ---------------------------------------------------------------------------
 // Options pricing
-// ---------------------------------------------------------------------------
 
 export interface OptionPrice {
   kind: "call" | "put";
@@ -475,9 +429,20 @@ export async function priceOption(p: {
   return apiGet<OptionPrice>(`/api/v1/options/price?${qs}`);
 }
 
-// ---------------------------------------------------------------------------
+export async function getOptionSurface(p: {
+  spot: number;
+  strike: number;
+  vol_pct: number;
+  rate_pct: number;
+  kind: "call" | "put";
+  metric: SurfaceMetric;
+  max_days: number;
+}): Promise<SurfaceData> {
+  const qs = new URLSearchParams(Object.entries(p).map(([k, v]) => [k, String(v)]));
+  return apiGet<SurfaceData>(`/api/v1/options/surface?${qs}`);
+}
+
 // Broker connection
-// ---------------------------------------------------------------------------
 
 export async function zerodhaStatus(): Promise<{ configured: boolean; logged_in: boolean }> {
   return apiGet("/api/v1/brokers/zerodha/status");
@@ -487,9 +452,7 @@ export async function zerodhaLoginUrl(): Promise<{ url: string }> {
   return apiGet("/api/v1/brokers/zerodha/login-url");
 }
 
-// ---------------------------------------------------------------------------
 // Signal validation
-// ---------------------------------------------------------------------------
 
 export interface PerfBlock {
   total_return_pct?: number;
@@ -573,9 +536,7 @@ export async function getShadowVsNifty(): Promise<{
   return apiGet("/api/v1/signals/shadow-vs-nifty");
 }
 
-// ---------------------------------------------------------------------------
 // Live market feed
-// ---------------------------------------------------------------------------
 
 export interface WatchItem {
   symbol: string;
@@ -650,7 +611,7 @@ export async function saveWatchlist(items: WatchItem[]): Promise<{ items: WatchI
   });
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText);
-    throw new Error(`API error ${response.status}: ${text}`);
+    throw new Error(apiErrorMessage(response.status, text));
   }
   return response.json();
 }
@@ -680,4 +641,228 @@ export async function fyersStatus(): Promise<{ configured: boolean; logged_in: b
 
 export async function fyersLoginUrl(): Promise<{ url: string; redirect_uri: string }> {
   return apiGet("/api/v1/brokers/fyers/login-url");
+}
+
+
+export type SentimentLabel = "bullish" | "bearish" | "neutral";
+
+export interface NewsHeadline {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  published: string;
+  /** -1 (bearish) to +1 (bullish), lexicon scored */
+  score: number;
+  label: SentimentLabel;
+  symbols: string[];
+}
+
+export interface NewsMover {
+  symbol: string;
+  exchange: string | null;
+  close: number | null;
+  change_pct: number;
+  direction: "up" | "down" | "flat";
+  drivers: (NewsHeadline & { aligned: boolean })[];
+  reason: string | null;
+  note: string;
+}
+
+export interface SentimentRow {
+  symbol: string;
+  watched: boolean;
+  mentions: number;
+  score: number;
+  label: SentimentLabel;
+  bullish: number;
+  bearish: number;
+  neutral: number;
+  latest: NewsHeadline | null;
+}
+
+export interface SentimentAlert {
+  id: string;
+  /** ISO time the flip was detected */
+  t: string;
+  symbol: string;
+  from: SentimentLabel;
+  to: SentimentLabel;
+  score: number;
+  mentions: number;
+  headline: NewsHeadline | null;
+}
+
+export interface NewsPulse {
+  mood: {
+    value: number;
+    label: SentimentLabel;
+    window_hours: number;
+    counts: Record<SentimentLabel, number>;
+    headlines: number;
+  };
+  history: { t: string; v: number }[];
+  tracker: SentimentRow[];
+  movers: NewsMover[];
+  alerts: SentimentAlert[];
+  sources: Record<string, boolean>;
+  updated_at: string | null;
+  method: string;
+}
+
+export async function getNewsPulse(): Promise<NewsPulse> {
+  return apiGet("/api/v1/news/pulse");
+}
+
+export async function getNewsHeadlines(limit = 80): Promise<{ headlines: NewsHeadline[] }> {
+  return apiGet(`/api/v1/news/headlines?limit=${limit}`);
+}
+
+export interface SymbolNews {
+  symbol: string;
+  headlines: NewsHeadline[];
+  tone: { score: number; label: SentimentLabel; mentions: number; bullish: number; bearish: number; neutral: number };
+  /** the symbol's current stable tone, once it has enough headlines to have one */
+  state: SentimentLabel | null;
+  alerts: SentimentAlert[];
+}
+
+export async function getSymbolNews(symbol: string): Promise<SymbolNews> {
+  return apiGet(`/api/v1/news/symbol?symbol=${encodeURIComponent(symbol)}`);
+}
+
+
+export type Severity = "low" | "medium" | "high";
+
+export interface BehaviorCheck {
+  severity: Severity;
+  evidence: string;
+  [metric: string]: unknown;
+}
+
+export interface JournalRoundTrip {
+  symbol: string;
+  direction: "long" | "short";
+  entry_dt: string;
+  exit_dt: string;
+  qty: number;
+  entry_price: number;
+  exit_price: number;
+  hold_days: number;
+  pnl: number;
+  pnl_pct: number;
+  fees: number;
+  category: "intraday" | "short_term" | "long_term";
+}
+
+export interface JournalProfile {
+  total_trades: number;
+  symbols: number;
+  first_trade: string;
+  last_trade: string;
+  trades_per_week: number;
+  closed_round_trips: number;
+  open_positions: { symbol: string; direction: string; quantity: number; average_price: number; since: string }[];
+  xirr: { value: number | null; note: string };
+  note?: string;
+  win_rate?: number;
+  avg_win?: number;
+  avg_loss?: number;
+  profit_loss_ratio?: number | null;
+  profit_factor?: number | null;
+  expectancy?: number;
+  total_pnl?: number;
+  fees_paid?: number;
+  max_drawdown?: number;
+  avg_hold_days?: number;
+  best_trip?: { symbol: string; direction: string; pnl: number; entry: string; exit: string };
+  worst_trip?: { symbol: string; direction: string; pnl: number; entry: string; exit: string };
+  by_category?: Record<string, { trips: number; pnl: number; win_rate: number }>;
+  by_symbol?: { symbol: string; trips: number; pnl: number; win_rate: number }[];
+  monthly_pnl?: { month: string; pnl: number }[];
+  pnl_curve?: { t: string; v: number }[];
+  entries_by_hour?: Record<string, number>;
+  entries_by_weekday?: Record<string, number>;
+}
+
+export interface JournalAnalysis {
+  file: { name: string; format: string; rows_used: number; rows_skipped: number; date_range: [string, string] };
+  synthetic?: boolean;
+  profile: JournalProfile;
+  behavior: Record<"disposition_effect" | "overtrading" | "chasing_momentum" | "anchoring", BehaviorCheck>;
+  findings: { key: string; title: string; severity: Severity; evidence: string }[];
+  round_trips: JournalRoundTrip[];
+  method: string;
+}
+
+async function parseApiError(response: Response): Promise<never> {
+  const text = await response.text().catch(() => response.statusText);
+  throw new Error(apiErrorMessage(response.status, text));
+}
+
+export async function analyzeJournal(file: File): Promise<JournalAnalysis> {
+  const form = new FormData();
+  form.append("file", file);
+  // No Content-Type header: the browser sets the multipart boundary itself.
+  const response = await fetch(`${API_BASE_URL}/api/v1/journal/analyze`, { method: "POST", headers: authHeaders(), body: form });
+  if (!response.ok) return parseApiError(response);
+  return response.json();
+}
+
+export async function analyzeSampleJournal(): Promise<JournalAnalysis> {
+  return apiPost<JournalAnalysis>("/api/v1/journal/analyze-sample", {});
+}
+
+
+export interface SharpeAssessment {
+  observations: number;
+  periods_per_year: number;
+  sharpe_per_period: number | null;
+  sharpe_annualized: number | null;
+  skew: number | null;
+  kurtosis: number | null;
+  annualized_return: number | null;
+  max_drawdown: number | null;
+  sortino_annualized: number | null;
+  calmar: number | null;
+  confidence_level: number;
+  psr?: number | null;
+  min_track_record?: number | null;
+  n_trials?: number;
+  trial_sharpe_std?: number | null;
+  trial_std_assumed?: boolean;
+  bar_per_period?: number | null;
+  bar_annualized?: number | null;
+  dsr?: number | null;
+  verdict?: "likely_real" | "suggestive" | "indistinguishable";
+  verdict_text?: string;
+  error?: string;
+}
+
+export async function assessSharpe(values: number[], nTrials: number, periodsPerYear = 252): Promise<SharpeAssessment> {
+  return apiPost<SharpeAssessment>("/api/v1/validation/sharpe", { values, kind: "equity", n_trials: nTrials, periods_per_year: periodsPerYear });
+}
+
+
+export interface CorrelationRegime {
+  labels: string[];
+  matrix: (number | null)[][];
+  dates: string[];
+  density: (number | null)[];
+  smoothed: (number | null)[];
+  fused: number[];
+  episodes: { start: string; end: string | null }[];
+  current: { state: "FUSED" | "NORMAL"; smoothed_density: number | null; average_correlation: number | null };
+  most_correlated: { a: string; b: string; corr: number }[];
+  least_correlated: { a: string; b: string; corr: number }[];
+  unavailable: string[];
+  params: { days: number; corr_window: number; edge_threshold: number; smooth_window: number; enter_threshold: number; exit_threshold: number };
+}
+
+export async function getCorrelationRegime(opts: { symbols?: string; days?: number; corrWindow?: number } = {}): Promise<CorrelationRegime> {
+  const q = new URLSearchParams();
+  if (opts.symbols) q.set("symbols", opts.symbols);
+  if (opts.days) q.set("days", String(opts.days));
+  if (opts.corrWindow) q.set("corr_window", String(opts.corrWindow));
+  return apiGet(`/api/v1/analytics/correlation?${q.toString()}`);
 }

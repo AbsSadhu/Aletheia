@@ -182,8 +182,6 @@ class TestStats:
 
 
 class TestTopicConstants:
-    def test_topic_constants_are_strings(self):
-        assert isinstance(Topics.MARKET_QUOTE, str)
-        assert isinstance(Topics.ORACLE_SIGNAL, str)
-        assert isinstance(Topics.TRADE_PAPER, str)
-        assert isinstance(Topics.RUN_COMPLETED, str)
+    def test_topic_names_are_unique(self):
+        topics = [v for k, v in vars(Topics).items() if k.isupper()]
+        assert len(topics) == len(set(topics))

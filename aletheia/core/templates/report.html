@@ -154,7 +154,7 @@
     <div class="cover-subtitle">India-First Multi-Agent Financial Intelligence</div>
     <div class="cover-title">Investment Intelligence Report</div>
     <div class="cover-meta">
-      Run ID: {{ run_id }} &nbsp;|&nbsp; {{ generated_at }} &nbsp;|&nbsp; Portfolio: {{ portfolio_name }}
+      Run ID: {{ run_id }} &nbsp;|&nbsp; {{ generated_at }} &nbsp;|&nbsp; {{ prompt }}
     </div>
     <div class="cover-badge">{{ status }}</div>
   </div>
@@ -164,12 +164,8 @@
     <!-- KPI Strip -->
     <div class="kpi-grid">
       <div class="kpi-card">
-        <div class="kpi-label">Portfolio Value</div>
-        <div class="kpi-value purple">₹{{ portfolio_value }}</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Holdings</div>
-        <div class="kpi-value">{{ num_holdings }}</div>
+        <div class="kpi-label">Symbols</div>
+        <div class="kpi-value">{{ num_symbols }}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Confidence</div>
@@ -187,24 +183,23 @@
       {{ executive_summary | default("No executive summary generated.", true) }}
     </div>
 
-    <!-- Holdings Table -->
-    {% if holdings %}
-    <h2>Portfolio Holdings</h2>
+    <!-- Oracle signals -->
+    {% if symbols %}
+    <h2>Oracle Signals</h2>
     <table>
       <thead>
         <tr>
-          <th>Symbol</th><th>Exchange</th><th>Quantity</th><th>Avg Price (₹)</th><th>Value (₹)</th><th>Asset Type</th>
+          <th>Symbol</th><th>Last Price</th><th>Signal</th><th>Confidence</th><th>Rationale</th>
         </tr>
       </thead>
       <tbody>
-        {% for h in holdings %}
+        {% for sym in symbols %}
         <tr>
-          <td><strong>{{ h.symbol }}</strong></td>
-          <td>{{ h.exchange }}</td>
-          <td>{{ h.quantity }}</td>
-          <td>{{ '%.2f'|format(h.average_price) }}</td>
-          <td>{{ '%.0f'|format(h.quantity * h.average_price) }}</td>
-          <td>{{ h.asset_type }}</td>
+          <td><strong>{{ sym.symbol }}</strong></td>
+          <td>{{ '%.2f'|format(sym.last_price) if sym.last_price is not none else '—' }}</td>
+          <td>{{ sym.signal }}</td>
+          <td>{{ '%.0f'|format(sym.confidence * 100) }}%</td>
+          <td style="max-width:300px; word-wrap:break-word;">{{ sym.rationale or '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -227,7 +222,7 @@
           <td>
             <span class="badge badge-{{ r.action | lower }}">{{ r.action }}</span>
           </td>
-          <td>{{ '₹%.2f'|format(r.target_price) if r.target_price else '—' }}</td>
+          <td>{{ '₹%.2f'|format(r.target_price) if r.target_price is not none else '—' }}</td>
           <td>{{ '%.0f'|format(r.confidence * 100) }}%</td>
           <td style="max-width:300px; word-wrap:break-word;">{{ r.reasoning[:200] if r.reasoning else '—' }}</td>
         </tr>
@@ -244,21 +239,22 @@
     <div class="risk-row">
       <div class="risk-metric">
         <div class="risk-name">VaR (95%)</div>
-        <div class="risk-val {{ 'red' if risk.var_95 < -0.03 else '' }}">{{ '%.2f'|format(risk.var_95 * 100) }}%</div>
+        <div class="risk-val red">{{ '%.2f'|format(risk.var_95) if risk.var_95 is not none else '—' }}</div>
       </div>
       <div class="risk-metric">
-        <div class="risk-name">Sharpe Ratio</div>
-        <div class="risk-val {{ 'green' if risk.sharpe > 1 else '' }}">{{ '%.2f'|format(risk.sharpe) }}</div>
+        <div class="risk-name">Concentration</div>
+        <div class="risk-val">{{ risk.concentration_risk }}</div>
       </div>
       <div class="risk-metric">
-        <div class="risk-name">Max Drawdown</div>
-        <div class="risk-val red">{{ '%.2f'|format(risk.max_drawdown * 100) }}%</div>
+        <div class="risk-name">Largest position</div>
+        <div class="risk-val">{{ risk.max_single_position_pct }}%</div>
       </div>
       <div class="risk-metric">
-        <div class="risk-name">Win Rate</div>
-        <div class="risk-val {{ 'green' if risk.win_rate > 0.5 else 'red' }}">{{ '%.1f'|format(risk.win_rate * 100) }}%</div>
+        <div class="risk-name">Regime</div>
+        <div class="risk-val">{{ risk.market_regime }}</div>
       </div>
     </div>
+    {% for alert in risk.alerts %}<p>&bull; {{ alert }}</p>{% endfor %}
     {% endif %}
 
     <!-- Tax Scenarios -->
@@ -267,17 +263,18 @@
     <table>
       <thead>
         <tr>
-          <th>Scenario</th><th>Duration</th><th>Tax Rate</th><th>Est. Tax (₹)</th><th>Net Return (₹)</th>
+          <th>Symbol</th><th>Term</th><th>Profile</th><th>Tax Rate</th><th>Est. Tax (₹)</th><th>Post-tax Profit (₹)</th>
         </tr>
       </thead>
       <tbody>
         {% for s in tax_scenarios %}
         <tr>
-          <td>{{ s.label }}</td>
-          <td>{{ s.duration }}</td>
+          <td>{{ s.symbol }}</td>
+          <td>{{ s.term }}</td>
+          <td>{{ s.tax_profile }}</td>
           <td>{{ s.tax_rate }}%</td>
-          <td>{{ '%.0f'|format(s.estimated_tax) }}</td>
-          <td class="{{ 'green' if s.net_return > 0 else 'red' }}">{{ '%.0f'|format(s.net_return) }}</td>
+          <td>{{ '%.0f'|format(s.estimated_tax) if s.estimated_tax is not none else '—' }}</td>
+          <td>{{ '%.0f'|format(s.post_tax_profit) if s.post_tax_profit is not none else '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>

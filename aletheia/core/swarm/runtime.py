@@ -39,5 +39,4 @@ class SwarmRuntime:
             else:
                 yield event
 
-        # Wait for all tasks to cleanly exit
         await asyncio.gather(*tasks)

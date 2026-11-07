@@ -32,7 +32,6 @@ async def update_config(updated_config: dict) -> dict:
 
     for key, val in updated_config.items():
         if key in current_dict:
-            # If the user submitted a masked placeholder, keep the existing value
             if isinstance(val, str) and (all(c == "*" for c in val) or "..." in val):
                 continue
             current_dict[key] = val
@@ -40,7 +39,6 @@ async def update_config(updated_config: dict) -> dict:
     try:
         new_config = AletheiaConfig(**current_dict)
         saved = manager.save(new_config)
-        # Clear settings cache so new settings are loaded on the next call
         get_settings.cache_clear()
         return saved.masked_dict()
     except Exception as e:

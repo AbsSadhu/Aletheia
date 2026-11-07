@@ -60,7 +60,6 @@ class Settings(BaseSettings):
         ]
     )
 
-    # --- Portfolio Manager Constraints ---
     pm_max_position_size_pct: float = Field(default=20.0)
     pm_max_sector_concentration_pct: float = Field(default=30.0)
     pm_max_portfolio_var_pct: float = Field(default=15.0)
@@ -71,8 +70,10 @@ class Settings(BaseSettings):
     fallback_position_pct: float = Field(default=5.0, gt=0, le=100)
     paper_starting_cash: float = Field(default=1_000_000.0, gt=0)
 
-    # --- LLM Configuration ---
     ollama_base_url: str = "http://127.0.0.1:11434"
+    # Context window requested from Ollama. Its own default is small, and it silently drops the
+    # oldest tokens (the system prompt first) when a conversation outgrows it.
+    ollama_num_ctx: int = 8192
     default_llm_provider: str = "ollama"
     default_llm_model: str = "mistral:7b"
     # Ordered priority list: first available provider wins
@@ -85,7 +86,6 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-haiku-4-5"
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-1.5-pro"
-    enable_cloud_llm_fallback: bool = False
     llm_max_retries: int = 2
     llm_retry_delay_secs: float = 1.0
     # Fail app startup if the configured LLM provider is unreachable. Off by
@@ -93,12 +93,10 @@ class Settings(BaseSettings):
     # backtest, hypotheses, factors) still boots without Ollama installed.
     require_llm_preflight: bool = False
 
-    # --- Hypothesis auto-validation ---
     # Heuristic default, not a claim of statistical rigor — a widely-cited
     # "acceptable risk-adjusted return" cutoff, configurable per deployment.
     hypothesis_validation_sharpe_threshold: float = 1.0
 
-    # --- Live Market Feed ---
     market_feed_enabled: bool = True
     market_feed_interval_secs: float = 15.0  # polling fallback cadence
     # With Angel One enabled the live feed streams over a WebSocket; each symbol is pushed to
@@ -113,19 +111,14 @@ class Settings(BaseSettings):
     # when the watchlist contains a crypto pair.
     crypto_stream_enabled: bool = True
 
-    # --- Signal track record ---
     # How often to score past Oracle predictions against realised prices (0 disables).
     calibration_resolve_interval_secs: float = 21600.0
 
-    # --- Rust Compute Engine Sidecar ---
     compute_engine_url: str = "http://127.0.0.1:18899"
     compute_engine_enabled: bool = False  # Set True when aletheia-engine binary is running
 
     execution_db_path: Path = Field(default=Path("./data/execution.sqlite3"))
-    execution_mode: str = "simulation"
-    execution_observation_days_required: int = 7
 
-    # --- Live broker orders (real money) ---
     # Off by default. Even when on, an order must pass the execution gate (LIVE mode, not
     # paused, enough real paper-trading history), require API-key auth to be configured,
     # and stay inside these hard caps.
@@ -134,17 +127,12 @@ class Settings(BaseSettings):
     live_max_order_qty: int = 500
     live_max_orders_per_day: int = 10
 
-    enable_audit_logs: bool = True
-    enable_desktop_bridge: bool = True
     yfinance_enabled: bool = True
     ccxt_enabled: bool = True
     # Angel One SmartAPI: free live NSE/BSE quotes. Credentials live in ConfigManager.
     angel_one_enabled: bool = False
     static_seed_enabled: bool = False  # hardcoded demo prices; offline dev only
-    nse_enabled: bool = True
-    rbi_enabled: bool = True
 
-    # --- Observability ---
     langsmith_tracing: bool = False
     langsmith_api_key: str | None = None
     langsmith_project: str = "aletheia"

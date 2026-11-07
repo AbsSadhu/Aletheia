@@ -69,6 +69,28 @@ between releases.
   `package.json` for the UI.
 
 ### Fixed
+- **PDF and Excel export of a run.** Both read fields no run has (`result_json`, `request.portfolio`), so every
+  workbook said "Run ID unknown / Status UNKNOWN" with empty sheets, and the PDF was an HTML file named `.pdf`
+  because WeasyPrint needs GTK libraries Windows lacks. The export now reads the real run (summary, signals,
+  recommendations, risk, tax), falls back to a pure-Python ReportLab PDF, and the buttons show "Saved to your
+  Downloads folder" or the real error. New dependency: `reportlab` (BSD, pure Python).
+- A WebSocket opened after a run finished as `partial` waited forever (`RunStatus.is_terminal`).
+- The chat agent reported "max iterations reached" even when its answer arrived on the last allowed iteration.
+- Swarm, MCP and CLI agents were handed mock tools (`sec_filings`, `sector_peers`, `web_reader`) that return
+  fake data; `build_registry()` now leaves stub tools out by default.
+- ADANIENT and ADANIPORTS were skipped by fundamentals and options flow because the tickers contain "ADA"
+  (a coin); crypto is now recognised by `marketdata.symbols.is_crypto`, not by substring.
+- Chat, backtest tool and the signal-history route guessed their own Yahoo symbols; they now share
+  `yahoo_symbol`, so renamed tickers (ZOMATO) and hyphenated NSE tickers (BAJAJ-AUTO) resolve everywhere.
+- `GET /memory/vector-search` always returned 500 (missing store path, un-awaited search).
+- `aletheia paper settle` re-settled already settled trades (it read a field that does not exist).
+- Paper account equity lost the profit of any position that was fully closed (realised P&L now comes from the
+  trade ledger).
+- Dashboard: the 15 s refresh reset the portfolio the user had picked in the New Analysis dialog.
+- Settings: Zerodha/Fyers login polling never stopped and was duplicated (`useBrokerLogin`).
+- Run page: chart colours were hard-coded (white-on-dark only, off-palette); they now follow the theme.
+- The live gate measures paper-trading days itself; `paper_observation_days` is gone from the API and from
+  `LiveExecutionGate.set_mode`, so no caller can claim an observation period.
 - Live Market banners no longer name Angel One when another broker is streaming, and an auth problem is
   shown once instead of twice.
 - The live-feed path was documented as `/ws/market-feed`; it is `/api/v1/ws/market`. The frontend also
@@ -83,6 +105,17 @@ between releases.
 - Node failures caused by a timeout no longer show a blank reason; the message states the limit and
   names `ALETHEIA_NODE_TIMEOUT_SECS`.
 - Exported reports and the sidebar still said v0.1.0; both now show the real version.
+
+### Removed
+- Dead code, each checked for references first: `RateLimitMiddleware`, `AgentStreamer`, `core/risk/validation.py`,
+  `backtest/validation.py`, `ShadowAccountReporter`, the hypotheses CLI handlers, three unused desktop-bridge
+  models, seven settings nothing read (`enable_audit_logs`, `enable_desktop_bridge`, `nse_enabled`,
+  `rbi_enabled`, `enable_cloud_llm_fallback`, `execution_mode`, `execution_observation_days_required`), nine
+  unused frontend API functions, `lib/utils.ts` and the `tailwind-merge` dependency, ~155 lines of CSS for the
+  pre-rail sidebar, and ~400 comments that only restated the code.
+- The unwired TradingView webhook router (it would have placed orders without the risk gates) and its USER_GUIDE
+  section. The Sentiment and Fundamental agents' LLM branch, which could never run (`llm.generate` does not exist),
+  together with their prompt builders; their output is unchanged.
 
 ## [0.1.1] - 2026-10-19
 

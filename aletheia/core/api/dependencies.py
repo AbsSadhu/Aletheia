@@ -23,6 +23,8 @@ from aletheia.core.infrastructure.metrics import MetricsRegistry
 from aletheia.core.events.bus import get_event_bus
 from aletheia.core.marketdata.feed_manager import FeedManager
 from aletheia.core.marketdata.watchlist import WatchlistStore
+from aletheia.core.news.service import NewsService
+from aletheia.core.news.store import NewsAlertStore
 from aletheia.core.execution.live_gate import LiveExecutionGate
 from aletheia.core.execution.paper_trader import PaperTrader
 from aletheia.core.execution.guard import ExecutionGuard
@@ -159,6 +161,11 @@ def get_providers() -> tuple[MarketDataProvider, ...]:
 @lru_cache
 def get_watchlist_store() -> WatchlistStore:
     return WatchlistStore(get_settings().data_dir / "watchlist.json")
+
+
+@lru_cache
+def get_news_service() -> NewsService:
+    return NewsService(store=NewsAlertStore(get_settings().data_dir / "news_alerts.db"))
 
 
 @lru_cache

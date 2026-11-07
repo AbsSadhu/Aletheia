@@ -44,7 +44,6 @@ class CriticAgent:
         Returns CriticVerdict(passed, score, notes).
         """
         if self._llm is None:
-            # No LLM — auto-pass with caveat
             return CriticVerdict(
                 passed=True,
                 score=1.0,
@@ -52,7 +51,6 @@ class CriticAgent:
                 iteration=iteration,
             )
 
-        # After max iterations, force pass
         if iteration > _MAX_ITERATIONS:
             return CriticVerdict(
                 passed=True,
@@ -90,7 +88,6 @@ class CriticAgent:
         score = float(data.get("score", 0.8))
         notes = list(data.get("notes", []))
 
-        # Apply thresholds
         if score >= _PASS_THRESHOLD:
             passed = True
         elif score < _FAIL_THRESHOLD and iteration <= _MAX_ITERATIONS:
@@ -113,14 +110,12 @@ class CriticAgent:
         notes: list[str] = []
         score = 1.0
 
-        # Check: does summary mention risk if Sentinel has high VaR?
         var_95 = sentinel_output.get("portfolio_var_95", 0)
         summary = scribe_output.executive_summary.lower()
         if var_95 > 0.05 and "risk" not in summary and "var" not in summary:
             notes.append(f"High portfolio VaR ({var_95:.1%}) not mentioned in summary.")
             score -= 0.15
 
-        # Check: are there recommendations?
         if not scribe_output.recommendations:
             notes.append("No specific recommendations emitted — summary is non-actionable.")
             score -= 0.2

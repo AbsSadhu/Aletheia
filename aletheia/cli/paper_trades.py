@@ -27,6 +27,15 @@ app = typer.Typer(
 console = Console()
 
 
+def unsettled_buys(trades: list, settle_date: date) -> list:
+    """BUY trades up to `settle_date` still waiting for their closing price."""
+    return [
+        t
+        for t in trades
+        if t.side == "BUY" and t.status == "filled" and t.timestamp.date() <= settle_date
+    ]
+
+
 def _get_paper_trader():
     from aletheia.core.api.dependencies import get_paper_trader
 
@@ -56,7 +65,6 @@ def show_trades(
     table.add_column("Side", justify="center")
     table.add_column("Qty", justify="right")
     table.add_column("Fill Price", justify="right")
-    table.add_column("Actual Close", justify="right")
     table.add_column("P&L", justify="right")
     table.add_column("Status")
     table.add_column("Timestamp", style="dim")
@@ -71,16 +79,12 @@ def show_trades(
             if pnl > 0
             else (f"[red]{pnl:.2f}[/red]" if pnl < 0 else f"[dim]{pnl:.2f}[/dim]")
         )
-        actual = getattr(trade, "actual_close", None)
-        actual_str = f"{actual:.2f}" if actual is not None else "[dim]–[/dim]"
-
         table.add_row(
             trade.trade_id[:12] + "…",
             trade.symbol,
             side_style,
             f"{trade.simulated_qty:.0f}",
             f"₹{trade.simulated_fill_price:.2f}",
-            actual_str,
             pnl_style,
             getattr(trade, "status", "filled"),
             trade.timestamp.strftime("%Y-%m-%d %H:%M"),
@@ -159,13 +163,7 @@ def settle_trades(
     trades = trader.list_trades(limit=200)
     date_str = settle_date.isoformat()
 
-    to_settle = [
-        t
-        for t in trades
-        if t.timestamp.date() <= settle_date
-        and t.side == "BUY"
-        and getattr(t, "actual_close", None) is None
-    ]
+    to_settle = unsettled_buys(trades, settle_date)
 
     if not to_settle:
         console.print(f"[yellow]No unsettled trades found for {date_str}.[/yellow]")

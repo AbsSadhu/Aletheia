@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from aletheia.core.config.settings import get_settings
 from aletheia.core.execution.position_sizing import PositionSizer
+from aletheia.extensions.backtest.execution_costs import ExecutionCosts
 from aletheia.extensions.backtest.runner import BacktestRunner
 from aletheia.extensions.backtest.strategy import StrategySignal
 
@@ -28,6 +29,51 @@ class BacktestRequest(BaseModel):
     end_date: str  # YYYY-MM-DD
     strategy: str = "sma_crossover"
     initial_capital: float = 100_000.0
+    # "auto" picks a cost preset from the symbol; "none" fills at the close with no costs.
+    cost_model: str = "auto"
+
+
+def pick_costs(cost_model: str, symbols: list[str]) -> ExecutionCosts | None:
+    """The cost preset for a run, or None when the caller asked for none."""
+    if cost_model == "none":
+        return None
+    if cost_model != "auto":
+        return ExecutionCosts.for_asset_class(cost_model)
+    first = symbols[0].upper()
+    if "/" in first or "-" in first or first.endswith("USDT"):
+        return ExecutionCosts.for_asset_class("crypto")
+    if first.endswith(".BO"):
+        return ExecutionCosts.for_asset_class("equity_bse")
+    return ExecutionCosts.for_asset_class("equity_nse")
+
+
+def split_missing(all_candles: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Separate symbols that have a usable price history from those that do not."""
+    usable = {sym: c for sym, c in all_candles.items() if len(c) >= 2}
+    return usable, [sym for sym in all_candles if sym not in usable]
+
+
+def coverage_warnings(
+    symbols: list[str], all_candles: dict[str, list], start: str, end: str
+) -> list[str]:
+    """Plain-language notes on data that does not cover the window asked for."""
+    from datetime import date
+
+    notes: list[str] = []
+    try:
+        want_start, want_end = date.fromisoformat(start), date.fromisoformat(end)
+    except ValueError:
+        return notes
+    for sym in symbols:
+        candles = all_candles[sym]
+        first, last = date.fromisoformat(candles[0].date), date.fromisoformat(candles[-1].date)
+        if (first - want_start).days > 20:
+            notes.append(
+                f"{sym} has no prices before {first.isoformat()}, so the run starts there for it."
+            )
+        if (want_end - last).days > 7:
+            notes.append(f"{sym} has no prices after {last.isoformat()}.")
+    return notes
 
 
 def resolve_signal_quantity(signal: StrategySignal, price: float, runner: BacktestRunner) -> float:
@@ -63,7 +109,10 @@ async def run_backtest(request: BacktestRequest) -> dict:
 
     settings = get_settings()
     feed = HistoricalDataFeed(duckdb_path=settings.duckdb_path)
-    runner = BacktestRunner(initial_capital=request.initial_capital)
+    runner = BacktestRunner(
+        initial_capital=request.initial_capital,
+        costs=pick_costs(request.cost_model, request.symbols),
+    )
 
     # Fetch data for all symbols
     fetch_tasks = [
@@ -80,6 +129,20 @@ async def run_backtest(request: BacktestRequest) -> dict:
     for sym in request.symbols:
         candles = feed.get_candles(sym, request.start_date, request.end_date)
         all_candles[sym] = candles
+
+    # Never answer with a flat curve when the real problem is missing data. A symbol with no prices
+    # (delisted, renamed, mistyped) is left out and reported; if none have prices there is nothing
+    # to run.
+    all_candles, no_data = split_missing(all_candles)
+    if not all_candles:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"No price data for {', '.join(no_data)} between {request.start_date} and "
+                f"{request.end_date}. Check the ticker (Indian stocks are RELIANCE or RELIANCE.NS, "
+                "crypto is BTC-USD) and the dates."
+            ),
+        )
 
     # Drive event loop: for each trading day across all symbols
     date_set: set[str] = set()
@@ -118,6 +181,16 @@ async def run_backtest(request: BacktestRequest) -> dict:
         strategy_name=request.strategy,
         start_date=request.start_date,
         end_date=request.end_date,
+    )
+    result.data_as_of = max(candles[-1].date for candles in all_candles.values())
+    result.warnings = [
+        f"{sym} has no price data for this period (renamed, delisted or mistyped?), so it was left out."
+        for sym in no_data
+    ] + coverage_warnings(
+        [s for s in request.symbols if s in all_candles],
+        all_candles,
+        request.start_date,
+        request.end_date,
     )
 
     from aletheia.extensions.backtest.storage import BacktestResultStore

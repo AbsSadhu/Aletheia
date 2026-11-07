@@ -4,6 +4,9 @@ duckdb_store/compute_client/llm_client keep these off the network and off a
 real Ollama instance.
 """
 
+import pandas as pd
+import pytest
+
 from aletheia.extensions.agents.sentinel import SentinelAgent
 from aletheia.core.models import (
     AssetType,
@@ -61,6 +64,26 @@ def _quotes() -> dict[str, MarketQuote]:
     return {"RELIANCE": quote}
 
 
+class _FakeTicker:
+    """Stands in for yfinance.Ticker so these tests never touch the network."""
+
+    closes: list[float] = []
+
+    def __init__(self, symbol: str) -> None:
+        self.symbol = symbol
+
+    def history(self, period: str = "3mo") -> pd.DataFrame:
+        return pd.DataFrame({"Close": self.closes})
+
+
+@pytest.fixture(autouse=True)
+def _no_network_benchmark(monkeypatch: pytest.MonkeyPatch) -> None:
+    import yfinance
+
+    _FakeTicker.closes = []
+    monkeypatch.setattr(yfinance, "Ticker", _FakeTicker)
+
+
 async def test_assess_uses_default_brief_when_no_llm_and_no_regime_detection() -> None:
     agent = SentinelAgent()
     agent.llm_client = _FakeLLM(result=None)
@@ -72,7 +95,18 @@ async def test_assess_uses_default_brief_when_no_llm_and_no_regime_detection() -
     assert output.regime_detail == "unknown"
 
 
+async def test_assess_never_invents_a_benchmark_without_history() -> None:
+    agent = SentinelAgent(compute_client=_FakeComputeClient(regime="crash"))
+    agent.llm_client = _FakeLLM(result=None)
+
+    output = await agent.assess(_portfolio(), _quotes())
+
+    assert output.regime_detail == "unknown"  # regime detection was not run on fabricated data
+    assert any("regime unavailable" in a.lower() for a in output.alerts)
+
+
 async def test_assess_updates_regime_from_compute_client() -> None:
+    _FakeTicker.closes = [22000.0 + i for i in range(60)]
     agent = SentinelAgent(compute_client=_FakeComputeClient(regime="crash"))
     agent.llm_client = _FakeLLM(result=None)
 

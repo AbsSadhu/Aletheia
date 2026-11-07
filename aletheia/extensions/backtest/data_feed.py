@@ -12,6 +12,7 @@ Usage:
 
 from __future__ import annotations
 
+import functools
 import logging
 from dataclasses import dataclass
 
@@ -79,9 +80,7 @@ class HistoricalDataFeed:
                 CREATE INDEX IF NOT EXISTS idx_historical_candles_date ON historical_candles (date)
             """)
 
-    # ------------------------------------------------------------------
     # Fetch + Store
-    # ------------------------------------------------------------------
 
     async def fetch_and_store(
         self,
@@ -127,7 +126,10 @@ class HistoricalDataFeed:
         logger.info(
             "HistoricalDataFeed: downloading %s (%s → %s, %s)", symbol, start, end, interval
         )
-        ticker = yf.Ticker(symbol)
+        from aletheia.core.marketdata.symbols import apply_rename
+
+        # fetch under the current ticker; results stay filed under the name the caller used
+        ticker = yf.Ticker(apply_rename(symbol))
 
         # yfinance is synchronous — run in thread pool
         import asyncio
@@ -149,6 +151,26 @@ class HistoricalDataFeed:
             )
             if df is not None and not df.empty:
                 symbol = fallback_sym
+
+        if (df is None or df.empty) and is_bare_symbol(symbol):
+            # "RELIANCE" is not a Yahoo ticker; Indian listings are RELIANCE.NS or RELIANCE.BO.
+            for suffix in (".NS", ".BO"):
+                candidate = symbol + suffix
+                logger.info("HistoricalDataFeed: trying %s for bare symbol %s", candidate, symbol)
+                candidate_ticker = yf.Ticker(candidate)
+                df = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    functools.partial(
+                        candidate_ticker.history,
+                        start=start,
+                        end=end,
+                        interval=interval,
+                        auto_adjust=True,
+                    ),
+                )
+                if df is not None and not df.empty:
+                    symbol = candidate
+                    break
 
         if df is None or df.empty:
             logger.warning("HistoricalDataFeed: no data returned for %s", symbol)
@@ -199,9 +221,7 @@ class HistoricalDataFeed:
         logger.info("HistoricalDataFeed: stored %d candles for %s", len(rows), symbol)
         return len(rows)
 
-    # ------------------------------------------------------------------
     # Read
-    # ------------------------------------------------------------------
 
     def get_candles(
         self,
@@ -275,9 +295,7 @@ class HistoricalDataFeed:
             ).fetchall()
         return [r[0] for r in rows]
 
-    # ------------------------------------------------------------------
     # Helpers
-    # ------------------------------------------------------------------
 
     def _has_data(self, symbol: str, start: str, end: str) -> bool:
         """Check if we already have data for this symbol+range (rough check)."""
@@ -309,6 +327,11 @@ class HistoricalDataFeed:
                 return row[0] > 0 if row else False
         except Exception:
             return False
+
+
+def is_bare_symbol(symbol: str) -> bool:
+    """True for a plain ticker like RELIANCE: no exchange suffix, pair, index or local marker."""
+    return symbol.replace("&", "").isalnum() and not symbol.startswith("LOCAL:")
 
 
 def _assert_no_lookahead(candles: list[OHLCV]) -> None:

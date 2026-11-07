@@ -30,7 +30,6 @@ class LongTermMemory:
     summarised long-term records for efficient agent recall.
     """
 
-    # Retention boundaries
     L1_DAYS = 14
     L2_DAYS = 180
     L3_DAYS = 730
@@ -45,13 +44,8 @@ class LongTermMemory:
         self.wm = working_memory or WorkingMemory()
         self._init_db()
 
-    # ------------------------------------------------------------------
-    # Schema
-    # ------------------------------------------------------------------
-
     def _init_db(self) -> None:
         with self._conn() as conn:
-            # L2 — weekly rollups
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS l2_weekly_rollups (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +60,6 @@ class LongTermMemory:
                     UNIQUE(agent_name, ticker, week_start)
                 )
             """)
-            # L3 — monthly summaries
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS l3_monthly_summaries (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,16 +79,11 @@ class LongTermMemory:
         conn.row_factory = sqlite3.Row
         return conn
 
-    # ------------------------------------------------------------------
-    # Promotion
-    # ------------------------------------------------------------------
-
     def promote_l1_to_l2(self, agent_name: str) -> int:
         """Roll up last week's L1 observations into L2 weekly records."""
         week_start = (datetime.now(UTC) - timedelta(days=7)).isoformat()
         observations = self.wm.list_all_observations(agent_name=agent_name, limit=200)
 
-        # Group by ticker
         by_ticker: dict[str, list[dict[str, Any]]] = {}
         for obs in observations:
             ts = obs.get("timestamp", "")
@@ -191,10 +179,6 @@ class LongTermMemory:
         l3 = self.promote_l2_to_l3(agent_name)
         return {"l2_promoted": l2, "l3_promoted": l3}
 
-    # ------------------------------------------------------------------
-    # Retrieval
-    # ------------------------------------------------------------------
-
     def retrieve_l2(self, agent_name: str, ticker: str, limit: int = 4) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
@@ -240,10 +224,6 @@ class LongTermMemory:
                 )
 
         return "\n".join(parts) if parts else ""
-
-    # ------------------------------------------------------------------
-    # Cleanup
-    # ------------------------------------------------------------------
 
     def prune_expired(self) -> dict[str, int]:
         """Remove records beyond their retention window."""

@@ -23,7 +23,6 @@ class SentinelAgent:
         quotes_by_symbol: dict[str, MarketQuote],
         macro_context_text: str = "",
     ) -> SentinelOutput:
-        # Base quantitative risk assessment
         base_output = assess_portfolio_risk(portfolio, quotes_by_symbol)
 
         # F3. HMM Regime detection from DuckDB/yfinance NIFTY returns
@@ -51,17 +50,20 @@ class SentinelAgent:
                     nifty_closes = list(hist["Close"].values)[::-1]
             except Exception as exc:
                 logger.debug("SentinelAgent: yfinance NIFTY history fetch failed: %s", exc)
+        nifty_returns: list[float] = []
         if len(nifty_closes) < 10:
+            # Never invent a benchmark: without real history the regime is simply unknown.
             logger.warning(
-                "SentinelAgent: no real NIFTY history available — regime detection is "
-                "computed against synthetic placeholder benchmark data."
+                "SentinelAgent: no real NIFTY history available; market regime left unknown."
             )
-            nifty_closes = [22000.0 * (1.0 + (i * 0.001)) for i in range(60)]
-
-        nifty_returns = [
-            (nifty_closes[i] - nifty_closes[i + 1]) / nifty_closes[i + 1]
-            for i in range(len(nifty_closes) - 1)
-        ][::-1]
+            base_output.alerts.append(
+                "Market regime unavailable: no NIFTY price history could be retrieved."
+            )
+        else:
+            nifty_returns = [
+                (nifty_closes[i] - nifty_closes[i + 1]) / nifty_closes[i + 1]
+                for i in range(len(nifty_closes) - 1)
+            ][::-1]
 
         if self.compute_client and nifty_returns:
             try:
@@ -76,7 +78,6 @@ class SentinelAgent:
             except Exception as exc:
                 logger.debug("SentinelAgent: regime detection failed: %s", exc)
 
-        # Update market_regime and regime_detail
         base_output.market_regime = regime
         base_output.regime_detail = regime_detail
 

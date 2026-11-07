@@ -6,6 +6,7 @@ class ReportTool(BaseTool):
     """Generates analytical reports."""
 
     name: ClassVar[str] = "report_generate"
+    is_stub: ClassVar[bool] = True  # returns placeholder data; hidden from the chat agent
     description: ClassVar[str] = "Generate a PDF, JSON, or CSV report based on recent analysis."
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",

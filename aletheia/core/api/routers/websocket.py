@@ -17,7 +17,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from aletheia.core.api.dependencies import get_feed_manager, get_run_service
 from aletheia.core.api.security import is_authorized
 from aletheia.core.events.bus import Event, Topics, get_event_bus
-from aletheia.core.models import RunStatus
 
 router = APIRouter(prefix="/api/v1")
 
@@ -31,18 +30,15 @@ async def run_events(websocket: WebSocket, run_id: str) -> None:
     await websocket.accept()
     service = get_run_service()
 
-    # Send all cached events
     for event in service.get_events(run_id):
         await websocket.send_json(event.model_dump(mode="json"))
 
-    # Check if already completed
     run = service.get_run(run_id)
-    if run and run.summary.status in (RunStatus.COMPLETED, RunStatus.FAILED):
+    if run and run.summary.status.is_terminal:
         await websocket.send_json({"run_id": run_id, "message": "stream_complete"})
         await websocket.close()
         return
 
-    # Register for live broadcasts
     service.register_socket(run_id, websocket)
     try:
         while True:

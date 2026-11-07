@@ -6,6 +6,7 @@ class SECFilingsTool(BaseTool):
     """Fetches SEC filings for US stocks."""
 
     name: ClassVar[str] = "sec_filings"
+    is_stub: ClassVar[bool] = True  # returns placeholder data; hidden from the chat agent
     description: ClassVar[str] = "Fetch recent SEC filings (10-K, 10-Q, 8-K) for US stocks."
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",
