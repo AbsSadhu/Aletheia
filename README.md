@@ -1,6 +1,9 @@
-# Aletheia
+<p align="center"><img src="docs/images/banner.svg" alt="Aletheia: Collector, Oracle, Sentinel, Sage, Scribe" width="100%"></p>
+
+<h1 align="center" hidden>Aletheia</h1>
 
 <p align="center">
+  <a href="https://github.com/AbsSadhu/Aletheia/actions/workflows/ci.yml"><img src="https://github.com/AbsSadhu/Aletheia/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/AbsSadhu/Aletheia/releases/latest"><img src="https://img.shields.io/github/v/release/AbsSadhu/Aletheia?include_prereleases&label=release&color=ff3d2e" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20desktop-0078D6.svg" alt="Windows desktop app">
@@ -8,12 +11,15 @@
   <img src="https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB" alt="React 19">
   <img src="https://img.shields.io/badge/Tauri-2-FFC131?logo=tauri&logoColor=white" alt="Tauri 2">
   <img src="https://img.shields.io/badge/Rust-2021-000000?logo=rust&logoColor=white" alt="Rust">
+  <a href="https://github.com/AbsSadhu/Aletheia/issues?q=is%3Aopen+label%3A%22good+first+issue%22"><img src="https://img.shields.io/github/issues/AbsSadhu/Aletheia/good%20first%20issue?label=good%20first%20issues&color=7057ff" alt="Good first issues"></a>
+  <a href="https://github.com/AbsSadhu/Aletheia/stargazers"><img src="https://img.shields.io/github/stars/AbsSadhu/Aletheia?style=flat&color=ffb02e" alt="GitHub stars"></a>
 </p>
 
 <p align="center"><strong>A private research desk for Indian stocks and crypto.</strong><br>
 Multi-agent portfolio analysis, honest backtests, paper trading and live market views, all running on your own machine.</p>
 
-<p align="center"><img src="docs/images/run-overview.png" alt="A completed multi-agent analysis in Aletheia" width="92%"></p>
+<p align="center"><img src="docs/images/demo.gif" alt="A tour of Aletheia: dashboard, a finished analysis, Market Pulse, Live Market, options pricing and the trade journal" width="92%"></p>
+<p align="center"><sub>A real tour of the desktop app: dashboard, a finished run, Market Pulse, Live Market, options and the trade journal.</sub></p>
 
 **Aletheia** brings a team of specialised agents, fast Rust maths and your local language models together in one desktop app. Add your holdings, press **New Analysis**, and watch the Collector, Oracle, Sentinel, Sage and Scribe work through them live: market data, a deterministic factor signal, Value-at-Risk, India-specific STCG/LTCG tax scenarios, and a written synthesis that is audited before you see it. Your portfolio never leaves your computer.
 
@@ -21,9 +27,19 @@ Multi-agent portfolio analysis, honest backtests, paper trading and live market 
 
 ---
 
+## Why Aletheia
+
+- **Private by design.** Your holdings, runs and journal live in a folder on your own machine. No account, no cloud, no telemetry.
+- **Built for India.** NSE/BSE tickers, STCG/LTCG tax scenarios, Indian trading costs, and news from Indian feeds out of the box.
+- **Honest about what works.** The app backtests its own signal against Nifty and shows you the result, whatever it is.
+- **Agents with guard rails.** Each agent has a strict role contract; one deterministic node enforces size and exposure limits, and every recommendation goes into a tamper-evident log.
+- **Free to run.** Works without any API key. Add a local model through Ollama for chat and written commentary if you like.
+
+---
+
 ## Contents
 
-[Install](#install) · [What you can do](#what-you-can-do) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Run from source](#run-from-source) · [Live data & broker orders](#live-data--broker-orders) · [Good to know](#good-to-know) · [Developer guide](#developer-guide) · [Contributing](#contributing) · [Security](#security) · [License](#license)
+[Install](#install) · [What you can do](#what-you-can-do) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Run from source](#run-from-source) · [Live data & broker orders](#live-data--broker-orders) · [Good to know](#good-to-know) · [FAQ](#faq) · [Developer guide](#developer-guide) · [Contributing](#contributing) · [Security](#security) · [License](#license)
 
 ---
 
@@ -217,6 +233,40 @@ Copy `.env.example` to `.env` to change ports, paths, models or feeds; every set
 
 ---
 
+## FAQ
+
+<details><summary><b>Windows says "Windows protected your PC". Is the installer safe?</b></summary>
+
+The installer is not code-signed yet, so SmartScreen warns about any new unsigned app. Compare the SHA-256 hash of your download with the one on the release page (steps in [Install](#install)); if they match, choose **More info → Run anyway**. The source for everything in the installer is in this repository.
+</details>
+
+<details><summary><b>Do I need an API key or an account?</b></summary>
+
+No. Analysis, backtests, Market Pulse, paper trading and the trade journal all work out of the box. Keys are only needed for optional extras such as a cloud language model or a broker feed.
+</details>
+
+<details><summary><b>Where is my data stored? Does anything leave my machine?</b></summary>
+
+In a `data` folder next to the app (`resources\aletheia-backend\data`). The app fetches public market data and news, and only calls a cloud model or broker if you configure one. Uninstalling leaves your data in place.
+</details>
+
+<details><summary><b>Does it place real trades?</b></summary>
+
+Not by default. It starts in simulation mode, and live orders sit behind several independent safety checks (see [Live data & broker orders](#live-data--broker-orders)).
+</details>
+
+<details><summary><b>Can I trust the BUY / HOLD / REDUCE signals?</b></summary>
+
+Treat them as research output, not advice. That is exactly why **Signal Validation** exists: it tests the signal against Nifty after costs and tax so you can judge it on evidence.
+</details>
+
+<details><summary><b>Does it work on macOS or Linux?</b></summary>
+
+The packaged desktop app is Windows-only today. The backend, web UI and CLI run from source on any platform, and `docker compose up` works anywhere Docker does.
+</details>
+
+---
+
 ## Developer guide
 
 ```powershell
@@ -244,7 +294,7 @@ Docs: [User guide](docs/USER_GUIDE.md) · [Threat model](docs/THREAT_MODEL.md) �
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests and pull-request expectations.
+Contributions are very welcome, and newcomers too. Browse the [**good first issues**](https://github.com/AbsSadhu/Aletheia/issues?q=is%3Aopen+label%3A%22good+first+issue%22), read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests and pull-request expectations, and please follow the [Code of Conduct](CODE_OF_CONDUCT.md). If Aletheia is useful to you, a star helps others find it.
 
 ## Security
 

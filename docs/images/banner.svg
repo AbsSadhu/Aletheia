@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 220" width="100%" role="img" aria-label="Aletheia: collector, oracle, sentinel, sage, scribe">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#ff3d2e"/><stop offset="1" stop-color="#ffb02e"/></linearGradient>
+    <style>
+      .bg{fill:#09090c}.t{font:700 64px 'Segoe UI',Arial,sans-serif;fill:#fff;letter-spacing:-2px}
+      .s{font:500 20px 'Segoe UI',Arial,sans-serif;fill:#b8b8c2}
+      .n{fill:#16161c;stroke:#2d2d36;stroke-width:2}.l{font:600 15px 'Consolas',monospace;fill:#e8e8ee;text-anchor:middle}
+      .ln{stroke:#2d2d36;stroke-width:3}
+      .pulse{stroke:url(#g);stroke-width:4;stroke-dasharray:36 400;stroke-linecap:round;animation:run 4s linear infinite}
+      @keyframes run{from{stroke-dashoffset:0}to{stroke-dashoffset:-436}}
+      .glow{animation:glow 4s ease-in-out infinite}
+      @keyframes glow{0%,100%{stroke:#2d2d36}12%{stroke:#ff3d2e}}
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="220" rx="18"/>
+  <text class="t" x="48" y="92">Aletheia<tspan fill="#ff3d2e">.</tspan></text>
+  <text class="s" x="52" y="130">Five agents. One private research desk. Zero data leaving your machine.</text>
+  <g transform="translate(40,150)">
+    <line class="ln" x1="80" y1="30" x2="1030" y2="30"/>
+    <line class="pulse" x1="80" y1="30" x2="1030" y2="30"/>
+    <g><rect class="n glow" style="animation-delay:0.0s" x="0" y="8" width="160" height="44" rx="10"/><text class="l" x="80" y="36">Collector</text></g>
+    <g><rect class="n glow" style="animation-delay:0.8s" x="240" y="8" width="160" height="44" rx="10"/><text class="l" x="320" y="36">Oracle</text></g>
+    <g><rect class="n glow" style="animation-delay:1.6s" x="480" y="8" width="160" height="44" rx="10"/><text class="l" x="560" y="36">Sentinel</text></g>
+    <g><rect class="n glow" style="animation-delay:2.4000000000000004s" x="720" y="8" width="160" height="44" rx="10"/><text class="l" x="800" y="36">Sage</text></g>
+    <g><rect class="n glow" style="animation-delay:3.2s" x="960" y="8" width="160" height="44" rx="10"/><text class="l" x="1040" y="36">Scribe</text></g>
+  </g>
+</svg>

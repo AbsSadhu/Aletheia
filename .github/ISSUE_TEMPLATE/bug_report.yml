@@ -1,0 +1,53 @@
+name: Bug report
+description: Something in Aletheia is broken or behaves unexpectedly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make Aletheia better. **Do not paste API keys, broker tokens or your portfolio.** For security problems use a [private report](https://github.com/AbsSadhu/Aletheia/security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Click ...
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How are you running Aletheia?
+      options:
+        - Windows installer (desktop app)
+        - From source
+        - Docker
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown in Settings, or run `aletheia --version`.
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11 23H2
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Remove anything private before pasting.
+      render: shell
