@@ -21,6 +21,7 @@ Multi-agent portfolio analysis, honest backtests, paper trading and live market 
 <p align="center">
   <a href="https://github.com/AbsSadhu/Aletheia/releases/latest"><b>Download</b></a> &nbsp;·&nbsp;
   <a href="docs/USER_GUIDE.md">User guide</a> &nbsp;·&nbsp;
+  <a href="docs/QUICKSTART_HI.md">हिंदी क्विक-स्टार्ट</a> &nbsp;·&nbsp;
   <a href="CHANGELOG.md">Changelog</a> &nbsp;·&nbsp;
   <a href="https://github.com/AbsSadhu/Aletheia/issues">Issues</a> &nbsp;·&nbsp;
   <a href="CONTRIBUTING.md">Contribute</a> &nbsp;·&nbsp;
