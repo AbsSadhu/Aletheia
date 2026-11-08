@@ -34,3 +34,15 @@ def test_custom_validator_failure_is_a_422_with_readable_detail() -> None:
     body = r.json()
     assert body["code"] == "VALIDATION_ERROR"
     assert "no spaces allowed" in str(body["detail"])
+
+
+def test_only_deliberate_input_errors_reach_the_response() -> None:
+    from aletheia.core.api.routers.validation import _unprocessable
+    from aletheia.core.validation.stats import ValidationInputError
+
+    ours = _unprocessable(ValidationInputError("need at least 30 observations"))
+    assert ours.status_code == 422 and "at least 30" in ours.detail
+
+    library = _unprocessable(ValueError("internal: array shape (3,) vs C:\secret\path"))
+    assert library.status_code == 422
+    assert "secret" not in library.detail and "shape" not in library.detail

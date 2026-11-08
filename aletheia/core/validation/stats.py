@@ -24,6 +24,11 @@ import numpy as np
 from scipy import stats as sps
 from scipy.stats import norm
 
+
+class ValidationInputError(ValueError):
+    """A deliberate, user-facing complaint about the input (safe to show verbatim)."""
+
+
 EULER_MASCHERONI = 0.5772156649015329
 GAUSSIAN_KURTOSIS = 3.0
 #: Fewest observations for which skew and kurtosis estimates mean anything.
@@ -46,7 +51,7 @@ def sharpe_ratio(
     values = np.asarray(returns, dtype=float).ravel()
     values = values[np.isfinite(values)]
     if values.size < 2:
-        raise ValueError(f"sharpe_ratio needs at least 2 observations, got {values.size}")
+        raise ValidationInputError(f"sharpe_ratio needs at least 2 observations, got {values.size}")
     excess = values - risk_free
     spread = float(excess.std(ddof=ddof))
     if not np.isfinite(spread) or spread <= 0.0:
@@ -63,16 +68,20 @@ def probabilistic_sharpe_ratio(
 ) -> float:
     """Confidence that the true Sharpe exceeds a benchmark, allowing for skew and fat tails."""
     if n_observations < MIN_OBSERVATIONS:
-        raise ValueError(f"need at least {MIN_OBSERVATIONS} observations, got {n_observations}")
+        raise ValidationInputError(
+            f"need at least {MIN_OBSERVATIONS} observations, got {n_observations}"
+        )
     if kurtosis < 1.0:
-        raise ValueError(
+        raise ValidationInputError(
             f"kurtosis must be the non-excess fourth moment (>= 1; 3 for a normal), got {kurtosis}"
         )
     if not np.isfinite(observed_sharpe):
-        raise ValueError("observed_sharpe must be finite")
+        raise ValidationInputError("observed_sharpe must be finite")
     variance_term = 1.0 - skew * observed_sharpe + (kurtosis - 1.0) / 4.0 * observed_sharpe**2
     if variance_term <= 0.0:
-        raise ValueError("the supplied skew and kurtosis are inconsistent with this Sharpe")
+        raise ValidationInputError(
+            "the supplied skew and kurtosis are inconsistent with this Sharpe"
+        )
     statistic = (
         (observed_sharpe - benchmark_sharpe)
         * math.sqrt(n_observations - 1)
@@ -84,9 +93,9 @@ def probabilistic_sharpe_ratio(
 def expected_maximum_sharpe(n_trials: int, trial_sharpe_std: float) -> float:
     """The Sharpe the best of ``n_trials`` reaches by luck alone: the bar a real edge must clear."""
     if n_trials < 1:
-        raise ValueError(f"n_trials must be at least 1, got {n_trials}")
+        raise ValidationInputError(f"n_trials must be at least 1, got {n_trials}")
     if trial_sharpe_std < 0.0:
-        raise ValueError(f"trial_sharpe_std must be >= 0, got {trial_sharpe_std}")
+        raise ValidationInputError(f"trial_sharpe_std must be >= 0, got {trial_sharpe_std}")
     if n_trials == 1 or trial_sharpe_std == 0.0:
         return 0.0
     a = norm.ppf(1.0 - 1.0 / n_trials)
@@ -127,12 +136,12 @@ def min_track_record_length(
 def benjamini_hochberg(p_values: Sequence[float] | np.ndarray, fdr: float = 0.05) -> FDRResult:
     """Control the false discovery rate across many simultaneous tests."""
     if not 0.0 < fdr < 1.0:
-        raise ValueError(f"fdr must be in (0, 1), got {fdr}")
+        raise ValidationInputError(f"fdr must be in (0, 1), got {fdr}")
     values = np.asarray(p_values, dtype=float).ravel()
     if values.size == 0:
-        raise ValueError("p_values is empty")
+        raise ValidationInputError("p_values is empty")
     if not np.isfinite(values).all() or ((values < 0.0) | (values > 1.0)).any():
-        raise ValueError("every p-value must be a number in [0, 1]")
+        raise ValidationInputError("every p-value must be a number in [0, 1]")
     n = values.size
     order = np.argsort(values, kind="stable")
     sorted_p = values[order]
@@ -151,7 +160,7 @@ def returns_from_equity(values: Sequence[float]) -> np.ndarray:
     arr = np.asarray(values, dtype=float)
     arr = arr[np.isfinite(arr)]
     if arr.size < 2 or (arr <= 0).any():
-        raise ValueError("an equity curve needs at least two positive values")
+        raise ValidationInputError("an equity curve needs at least two positive values")
     returns: np.ndarray = arr[1:] / arr[:-1] - 1.0
     return returns
 
@@ -185,14 +194,14 @@ def assess(
     returns = returns[np.isfinite(returns)]
     t = int(returns.size)
     if t < MIN_OBSERVATIONS:
-        raise ValueError(
+        raise ValidationInputError(
             f"Need at least {MIN_OBSERVATIONS} observations to say anything about significance; this has {t}."
         )
     if n_trials < 1:
-        raise ValueError("n_trials must be at least 1")
+        raise ValidationInputError("n_trials must be at least 1")
     sr = sharpe_ratio(returns)
     if not np.isfinite(sr):
-        raise ValueError("The returns have no variation, so there is no Sharpe ratio.")
+        raise ValidationInputError("The returns have no variation, so there is no Sharpe ratio.")
     skew = float(sps.skew(returns, bias=True))
     kurt = float(sps.kurtosis(returns, fisher=False, bias=True))  # non-excess, see module docstring
     ann = math.sqrt(periods_per_year)

@@ -262,7 +262,7 @@ async fn compute_indicators(Json(req): Json<IndicatorsRequest>) -> impl IntoResp
     {
         let n = closes.len();
         let mut cum_v = 0.0; let mut cum_tp = 0.0;
-        let mut vwap = Vec::with_capacity(n);
+        let mut vwap = Vec::new();
         for i in 0..n {
             let tp = (highs.get(i).copied().unwrap_or(closes[i])
                 + lows.get(i).copied().unwrap_or(closes[i])
@@ -295,7 +295,7 @@ async fn compute_portfolio_metrics(Json(req): Json<PortfolioMetricsRequest>) -> 
     }
 
     let eq: Vec<f64> = req.equity_curve.as_ref().cloned().unwrap_or_else(|| {
-        let mut v = Vec::with_capacity(returns.len() + 1);
+        let mut v = Vec::new();
         v.push(1.0);
         let mut eq = 1.0;
         for r in returns { eq *= 1.0 + r; v.push(eq); }
@@ -321,15 +321,15 @@ async fn compute_portfolio_metrics(Json(req): Json<PortfolioMetricsRequest>) -> 
 }
 
 async fn compute_monte_carlo(Json(req): Json<MonteCarloRequest>) -> impl IntoResponse {
-    let n_paths = req.n_paths.unwrap_or(1000).min(10_000);
-    let n_days = req.n_days.unwrap_or(252).min(2_520);
+    let n_paths = req.n_paths.unwrap_or(1000).clamp(1, 10_000);
+    let n_days = req.n_days.unwrap_or(252).clamp(1, 2_520);
     let drift = req.daily_drift.unwrap_or(0.0);
 
     let mut rng = Xorshift128Plus::new(0xDEAD_C0DE_1234_5678);
-    let mut paths: Vec<Vec<f64>> = Vec::with_capacity(n_paths);
+    let mut paths: Vec<Vec<f64>> = Vec::new();
 
     for _ in 0..n_paths {
-        let mut path = Vec::with_capacity(n_days + 1);
+        let mut path = Vec::new();
         let mut v = req.initial_value;
         path.push(v);
         for _ in 0..n_days {
@@ -340,7 +340,7 @@ async fn compute_monte_carlo(Json(req): Json<MonteCarloRequest>) -> impl IntoRes
     }
 
     let pcts = [5usize, 25, 50, 75, 95];
-    let mut series: Vec<Vec<f64>> = (0..5).map(|_| Vec::with_capacity(n_days + 1)).collect();
+    let mut series: Vec<Vec<f64>> = (0..5).map(|_| Vec::new()).collect();
 
     for day in 0..=n_days {
         let mut vals: Vec<f64> = paths.iter().map(|p| p[day]).collect();

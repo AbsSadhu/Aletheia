@@ -6,12 +6,24 @@ POST /validation/fdr       which of many tested ideas survive a false-discovery-
 
 from __future__ import annotations
 
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from aletheia.core.validation.stats import assess, benjamini_hochberg
+from aletheia.core.validation.stats import ValidationInputError, assess, benjamini_hochberg
+
+logger = logging.getLogger(__name__)
+
+
+def _unprocessable(exc: ValueError) -> HTTPException:
+    """Show our own input messages; keep anything else (a library error) out of the response."""
+    if isinstance(exc, ValidationInputError):
+        return HTTPException(status_code=422, detail=str(exc))
+    logger.warning("Validation request failed: %s", exc)
+    return HTTPException(status_code=422, detail="The input could not be processed.")
+
 
 router = APIRouter(prefix="/api/v1")
 
@@ -49,7 +61,7 @@ async def validate_sharpe(body: SharpeRequest) -> dict:
             body.confidence,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise _unprocessable(exc) from exc
 
 
 @router.post("/validation/fdr")
@@ -57,7 +69,7 @@ async def validate_fdr(body: FdrRequest) -> dict:
     try:
         r = benjamini_hochberg(body.p_values, body.fdr)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise _unprocessable(exc) from exc
     return {
         "rejected": [bool(x) for x in r.rejected],
         "adjusted_p_values": [round(float(x), 6) for x in r.adjusted_p_values],

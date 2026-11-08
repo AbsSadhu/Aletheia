@@ -175,7 +175,8 @@ def test_callback_handles_fyers_refusal(client, monkeypatch) -> None:
     r = c.get(
         "/api/v1/brokers/fyers/callback", params={"s": "ok", "auth_code": "bad", "state": state}
     )
-    assert r.status_code == 400 and "invalid auth code" in r.text
+    assert r.status_code == 400 and "Fyers rejected the login" in r.text
+    assert "invalid auth code" not in r.text
     state = zerodha_session.new_login_state()
     assert (
         c.get("/api/v1/brokers/fyers/callback", params={"s": "error", "state": state}).status_code

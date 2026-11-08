@@ -259,8 +259,9 @@ async def pull_model(req: PullRequest) -> StreamingResponse:
                 yield StreamEvent("progress", item).to_sse()
             yield StreamEvent("done", {"model": name}).to_sse()
         except Exception as exc:
+            logger.warning("Could not reach Ollama at %s: %s", base_url, exc)
             yield StreamEvent(
-                "error", {"message": f"Could not reach Ollama at {base_url}: {exc}"}
+                "error", {"message": f"Could not reach Ollama at {base_url}. Is it running?"}
             ).to_sse()
 
     return StreamingResponse(gen(), media_type="text/event-stream", headers=_SSE_HEADERS)

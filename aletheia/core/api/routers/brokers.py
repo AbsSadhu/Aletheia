@@ -12,6 +12,7 @@ can't send headers. It is protected instead by a single-use `state` nonce issued
 
 from __future__ import annotations
 
+import html
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -45,7 +46,7 @@ def _page(message: str, ok: bool) -> HTMLResponse:
     colour = "#2e7d32" if ok else "#c62828"
     return HTMLResponse(
         f"<html><body style='font-family:sans-serif;padding:2rem'>"
-        f"<h3 style='color:{colour}'>{message}</h3>You can close this tab.</body></html>",
+        f"<h3 style='color:{colour}'>{html.escape(message)}</h3>You can close this tab.</body></html>",
         status_code=200 if ok else 400,
     )
 
@@ -67,7 +68,9 @@ async def zerodha_callback(
         )
     except KiteAuthError as exc:
         logger.warning("Zerodha token exchange failed: %s", exc)
-        return _page(f"Zerodha rejected the login: {exc}", False)
+        return _page(
+            "Zerodha rejected the login. Check your API key and secret in Settings.", False
+        )
     session.save_access_token(data["access_token"])
     return _page("Zerodha connected.", True)
 
@@ -110,7 +113,7 @@ async def fyers_callback(
         data = await fyers_session.exchange_auth_code(cfg.fyers_app_id, cfg.fyers_secret, auth_code)
     except fyers_session.FyersAuthError as exc:
         logger.warning("Fyers token exchange failed: %s", exc)
-        return _page(f"Fyers rejected the login: {exc}", False)
+        return _page("Fyers rejected the login. Check your app ID and secret in Settings.", False)
     fyers_session.save_access_token(data["access_token"])
     # Start the live stream now if it was waiting for a login.
     try:
