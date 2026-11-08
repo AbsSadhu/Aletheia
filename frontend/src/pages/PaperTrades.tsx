@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { BarChart3, FolderOpen, XCircle } from "lucide-react";
 import TopBar from "../components/TopBar";
@@ -140,6 +141,9 @@ export default function PaperTrades() {
                 <div className="empty-state-text">
                   Trade signals will populate here automatically once you run portfolio analyses and Sage issues tax-aware recommendations.
                 </div>
+                <Link to="/" className="btn btn-primary" style={{ marginTop: "var(--space-4)" }}>
+                  Start an analysis
+                </Link>
               </div>
             ) : (
               <div className="table-wrap">

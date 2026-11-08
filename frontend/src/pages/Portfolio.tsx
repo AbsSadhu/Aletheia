@@ -885,6 +885,18 @@ export default function Portfolio() {
                       <div className="empty-state-text">
                         Use the form below or upload a CSV to add symbols to this portfolio.
                       </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)", marginTop: "var(--space-4)" }}>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          Import a CSV
+                        </button>
+                        <a href="/sample_portfolio.csv" download style={{ fontSize: "var(--text-xs)" }}>
+                          Download sample CSV
+                        </a>
+                      </div>
                     </div>
                   )}
                 </div>

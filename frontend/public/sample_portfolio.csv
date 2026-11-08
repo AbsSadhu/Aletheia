@@ -1,0 +1,7 @@
+symbol,quantity,average_price,asset_type,exchange,tax_profile
+RELIANCE,10,2450.00,equity,NSE,equity
+TCS,8,3550.00,equity,NSE,equity
+HDFCBANK,25,1580.00,equity,NSE,equity
+INFY,15,1420.00,equity,NSE,equity
+ICICIBANK,20,950.00,equity,NSE,equity
+ITC,100,410.00,equity,NSE,equity
