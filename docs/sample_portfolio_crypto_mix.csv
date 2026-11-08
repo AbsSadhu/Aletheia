@@ -1,0 +1,6 @@
+symbol,quantity,average_price,asset_type,exchange,tax_profile
+RELIANCE,20,2450.00,equity,NSE,equity
+TCS,12,3550.00,equity,NSE,equity
+BTC/USDT,0.5,5800000.00,crypto,BINANCE,crypto
+ETH/USDT,2.5,310000.00,crypto,BINANCE,crypto
+SOL/USDT,15,20500.00,crypto,BINANCE,crypto

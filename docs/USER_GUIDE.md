@@ -54,6 +54,15 @@ To ingest a data file under a specific symbol name, use the `import-data` comman
 .venv\Scripts\python.exe -m aletheia.cli.main import-data --symbol MY_STOCK --file ./path/to/data.csv
 ```
 
+### Sample Portfolios
+Ready-made, clearly fictional portfolios are provided in `docs/` so you can try the portfolio page and dashboard without assembling holdings first. Each uses the same column format (`symbol,quantity,average_price,asset_type,exchange,tax_profile`) and imports cleanly through the Portfolio page:
+- `docs/sample_portfolio.csv` — a diversified mix of Indian large-caps (RELIANCE, TCS, HDFCBANK, INFY, ICICIBANK, ITC)
+- `docs/sample_portfolio_banking.csv` — a private-banks basket (HDFCBANK, ICICIBANK, AXISBANK, KOTAKBANK, INDUSINDBK)
+- `docs/sample_portfolio_it.csv` — an IT-services basket (TCS, INFY, WIPRO, HCLTECH, TECHM)
+- `docs/sample_portfolio_crypto_mix.csv` — a stocks-plus-crypto mix (RELIANCE, TCS, plus BTC/USDT, ETH/USDT, SOL/USDT)
+
+To load one, paste it or upload it via the Portfolio page, or import it with the `import-data` command after mapping the columns.
+
 ### Auto-Column Mapping
 The importer automatically normalizes common column headers. You do not need to rename your columns if they match standard conventions:
 * **Date**: `date`, `timestamp`, `time`, `trade_date`, `datetime`

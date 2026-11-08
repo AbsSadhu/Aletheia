@@ -85,7 +85,7 @@ Everything is stored locally, in a `data` folder inside the app's install folder
 
 | | |
 | :-- | :-- |
-| **Analyse a portfolio** | Add holdings by hand, paste or upload a CSV ([sample](docs/sample_portfolio.csv)), or sync from Zerodha Kite. One click runs the full agent pipeline and streams every step. |
+| **Analyse a portfolio** | Add holdings by hand, paste or upload a CSV ([sample](docs/sample_portfolio.csv) — banking, IT and crypto-mix samples also in `docs/`), or sync from Zerodha Kite. One click runs the full agent pipeline and streams every step. |
 | **Read the results** | Per-symbol signals, portfolio VaR and concentration, STCG/LTCG tax-aware scenarios, sentiment, fundamentals and options flow, and a synthesised BUY / HOLD / REDUCE view with confidence, stop-loss and target. Export any run as **PDF or Excel**. |
 | **Follow the market** | **Market Pulse** scores headlines from public Indian news feeds and tracks the mood, per-symbol tone and tone flips. **Live Market** shows a heat map and tape of your watchlist, with per-second crypto from Binance (no account). |
 | **Test before you trust** | **Backtest** strategies with realistic Indian costs and capital-gains tax. **Signal Validation** pits the Oracle's signal against Nifty after costs and tax, with significance checks, so you can judge it on evidence. |
