@@ -23,7 +23,8 @@ Multi-agent portfolio analysis, honest backtests, paper trading and live market 
   <a href="docs/USER_GUIDE.md">User guide</a> &nbsp;·&nbsp;
   <a href="CHANGELOG.md">Changelog</a> &nbsp;·&nbsp;
   <a href="https://github.com/AbsSadhu/Aletheia/issues">Issues</a> &nbsp;·&nbsp;
-  <a href="CONTRIBUTING.md">Contribute</a>
+  <a href="CONTRIBUTING.md">Contribute</a> &nbsp;·&nbsp;
+  <a href="#questions-or-want-to-get-in-touch">Contact</a>
 </p>
 
 <p align="center"><img src="docs/images/demo.gif" alt="A tour of Aletheia: dashboard, a finished analysis, Market Pulse, Live Market, options pricing and the trade journal" width="92%"></p>
@@ -51,7 +52,7 @@ https://github.com/user-attachments/assets/39a24fea-bf83-4781-b802-388593a09520
 
 ## Contents
 
-[Install](#install) · [What you can do](#what-you-can-do) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Run from source](#run-from-source) · [Live data & broker orders](#live-data--broker-orders) · [Good to know](#good-to-know) · [FAQ](#faq) · [Developer guide](#developer-guide) · [Community](#community) · [Contributing](#contributing) · [Security](#security) · [License](#license)
+[Install](#install) · [What you can do](#what-you-can-do) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Run from source](#run-from-source) · [Live data & broker orders](#live-data--broker-orders) · [Good to know](#good-to-know) · [FAQ](#faq) · [Developer guide](#developer-guide) · [Community](#community) · [Contact](#questions-or-want-to-get-in-touch) · [Contributing](#contributing) · [Security](#security) · [License](#license)
 
 ---
 
@@ -311,6 +312,14 @@ Docs: [User guide](docs/USER_GUIDE.md) · [Threat model](docs/THREAT_MODEL.md) �
 - **Found a vulnerability?** Please [report it privately](https://github.com/AbsSadhu/Aletheia/security/advisories/new); see [SECURITY.md](SECURITY.md).
 - **Be kind.** Everyone is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 - **Like it?** A star on the repo helps other people find Aletheia.
+
+---
+
+## Questions or want to get in touch?
+
+- **Best for most things:** [open an issue](https://github.com/AbsSadhu/Aletheia/issues/new/choose) or add to the [ideas thread](https://github.com/AbsSadhu/Aletheia/issues/24). Questions asked in public help the next person too.
+- **Prefer a direct message?** Email [abssadhu@gmail.com](mailto:abssadhu@gmail.com) or find me on [LinkedIn](https://www.linkedin.com/in/abhinav-sadhu-5x403).
+- **Security problems:** please use the [private report form](https://github.com/AbsSadhu/Aletheia/security/advisories/new) instead of email, so the details stay private until they are fixed.
 
 ---
 
