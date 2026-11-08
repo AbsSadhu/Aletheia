@@ -29,10 +29,9 @@ Multi-agent portfolio analysis, honest backtests, paper trading and live market 
 <p align="center"><img src="docs/images/demo.gif" alt="A tour of Aletheia: dashboard, a finished analysis, Market Pulse, Live Market, options pricing and the trade journal" width="92%"></p>
 <p align="center"><sub>A real tour of the desktop app: dashboard, a finished run, Market Pulse, Live Market, options and the trade journal.</sub></p>
 
-<p align="center">
-  <a href="https://github.com/AbsSadhu/Aletheia/releases/download/v0.2.0/Aletheia-walkthrough.mp4"><img src="docs/images/walkthrough-poster.jpg" alt="Watch the 84-second Aletheia walkthrough" width="70%"></a><br>
-  <a href="https://github.com/AbsSadhu/Aletheia/releases/download/v0.2.0/Aletheia-walkthrough.mp4"><b>&#9654; Watch the 84-second walkthrough</b></a> <sub>(MP4, 16 MB) &middot; music: &ldquo;Perfect Crime&rdquo; by Gvidon, via Pixabay</sub>
-</p>
+https://github.com/user-attachments/assets/39a24fea-bf83-4781-b802-388593a09520
+
+<p align="center"><sub>An 84-second walkthrough. <a href="https://github.com/AbsSadhu/Aletheia/releases/download/v0.2.0/Aletheia-walkthrough.mp4">Download the 1080p version</a> &middot; music: &ldquo;Perfect Crime&rdquo; by Gvidon, via Pixabay</sub></p>
 
 **Aletheia** brings a team of specialised agents, fast Rust maths and your local language models together in one desktop app. Add your holdings, press **New Analysis**, and watch the Collector, Oracle, Sentinel, Sage and Scribe work through them live: market data, a deterministic factor signal, Value-at-Risk, India-specific STCG/LTCG tax scenarios, and a written synthesis that is audited before you see it. Your portfolio never leaves your computer.
 
