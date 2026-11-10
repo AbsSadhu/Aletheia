@@ -61,7 +61,7 @@ Ready-made, clearly fictional portfolios are provided in `docs/` so you can try 
 - `docs/sample_portfolio_it.csv` — an IT-services basket (TCS, INFY, WIPRO, HCLTECH, TECHM)
 - `docs/sample_portfolio_crypto_mix.csv` — a stocks-plus-crypto mix (RELIANCE, TCS, plus BTC/USDT, ETH/USDT, SOL/USDT)
 
-To load one, paste it or upload it via the Portfolio page, or import it with the `import-data` command after mapping the columns.
+To load one, paste it or upload it via the Portfolio page.
 
 ### Auto-Column Mapping
 The importer automatically normalizes common column headers. You do not need to rename your columns if they match standard conventions:
