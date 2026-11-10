@@ -143,7 +143,7 @@ Common snags new users hit, with the likely cause and the fix for each.
 
 **Symptom:** `uvicorn` (backend, port 8899) or Vite (frontend, port 5173) fails to bind.
 **Cause:** another process already owns the port.
-**Fix:** find and stop the previous instance, or change the port in `.env` (`ALETHEIA_API_PORT`, `ALETHEIA_FRONTEND_PORT`). On Windows, `netstat -ano | findstr :8899` shows the owning PID.
+**Fix:** find and stop the previous instance, or change the backend port in `.env` (`ALETHEIA_PORT`, default 8899; see `.env.example`). The frontend port is not an environment setting — it is Vite's, so pass it with `npm run dev -- --port 5174`. On Windows, `netstat -ano | findstr :8899` shows the owning PID.
 
 ### 7.4 The chat assistant answers nothing / "Ollama not running"
 
