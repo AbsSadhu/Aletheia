@@ -1,0 +1,6 @@
+symbol,quantity,average_price,asset_type,exchange,tax_profile
+TCS,15,3550.00,equity,NSE,equity
+INFY,25,1420.00,equity,NSE,equity
+WIPRO,120,540.00,equity,NSE,equity
+HCLTECH,45,1450.00,equity,NSE,equity
+TECHM,60,1350.00,equity,NSE,equity

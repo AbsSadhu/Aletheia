@@ -1,0 +1,6 @@
+symbol,quantity,average_price,asset_type,exchange,tax_profile
+HDFCBANK,40,1580.00,equity,NSE,equity
+ICICIBANK,60,950.00,equity,NSE,equity
+AXISBANK,35,1120.00,equity,NSE,equity
+KOTAKBANK,25,1750.00,equity,NSE,equity
+INDUSINDBK,20,1350.00,equity,NSE,equity
