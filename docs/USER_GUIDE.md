@@ -120,3 +120,45 @@ Tips for building and developing on Windows:
 1. **Windows Defender Lockups**: Windows Defender may lock temporary compilation files in the Rust cargo target folder (`aletheia_engine/target`). If a build fails with `os error 32`, delete the target folder manually.
 2. **PyO3 Site-Packages Overwrite**: If Maturin is locked, kill running Python processes before rebuilding.
 3. **Explicit Python Execution**: Always prefix commands with `.venv\Scripts\python.exe` or `.venv\Scripts\pytest` to keep within the workspace virtual environment.
+
+---
+
+## 7. Troubleshooting
+
+Common snags new users hit, with the likely cause and the fix for each.
+
+### 7.1 Windows says "Windows protected your PC"
+
+**Symptom:** SmartScreen blocks the installer the first time you run it.
+**Cause:** the installer is not code-signed yet, so Windows flags any new unsigned app.
+**Fix:** verify the SHA-256 hash of your download against `SHA256SUMS.txt` from the release page (steps in README → Install), then choose **More info → Run anyway**. If the hash matches, the file is the genuine build.
+
+### 7.2 A run comes back `partial` with a slow local model
+
+**Symptom:** an analysis finishes with gaps or a `partial` status and nothing is actually broken.
+**Cause:** the default per-agent timeout is 120 seconds; a large model on modest hardware can exceed it.
+**Fix:** raise `ALETHEIA_NODE_TIMEOUT_SECS` in `.env` (for example to 300) and re-run. You can also pull a lighter model with `ollama pull mistral:7b`.
+
+### 7.3 "Port already in use" when starting the backend or frontend
+
+**Symptom:** `uvicorn` (backend, port 8899) or Vite (frontend, port 5173) fails to bind.
+**Cause:** another process already owns the port.
+**Fix:** find and stop the previous instance, or change the backend port in `.env` (`ALETHEIA_PORT`, default 8899; see `.env.example`). The frontend port is not an environment setting — it is Vite's, so pass it with `npm run dev -- --port 5174`. On Windows, `netstat -ano | findstr :8899` shows the owning PID.
+
+### 7.4 The chat assistant answers nothing / "Ollama not running"
+
+**Symptom:** the assistant is empty or errors immediately, though every other page works.
+**Cause:** the assistant needs a local model (or a cloud key); Ollama may not be running or has no model pulled.
+**Fix:** start Ollama and run `ollama pull mistral:7b`, or point Aletheia at OpenAI/Anthropic/Gemini in Settings.
+
+### 7.5 Rust build fails with `os error 32`
+
+**Symptom:** `maturin develop` or the engine build fails on Windows with `os error 32`.
+**Cause:** Windows Defender has locked temporary compilation files in `aletheia_engine/target`.
+**Fix:** delete the `target` folder manually and rebuild; also kill running Python processes if Maturin is locked (see section 6).
+
+### 7.6 The installer or app "loses" data after uninstall
+
+**Symptom:** after uninstalling and reinstalling, your portfolio and runs appear missing.
+**Cause:** uninstall leaves the `data` folder in place, but only if you reinstall to the same folder.
+**Fix:** reinstall to the same folder; your data is at `resources\aletheia-backend\data` inside the app's install folder.

@@ -249,6 +249,8 @@ Copy `.env.example` to `.env` to change ports, paths, models or feeds; every set
 
 ## FAQ
 
+For fixes to common snags (SmartScreen, slow model timeouts, port-in-use, Ollama not running, Rust build errors), see the [Troubleshooting section](docs/USER_GUIDE.md#7-troubleshooting) of the User Guide.
+
 <details><summary><b>Windows says "Windows protected your PC". Is the installer safe?</b></summary>
 
 The installer is not code-signed yet, so SmartScreen warns about any new unsigned app. Compare the SHA-256 hash of your download with the one on the release page (steps in [Install](#install)); if they match, choose **More info → Run anyway**. The source for everything in the installer is in this repository.
