@@ -24,7 +24,8 @@ Multi-agent portfolio analysis, honest backtests, paper trading and live market 
   <a href="CHANGELOG.md">Changelog</a> &nbsp;·&nbsp;
   <a href="https://github.com/AbsSadhu/Aletheia/issues">Issues</a> &nbsp;·&nbsp;
   <a href="CONTRIBUTING.md">Contribute</a> &nbsp;·&nbsp;
-  <a href="#questions-or-want-to-get-in-touch">Contact</a>
+  <a href="#questions-or-want-to-get-in-touch">Contact</a> &nbsp;·&nbsp;
+  <a href="docs/QUICKSTART_HI.md">हिंदी क्विक-स्टार्ट</a>
 </p>
 
 <p align="center"><img src="docs/images/demo.gif" alt="A tour of Aletheia: dashboard, a finished analysis, Market Pulse, Live Market, options pricing and the trade journal" width="92%"></p>
