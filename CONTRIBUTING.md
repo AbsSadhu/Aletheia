@@ -62,6 +62,17 @@ language should pass all of the relevant ones, not just the Python suite.
 | Frontend | `npm run test` inside `frontend/` |
 | Frontend build/typecheck | `npm run build` inside `frontend/` |
 
+The five `tests/test_compute_client.py` tests exercise the Rust compute sidecar
+(`aletheia_engine`) and skip when it is not reachable — the skip reason says so.
+To run them, build and start the sidecar, enable it in `.env`, then run the file:
+
+```powershell
+cargo build --release --manifest-path aletheia_engine/Cargo.toml
+# in .env: compute_engine_url=http://127.0.0.1:18899 and compute_engine_enabled=true
+cargo run --manifest-path aletheia_engine/Cargo.toml --release
+.venv\Scripts\pytest tests\test_compute_client.py -rs
+```
+
 All of the above run in CI (`.github/workflows/ci.yml`) on every PR and are
 blocking merge gates — including `tests/integration` and the Rust dependency
 audits (`aletheia_rust`, `aletheia_engine`), which used to be

@@ -20,7 +20,11 @@ def _sidecar_reachable() -> bool:
 # Skip all tests in this file unless the aletheia-engine sidecar is enabled AND running
 pytestmark = pytest.mark.skipif(
     not _sidecar_reachable(),
-    reason="aletheia-engine compute sidecar is not enabled or not running",
+    reason=(
+        "aletheia-engine compute sidecar is not enabled or not running — start it "
+        "(cargo run in aletheia_engine/, defaults to 127.0.0.1:18899) and set "
+        "compute_engine_enabled=true in .env to run these tests; see CONTRIBUTING.md"
+    ),
 )
 
 
